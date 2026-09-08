@@ -26,7 +26,7 @@ Not yet applicable — no build tooling exists. Once scaffolding begins, expect 
 
 ## Conventions (from AGENTS.md)
 
-- **PR titles**: human-readable, imperative, sentence case, ~70 chars, **no Conventional Commit prefix**. Descriptions use `## Summary` + `## Test plan` (checklists, concrete commands). Every PR gets a category label (`enhancement`, `bug`, `documentation`, …) plus scope labels (`android`, `wear`, `frontend`, `backend`, `rust`, `plugin`, `data-model`, `sync`). PRs open ready for review, not as drafts.
+- **PR titles**: human-readable, imperative, sentence case, ~70 chars, **no Conventional Commit prefix**. Descriptions use `## Summary` + `## Test plan` (checklists, concrete commands). Every PR gets a category label (`enhancement`, `bug`, `documentation`, …) plus scope labels (`android`, `wear-os`, `frontend`, `backend`, `rust`, `plugin`, `data-model`, `sync`). PRs open ready for review, not as drafts.
 - **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); write bodies to a file and `git commit -F` when they contain backticks.
 - **Licence headers** on new source files, once they exist: one-line summary + `(c) Copyright 2026 Liminal HQ, Scott Morris` + `SPDX-License-Identifier: Apache-2.0 OR MIT`.
 - **Docs sync**: user-facing behaviour or screen/state changes update `SPEC.md` and `SCREENS.md` respectively, in the same change.
