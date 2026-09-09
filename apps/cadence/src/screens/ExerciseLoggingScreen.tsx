@@ -165,8 +165,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					onChange: (value) => loadedSet && persistSet({ ...loadedSet, durationSec: value }),
 				};
 
+	// Re-visiting an already-completed set via the cluster's prev/next stepper is editing, not
+	// logging -- its fields already save live on every +/- press (see persistSet below), so the
+	// button just confirms rather than completing-and-advancing again.
+	const isEditingCompletedSet = loadedSet?.status === 'completed';
+
 	const handleLog = async () => {
-		if (!loadedSet) return;
+		if (!loadedSet || isEditingCompletedSet) return;
 		const completed = await repository.completeSet(loadedSet.id);
 		setSets((prev) => prev.map((s) => (s.id === completed.id ? completed : s)));
 
@@ -338,7 +343,9 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 							primary={primaryField}
 							secondary={secondaryField}
 							onLog={handleLog}
-							logLabel={`Log set ${loadedSet.order}`}
+							logLabel={
+								isEditingCompletedSet ? `Save set ${loadedSet.order}` : `Log set ${loadedSet.order}`
+							}
 							logDisabled={
 								exercise.metricProfile === 'weight-reps'
 									? loadedSet.weightKg === undefined || loadedSet.reps === undefined

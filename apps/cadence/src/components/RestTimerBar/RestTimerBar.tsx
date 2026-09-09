@@ -83,17 +83,6 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 				<button
 					type="button"
 					className="rest-timer-bar__icon-button"
-					aria-label="Resume"
-					onClick={(e) => {
-						e.stopPropagation();
-						repository.resumeRestTimer();
-					}}
-				>
-					<span className="material-symbols-rounded">play_arrow</span>
-				</button>
-				<button
-					type="button"
-					className="rest-timer-bar__icon-button"
 					aria-label="Dismiss"
 					onClick={(e) => {
 						e.stopPropagation();
@@ -101,6 +90,17 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 					}}
 				>
 					<span className="material-symbols-rounded">close</span>
+				</button>
+				<button
+					type="button"
+					className="rest-timer-bar__icon-button"
+					aria-label="Resume"
+					onClick={(e) => {
+						e.stopPropagation();
+						repository.resumeRestTimer();
+					}}
+				>
+					<span className="material-symbols-rounded">play_arrow</span>
 				</button>
 			</div>
 		);

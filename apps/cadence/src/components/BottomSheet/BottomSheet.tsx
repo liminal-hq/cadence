@@ -104,12 +104,14 @@ export function BottomSheet({ onClose, children, ariaLabel }: BottomSheetProps) 
 				style={{ transform }}
 			>
 				<div
-					className="bottom-sheet__handle"
+					className="bottom-sheet__handle-hitarea"
 					onPointerDown={handlePointerDown}
 					onPointerMove={handlePointerMove}
 					onPointerUp={handlePointerUp}
 					onPointerCancel={handlePointerUp}
-				/>
+				>
+					<div className="bottom-sheet__handle" />
+				</div>
 				{children}
 			</div>
 		</div>,

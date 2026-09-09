@@ -31,16 +31,18 @@
 	transition: none;
 }
 
+.bottom-sheet__handle-hitarea {
+	flex-shrink: 0;
+	display: flex;
+	justify-content: center;
+	padding: 12px 24px 8px;
+	margin: -12px -24px -8px;
+	touch-action: none;
+}
+
 .bottom-sheet__handle {
 	width: 32px;
 	height: 4px;
 	border-radius: 2px;
 	background: var(--cadence-outline-variant);
-	align-self: center;
-	margin-bottom: 4px;
-	flex-shrink: 0;
-	touch-action: none;
-	padding: 10px 24px;
-	margin: -10px -24px 4px;
-	background-clip: content-box;
 }
