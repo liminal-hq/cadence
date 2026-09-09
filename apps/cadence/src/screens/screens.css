@@ -24,6 +24,9 @@
 }
 
 .button-filled {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	height: 40px;
 	padding: 0 24px;
 	border-radius: var(--cadence-shape-full);
@@ -33,6 +36,7 @@
 	font-size: var(--cadence-type-label-l-size);
 	font-weight: var(--cadence-type-label-l-weight);
 	letter-spacing: 0.01em;
+	text-decoration: none;
 	cursor: pointer;
 	margin-top: 4px;
 }

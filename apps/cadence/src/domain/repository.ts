@@ -19,6 +19,8 @@ export type Unsubscribe = () => void;
 
 export interface LoggingRepository {
 	getWorkoutExercise(id: string): Promise<WorkoutExercise>;
+	/** Sibling exercises in the same workout, ordered -- drives P-14's previous/next-exercise navigation. */
+	listWorkoutExercisesByWorkout(workoutId: string): Promise<WorkoutExercise[]>;
 	getExercise(id: string): Promise<Exercise>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;

@@ -74,6 +74,7 @@ describe('MockLoggingRepository', () => {
 
 			await repo.extendRestTimer(30_000);
 			expect(seen[seen.length - 1]?.targetInstant).toBe('2026-09-09T12:03:00.000Z');
+			expect(seen[seen.length - 1]?.totalMs).toBe(150_000); // grows with the target, so the progress bar stays honest
 
 			// now = 12:01:30, target = 12:03:00 -> 90s left.
 			vi.advanceTimersByTime(90_000);

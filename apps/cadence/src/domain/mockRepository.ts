@@ -114,6 +114,12 @@ export class MockLoggingRepository implements LoggingRepository {
 		return workoutExercise;
 	}
 
+	async listWorkoutExercisesByWorkout(workoutId: string): Promise<WorkoutExercise[]> {
+		return [...this.workoutExercises.values()]
+			.filter((we) => we.workoutId === workoutId)
+			.sort((a, b) => a.order - b.order);
+	}
+
 	async listSets(workoutExerciseId: string): Promise<SetEntry[]> {
 		return [...this.sets.values()]
 			.filter((s) => s.workoutExerciseId === workoutExerciseId)
@@ -262,7 +268,11 @@ export class MockLoggingRepository implements LoggingRepository {
 				new Date(this.restTimer.targetInstant).getTime() + deltaMs,
 			).toISOString();
 			this.scheduleElapse(new Date(targetInstant).getTime() - Date.now());
-			this.setRestTimer({ ...this.restTimer, targetInstant });
+			this.setRestTimer({
+				...this.restTimer,
+				targetInstant,
+				totalMs: (this.restTimer.totalMs ?? 0) + deltaMs,
+			});
 		} else if (
 			this.restTimer.status === 'paused' &&
 			this.restTimer.remainingMsAtPause !== undefined
