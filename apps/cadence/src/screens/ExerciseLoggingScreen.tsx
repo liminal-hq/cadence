@@ -14,6 +14,9 @@ import { RestTimerSheet } from '../components/RestTimerSheet/RestTimerSheet';
 import { SetEditorSheet } from '../components/SetEditorSheet/SetEditorSheet';
 import { SetNoteScreen } from '../components/SetNoteScreen/SetNoteScreen';
 import { PlateCalculatorSheet } from '../components/PlateCalculatorSheet/PlateCalculatorSheet';
+import { CoachMarkTooltip } from '../components/CoachMark/CoachMarkTooltip';
+import { CoachMarkBadge } from '../components/CoachMark/CoachMarkBadge';
+import { useCoachMarkTour } from '../components/CoachMark/useCoachMarkTour';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import { formatClockTime, formatDurationSec, formatNumber } from '../domain/format';
 import type { Exercise, SetEntry, WorkoutExercise } from '../domain/types';
@@ -30,6 +33,29 @@ type Overlay =
 	| { type: 'setNote'; setId: string }
 	| { type: 'plateCalculator'; setId: string }
 	| { type: 'restTimer' };
+
+// Five coach marks, first workout only, skippable at any step (Logging.dc.html's Priya
+// canvas): ① tap a row to load it, ② the Log button, ③ where last time will appear,
+// ④ rest auto-starts, ⑤ watch hand-off.
+const COACH_MARK_STEPS = [
+	{
+		title: 'Tap a set to load it',
+		body: 'It loads into the stepper below -- use −/+ to fill it in.',
+	},
+	{ title: 'Log when it’s done', body: 'Log finishes the set, starts rest and moves you on.' },
+	{
+		title: 'Last time lands here',
+		body: 'Next time this shows your weight and reps -- and a trophy if you beat it.',
+	},
+	{
+		title: 'Rest starts by itself',
+		body: 'Rest starts after each set. Tap the bar to change or skip.',
+	},
+	{
+		title: 'Got a Wear OS watch?',
+		body: 'Install Cadence on it to log from your wrist -- even offline.',
+	},
+];
 
 function setRowState(set: SetEntry, loadedSetId: string | null): SetRowState {
 	if (set.status === 'completed') return 'completed';
@@ -53,6 +79,9 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	// Sam has a paired watch (SPEC's persona); Priya doesn't -- drives the rest timer
 	// sheet's haptics-ownership copy and notifications-denied demo.
 	const hasWatch = scenario !== 'priya-first-run';
+	// The coach mark tour is Priya's first-workout-only onboarding moment (SPEC's persona) --
+	// it doesn't run for Sam, who's already used the app.
+	const coachMarks = useCoachMarkTour(scenario === 'priya-first-run');
 
 	const loadWorkoutExercise = useCallback(
 		async (workoutExerciseId: string) => {
@@ -269,28 +298,56 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 						</div>
 					</div>
 				) : (
-					<div className="exercise-logging__no-history">
+					<div
+						className={`exercise-logging__no-history coach-mark-anchor${coachMarks.active && coachMarks.step === 2 ? ' coach-mark-highlight' : ''}`}
+					>
 						<span className="screen-empty-state__headline">No history yet</span>
 						<p className="screen-empty-state__body">Today's sets become next time's reference.</p>
+						{coachMarks.active && coachMarks.step < 2 && <CoachMarkBadge step={3} />}
 					</div>
+				)}
+				{coachMarks.active && coachMarks.step === 2 && (
+					<CoachMarkTooltip
+						{...COACH_MARK_STEPS[2]}
+						step={2}
+						totalSteps={COACH_MARK_STEPS.length}
+						tailPlacement="top"
+						isLastStep={coachMarks.isLastStep}
+						onNext={coachMarks.next}
+						onSkip={coachMarks.skip}
+					/>
 				)}
 
 				{loadedSet && (
-					<StepperCluster
-						setPositionLabel={`Set ${loadedIndex + 1} of ${sets.length}`}
-						canPrev={loadedIndex > 0}
-						canNext={loadedIndex < sets.length - 1}
-						onPrev={() => setLoadedSetId(sets[loadedIndex - 1]?.id ?? null)}
-						onNext={() => setLoadedSetId(sets[loadedIndex + 1]?.id ?? null)}
-						primary={primaryField}
-						secondary={secondaryField}
-						onLog={handleLog}
-						logLabel={`Log set ${loadedSet.order}`}
-						logDisabled={
-							exercise.metricProfile === 'weight-reps'
-								? loadedSet.weightKg === undefined || loadedSet.reps === undefined
-								: loadedSet.distanceKm === undefined || loadedSet.durationSec === undefined
-						}
+					<div className="coach-mark-anchor">
+						<StepperCluster
+							setPositionLabel={`Set ${loadedIndex + 1} of ${sets.length}`}
+							canPrev={loadedIndex > 0}
+							canNext={loadedIndex < sets.length - 1}
+							onPrev={() => setLoadedSetId(sets[loadedIndex - 1]?.id ?? null)}
+							onNext={() => setLoadedSetId(sets[loadedIndex + 1]?.id ?? null)}
+							primary={primaryField}
+							secondary={secondaryField}
+							onLog={handleLog}
+							logLabel={`Log set ${loadedSet.order}`}
+							logDisabled={
+								exercise.metricProfile === 'weight-reps'
+									? loadedSet.weightKg === undefined || loadedSet.reps === undefined
+									: loadedSet.distanceKm === undefined || loadedSet.durationSec === undefined
+							}
+						/>
+						{coachMarks.active && coachMarks.step < 1 && <CoachMarkBadge step={2} />}
+					</div>
+				)}
+				{coachMarks.active && coachMarks.step === 1 && (
+					<CoachMarkTooltip
+						{...COACH_MARK_STEPS[1]}
+						step={1}
+						totalSteps={COACH_MARK_STEPS.length}
+						tailPlacement="top"
+						isLastStep={coachMarks.isLastStep}
+						onNext={coachMarks.next}
+						onSkip={coachMarks.skip}
 					/>
 				)}
 
@@ -332,6 +389,17 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 						/>
 					))}
 				</div>
+				{coachMarks.active && coachMarks.step === 0 && (
+					<CoachMarkTooltip
+						{...COACH_MARK_STEPS[0]}
+						step={0}
+						totalSteps={COACH_MARK_STEPS.length}
+						tailPlacement="top"
+						isLastStep={coachMarks.isLastStep}
+						onNext={coachMarks.next}
+						onSkip={coachMarks.skip}
+					/>
+				)}
 
 				<button type="button" className="exercise-logging__add-set" onClick={handleAddSet}>
 					<span className="material-symbols-rounded">add</span>
@@ -339,14 +407,42 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				</button>
 
 				{!hasWatch && (
-					<div className="exercise-logging__watch-upsell">
+					<div
+						className={`exercise-logging__watch-upsell coach-mark-anchor${coachMarks.active && coachMarks.step === 4 ? ' coach-mark-highlight' : ''}`}
+					>
 						<span className="material-symbols-rounded">watch</span>
 						<span>Got a Wear OS watch? Log from your wrist</span>
+						{coachMarks.active && coachMarks.step < 4 && <CoachMarkBadge step={5} />}
 					</div>
+				)}
+				{coachMarks.active && coachMarks.step === 4 && (
+					<CoachMarkTooltip
+						{...COACH_MARK_STEPS[4]}
+						step={4}
+						totalSteps={COACH_MARK_STEPS.length}
+						tailPlacement="top"
+						isLastStep={coachMarks.isLastStep}
+						onNext={coachMarks.next}
+						onSkip={coachMarks.skip}
+					/>
 				)}
 			</div>
 
-			<div className="exercise-logging__rest-timer">
+			<div
+				className={`exercise-logging__rest-timer coach-mark-anchor${coachMarks.active && coachMarks.step === 3 ? ' coach-mark-highlight' : ''}`}
+			>
+				{coachMarks.active && coachMarks.step === 3 && (
+					<CoachMarkTooltip
+						{...COACH_MARK_STEPS[3]}
+						step={3}
+						totalSteps={COACH_MARK_STEPS.length}
+						tailPlacement="bottom"
+						isLastStep={coachMarks.isLastStep}
+						onNext={coachMarks.next}
+						onSkip={coachMarks.skip}
+					/>
+				)}
+				{coachMarks.active && coachMarks.step < 3 && <CoachMarkBadge step={4} />}
 				<RestTimerBar onOpen={() => setOverlay({ type: 'restTimer' })} />
 			</div>
 

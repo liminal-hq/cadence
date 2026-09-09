@@ -209,5 +209,8 @@
 
 .exercise-logging__rest-timer {
 	flex-shrink: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
 	padding: 8px 12px 12px;
 }

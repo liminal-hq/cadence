@@ -1,0 +1,90 @@
+.coach-mark-tooltip {
+	position: relative;
+	background: var(--cadence-inverse-surface);
+	color: var(--cadence-inverse-on-surface);
+	border-radius: var(--cadence-shape-m);
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.coach-mark-tooltip__tail {
+	position: absolute;
+	left: 28px;
+	width: 12px;
+	height: 12px;
+	background: var(--cadence-inverse-surface);
+	transform: rotate(45deg);
+}
+
+.coach-mark-tooltip--tail-top .coach-mark-tooltip__tail {
+	top: -6px;
+}
+
+.coach-mark-tooltip--tail-bottom .coach-mark-tooltip__tail {
+	bottom: -6px;
+}
+
+.coach-mark-tooltip__title {
+	font-size: var(--cadence-type-title-s-size, 14px);
+	font-weight: 600;
+}
+
+.coach-mark-tooltip__body {
+	font-size: var(--cadence-type-body-m-size);
+	line-height: 1.4;
+	opacity: 0.9;
+}
+
+.coach-mark-tooltip__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	font-size: 12.5px;
+}
+
+.coach-mark-tooltip__counter {
+	opacity: 0.75;
+}
+
+.coach-mark-tooltip__actions {
+	display: flex;
+	gap: 12px;
+}
+
+.coach-mark-tooltip__text-button {
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	padding: 0;
+}
+
+.coach-mark-badge {
+	position: absolute;
+	top: -8px;
+	right: 10px;
+	width: 22px;
+	height: 22px;
+	border-radius: 11px;
+	background: var(--cadence-inverse-surface);
+	color: var(--cadence-inverse-on-surface);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 12px;
+	font-weight: 700;
+}
+
+.coach-mark-anchor {
+	position: relative;
+}
+
+.coach-mark-highlight {
+	outline: 3px solid var(--cadence-primary);
+	outline-offset: 3px;
+	border-radius: var(--cadence-shape-m);
+}
