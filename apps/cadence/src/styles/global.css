@@ -1,0 +1,41 @@
+@import './tokens.css';
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+	height: 100%;
+	margin: 0;
+}
+
+body {
+	background: var(--cadence-surface);
+	color: var(--cadence-on-surface);
+	font-family: var(--cadence-font-family);
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+}
+
+.material-symbols-rounded {
+	font-family: 'Material Symbols Rounded';
+	font-weight: normal;
+	font-style: normal;
+	line-height: 1;
+	display: inline-block;
+	user-select: none;
+}
+
+.material-symbols-rounded.is-filled {
+	font-variation-settings: 'FILL' 1;
+}
+
+.tabular-nums {
+	font-variant-numeric: tabular-nums;
+}
+
+button {
+	font-family: inherit;
+}

@@ -1,0 +1,103 @@
+.context-menu {
+	position: fixed;
+	background: var(--cadence-inverse-surface);
+	border: 1px solid rgba(255, 255, 255, 0.12);
+	border-radius: var(--cadence-shape-s);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+	padding: 4px;
+	min-width: 180px;
+	max-width: 280px;
+	z-index: 10000;
+	color: var(--cadence-inverse-on-surface);
+	font-family: var(--cadence-font-family);
+	user-select: none;
+}
+
+.menu-section {
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.menu-section + .menu-section {
+	border-top: 1px solid rgba(255, 255, 255, 0.12);
+	margin-top: 4px;
+	padding-top: 4px;
+}
+
+.menu-section-title {
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--cadence-outline-variant);
+	padding: 4px 12px;
+	margin-bottom: 2px;
+}
+
+.menu-item {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	width: 100%;
+	padding: 8px 12px;
+	border: none;
+	background: transparent;
+	color: var(--cadence-inverse-on-surface);
+	font-size: var(--cadence-type-body-m-size);
+	text-align: left;
+	cursor: pointer;
+	border-radius: var(--cadence-shape-xs);
+	transition: background-color var(--cadence-motion-fast) var(--cadence-motion-easing);
+	outline: none;
+}
+
+.menu-item:hover:not(.disabled) {
+	background: var(--cadence-primary);
+	color: var(--cadence-on-primary);
+}
+
+.menu-item:hover:not(.disabled) .menu-item-icon {
+	color: var(--cadence-on-primary);
+}
+
+.menu-item.disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.menu-item-icon {
+	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--cadence-outline-variant);
+}
+
+.menu-item-icon svg {
+	width: 100%;
+	height: 100%;
+}
+
+.menu-item-label {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	line-height: 1.2;
+}
+
+.menu-item-shortcut {
+	flex-shrink: 0;
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-outline-variant);
+	margin-left: 12px;
+}
+
+.menu-separator {
+	height: 1px;
+	background: rgba(255, 255, 255, 0.12);
+	margin: 4px 0;
+}

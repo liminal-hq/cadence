@@ -1,0 +1,19 @@
+{
+	"name": "@liminal-hq/cadence-workspace",
+	"private": true,
+	"version": "0.1.0",
+	"packageManager": "bun@1.3.10",
+	"workspaces": ["apps/*"],
+	"scripts": {
+		"dev": "bun run --filter @liminal-hq/cadence dev",
+		"build": "bun run --filter @liminal-hq/cadence build",
+		"tauri": "bun run --filter @liminal-hq/cadence tauri",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"test:js": "bun run --filter @liminal-hq/cadence test",
+		"test:js:ci": "bun run --filter @liminal-hq/cadence test:ci"
+	},
+	"devDependencies": {
+		"prettier": "^3.8.1"
+	}
+}

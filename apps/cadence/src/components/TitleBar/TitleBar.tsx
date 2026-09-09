@@ -1,0 +1,230 @@
+// Custom desktop window title bar with platform-specific controls
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import React, { useEffect, useState } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { WindowMinimizeIcon, WindowMaximizeIcon, WindowRestoreIcon, WindowCloseIcon } from '../Icons/Icons';
+import { ContextMenu } from '../ContextMenu/ContextMenu';
+import type { MenuModel } from '../ContextMenu/types';
+import type { PlatformType } from '../../platform';
+import { APP_NAME } from '../../constants';
+import './TitleBar.css';
+
+interface TitleBarProps {
+	platformType: PlatformType;
+}
+
+export const TitleBar: React.FC<TitleBarProps> = ({ platformType }) => {
+	const [isMaximized, setIsMaximized] = useState(false);
+	const [isMaximizable, setIsMaximizable] = useState(false);
+	const [isMinimizable, setIsMinimizable] = useState(true);
+	const [isResizable, setIsResizable] = useState(false);
+	const [menuOpen, setMenuOpen] = useState(false);
+	const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+
+	const appWindow = getCurrentWindow();
+
+	useEffect(() => {
+		const updateState = async () => {
+			try {
+				const [maximized, maximizable, minimizable, resizable] = await Promise.all([
+					appWindow.isMaximized(),
+					appWindow.isMaximizable(),
+					appWindow.isMinimizable(),
+					appWindow.isResizable(),
+				]);
+				setIsMaximized(maximized);
+				setIsMaximizable(maximizable);
+				setIsMinimizable(minimizable);
+				setIsResizable(resizable);
+			} catch (e) {
+				console.error('Failed to check window state', e);
+			}
+		};
+
+		updateState();
+		const unlistenPromise = appWindow.listen('tauri://resize', updateState);
+
+		return () => {
+			unlistenPromise.then((unlisten) => unlisten());
+		};
+	}, []);
+
+	const minimize = () => appWindow.minimize();
+	const toggleMaximize = async () => {
+		try {
+			await appWindow.toggleMaximize();
+			setIsMaximized(await appWindow.isMaximized());
+		} catch (e) {
+			console.error('Failed to toggle maximize', e);
+		}
+	};
+	const close = () => appWindow.close();
+
+	const handleContextMenu = async (e: React.MouseEvent) => {
+		e.preventDefault();
+		try {
+			setIsMaximized(await appWindow.isMaximized());
+		} catch (err) {
+			console.error(err);
+		}
+		setMenuPosition({ x: e.clientX, y: e.clientY });
+		setMenuOpen(true);
+	};
+
+	const handleMenuAction = async (itemId: string) => {
+		switch (itemId) {
+			case 'restore':
+			case 'maximize':
+				toggleMaximize();
+				break;
+			case 'minimize':
+				minimize();
+				break;
+			case 'move':
+				void appWindow.startDragging();
+				break;
+			case 'close':
+				close();
+				break;
+		}
+		setMenuOpen(false);
+	};
+
+	const menuModel: MenuModel = {
+		sections: [
+			{
+				items: [
+					...(isMaximizable && isResizable
+						? [
+								{
+									id: isMaximized ? 'restore' : 'maximize',
+									label: isMaximized ? 'Restore' : 'Maximize',
+									icon: isMaximized ? 'WindowRestoreIcon' : 'WindowMaximizeIcon',
+								},
+							]
+						: []),
+					...(isMinimizable
+						? [{ id: 'minimize', label: 'Minimize', icon: 'WindowMinimizeIcon' }]
+						: []),
+				],
+			},
+			{ items: [{ id: 'move', label: 'Move', icon: 'MoveIcon' }] },
+			{ items: [{ id: 'close', label: 'Close', icon: 'WindowCloseIcon' }] },
+		],
+	};
+
+	// Mac Traffic Lights
+	const MacControls = () => (
+		<div className="window-controls mac">
+			<button onClick={close} className="control-button mac-close" title="Close" />
+			{isMinimizable && (
+				<button onClick={minimize} className="control-button mac-minimize" title="Minimize" />
+			)}
+			{isMaximizable && isResizable && (
+				<button
+					onClick={toggleMaximize}
+					className="control-button mac-maximize"
+					title={isMaximized ? 'Restore' : 'Maximize'}
+				/>
+			)}
+		</div>
+	);
+
+	// Windows Controls
+	const WinControls = () => (
+		<div className="window-controls win">
+			{isMinimizable && (
+				<button onClick={minimize} className="control-button win-minimize" title="Minimize">
+					<WindowMinimizeIcon />
+				</button>
+			)}
+			{isMaximizable && isResizable && (
+				<button
+					onClick={toggleMaximize}
+					className="control-button win-maximize"
+					title={isMaximized ? 'Restore' : 'Maximize'}
+				>
+					{isMaximized ? <WindowRestoreIcon /> : <WindowMaximizeIcon />}
+				</button>
+			)}
+			<button onClick={close} className="control-button win-close" title="Close">
+				<WindowCloseIcon />
+			</button>
+		</div>
+	);
+
+	// Linux Controls (Adwaita-style)
+	const LinuxControls = () => (
+		<div className="window-controls linux">
+			{isMinimizable && (
+				<button onClick={minimize} className="control-button linux-minimize" title="Minimize">
+					<WindowMinimizeIcon />
+				</button>
+			)}
+			{isMaximizable && isResizable && (
+				<button
+					onClick={toggleMaximize}
+					className="control-button linux-maximize"
+					title={isMaximized ? 'Restore' : 'Maximize'}
+				>
+					{isMaximized ? <WindowRestoreIcon /> : <WindowMaximizeIcon />}
+				</button>
+			)}
+			<button onClick={close} className="control-button linux-close" title="Close">
+				<WindowCloseIcon />
+			</button>
+		</div>
+	);
+
+	return (
+		<>
+			<div className={`title-bar is-${platformType}`} onContextMenu={handleContextMenu}>
+				{platformType === 'mac' && (
+					<>
+						<MacControls />
+						<div className="title-drag-region" data-tauri-drag-region />
+						<div className="app-title" data-tauri-drag-region>
+							{APP_NAME}
+						</div>
+						<div className="title-drag-region" data-tauri-drag-region />
+						<div className="window-controls-placeholder" />
+					</>
+				)}
+
+				{platformType === 'linux' && (
+					<>
+						<div className="window-controls-placeholder" />
+						<div className="title-drag-region" data-tauri-drag-region />
+						<div className="app-title" data-tauri-drag-region>
+							{APP_NAME}
+						</div>
+						<div className="title-drag-region" data-tauri-drag-region />
+						<LinuxControls />
+					</>
+				)}
+
+				{platformType === 'win' && (
+					<>
+						<div className="app-title left" data-tauri-drag-region>
+							{APP_NAME}
+						</div>
+						<div className="title-drag-region" data-tauri-drag-region />
+						<WinControls />
+					</>
+				)}
+			</div>
+
+			{menuOpen && (
+				<ContextMenu
+					model={menuModel}
+					position={menuPosition}
+					onClose={() => setMenuOpen(false)}
+					onItemClick={handleMenuAction}
+				/>
+			)}
+		</>
+	);
+};

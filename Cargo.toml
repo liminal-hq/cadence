@@ -1,0 +1,3 @@
+[workspace]
+members = ["apps/cadence/src-tauri"]
+resolver = "2"
