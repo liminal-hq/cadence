@@ -102,6 +102,10 @@ describe('MockLoggingRepository', () => {
 			expect(result.perSidePlates).toEqual([25, 5, 1.25]);
 			expect(result.perSideTotal).toBe(31.25);
 			expect(result.achievedTotal).toBe(82.5);
+			// Neighbours are still populated even when loadable, so the sheet's
+			// stepper can browse to an adjacent total, not just resolve a miss.
+			expect(result.nearestLower).toBeLessThan(82.5);
+			expect(result.nearestHigher).toBeGreaterThan(82.5);
 		});
 
 		it('falls back to the nearest loadable totals when the target is unreachable', async () => {

@@ -13,6 +13,7 @@ import { RestTimerBar } from '../components/RestTimerBar/RestTimerBar';
 import { RestTimerSheet } from '../components/RestTimerSheet/RestTimerSheet';
 import { SetEditorSheet } from '../components/SetEditorSheet/SetEditorSheet';
 import { SetNoteScreen } from '../components/SetNoteScreen/SetNoteScreen';
+import { PlateCalculatorSheet } from '../components/PlateCalculatorSheet/PlateCalculatorSheet';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import { formatDurationSec, formatNumber } from '../domain/format';
 import type { Exercise, SetEntry, WorkoutExercise } from '../domain/types';
@@ -25,7 +26,10 @@ interface ExerciseLoggingScreenProps {
 }
 
 type Overlay =
-	{ type: 'setEditor'; setId: string } | { type: 'setNote'; setId: string } | { type: 'restTimer' };
+	| { type: 'setEditor'; setId: string }
+	| { type: 'setNote'; setId: string }
+	| { type: 'plateCalculator'; setId: string }
+	| { type: 'restTimer' };
 
 function setRowState(set: SetEntry, loadedSetId: string | null): SetRowState {
 	if (set.status === 'completed') return 'completed';
@@ -304,6 +308,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					onSave={persistSet}
 					onDelete={() => handleDeleteSet(editorSet.id)}
 					onOpenNote={() => setOverlay({ type: 'setNote', setId: editorSet.id })}
+					onOpenPlateCalculator={() => setOverlay({ type: 'plateCalculator', setId: editorSet.id })}
 				/>
 			)}
 
@@ -313,6 +318,14 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					initialNote={editorSet.note ?? ''}
 					onSave={(note) => persistSet({ ...editorSet, note })}
 					onRemove={() => persistSet({ ...editorSet, note: undefined })}
+					onClose={() => setOverlay({ type: 'setEditor', setId: editorSet.id })}
+				/>
+			)}
+
+			{overlay?.type === 'plateCalculator' && editorSet && (
+				<PlateCalculatorSheet
+					targetWeightKg={editorSet.weightKg ?? 0}
+					onUseTotal={(weightKg) => persistSet({ ...editorSet, weightKg })}
 					onClose={() => setOverlay({ type: 'setEditor', setId: editorSet.id })}
 				/>
 			)}

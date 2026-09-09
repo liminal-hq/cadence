@@ -62,31 +62,27 @@ export function calculatePlatesPure(
 	const totals = achievableTotals(barbell.availablePlates);
 
 	const exact = totals.find((t) => Math.abs(t.total - perSideTarget) < EPSILON);
-	if (exact) {
-		return {
-			loadable: true,
-			targetWeight,
-			perSidePlates: exact.plates.sort((a, b) => b - a),
-			perSideTotal: exact.total,
-			achievedTotal: barbell.barWeight + 2 * exact.total,
-		};
-	}
+	// Neighbours are always computed (not just when unloadable) so the sheet's
+	// stepper can browse to the adjacent achievable total either way.
+	const below = totals.filter((t) => t.total < perSideTarget - EPSILON);
+	const above = totals.filter((t) => t.total > perSideTarget + EPSILON);
+	const nearestLowerCombo = below.length > 0 ? below[0] : undefined;
+	const nearestHigherCombo = above.length > 0 ? above[above.length - 1] : undefined;
 
-	const below = totals.filter((t) => t.total < perSideTarget);
-	const above = totals.filter((t) => t.total > perSideTarget);
-	const nearestLower = below.length > 0 ? below[0] : { total: 0, plates: [] };
-	const nearestHigher = above.length > 0 ? above[above.length - 1] : undefined;
+	const shown = exact ?? nearestLowerCombo ?? { total: 0, plates: [] };
 
 	return {
-		loadable: false,
+		loadable: Boolean(exact),
 		targetWeight,
-		perSidePlates: nearestLower.plates.sort((a, b) => b - a),
-		perSideTotal: nearestLower.total,
-		achievedTotal: barbell.barWeight + 2 * nearestLower.total,
-		nearestLower: barbell.barWeight + 2 * nearestLower.total,
-		nearestHigher: nearestHigher ? barbell.barWeight + 2 * nearestHigher.total : undefined,
-		shortfall: perSideTarget - nearestLower.total,
-		smallestPlate: Math.min(...barbell.availablePlates),
+		perSidePlates: [...shown.plates].sort((a, b) => b - a),
+		perSideTotal: shown.total,
+		achievedTotal: barbell.barWeight + 2 * shown.total,
+		nearestLower: nearestLowerCombo ? barbell.barWeight + 2 * nearestLowerCombo.total : undefined,
+		nearestHigher: nearestHigherCombo
+			? barbell.barWeight + 2 * nearestHigherCombo.total
+			: undefined,
+		shortfall: exact ? undefined : perSideTarget - (nearestLowerCombo?.total ?? 0),
+		smallestPlate: exact ? undefined : Math.min(...barbell.availablePlates),
 	};
 }
 
