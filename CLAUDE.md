@@ -8,21 +8,26 @@ Cadence is a modern, local-first Android training journal inspired by FitNotes, 
 
 ## Status
 
-This repository is currently **specification-only**. There is no application code, build tooling, or repository scaffolding yet.
+Cadence has moved past specification-only. `apps/cadence` is scaffolded: Tauri v2 + React/TypeScript frontend (Bun-managed, not pnpm), a desktop-only title bar ported from Threshold, M3 design tokens lifted from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation across the four primary destinations). Only Today has a real screen so far; History/Plan/Progress are wired-up placeholders. There's no Rust domain logic/SQLite yet and no Android/Wear OS build.
 
 - `SPEC.md` — the product, UX, data model, and platform specification. This is the current source of truth.
 - `SCREENS.md` — the companion screen-and-state inventory for UI planning, derived from `SPEC.md`.
 - `FitNotes Android Application — Product, UX, Data Model & Compatibility Specification.md` — the reference analysis of the FitNotes app that `SPEC.md` was derived from. It documents FitNotes' own behaviour, not Cadence's; treat it as background material, not a source of Cadence requirements.
 
-The next step in the project is handing the UI design work to Claude Design, working from `SCREENS.md`'s screen inventory and `SPEC.md`'s product principles and design constraints (§7 "Design constraints for early UI work"). Cadence's visual design is explicitly **not** based on Threshold's — see `SPEC.md` §"Document role and sources" for what may and may not be reused from Threshold.
+The UI design work itself is done: a Claude Design handoff (Foundations canvas + seven per-journey canvases covering the full `SCREENS.md` inventory) is the source of truth for tokens and remaining screens, which get built one at a time from here. Cadence's visual design is explicitly **not** based on Threshold's — see `SPEC.md` §"Document role and sources" for what may and may not be reused from Threshold.
 
-## Layout (planned)
+## Layout
 
-No code exists yet. `AGENTS.md`'s [Repository Layout](AGENTS.md#repository-layout) section describes the planned pnpm + Cargo workspace monorepo shape (`apps/cadence`, `apps/cadence-wear`, `packages/core`, `plugins/`), mirrored from Threshold. Create it when implementation actually begins — don't scaffold speculatively.
+`AGENTS.md`'s [Repository Layout](AGENTS.md#repository-layout) section is authoritative. `apps/cadence` is scaffolded; `apps/cadence-wear`, `packages/core`, and `plugins/` remain planned — don't scaffold those speculatively, only when there's a concrete need.
 
 ## Commands
 
-Not yet applicable — no build tooling exists. Once scaffolding begins, expect a command set similar to Threshold's (`pnpm dev:android`, `pnpm test`, `pnpm -r run typecheck`, `cargo test --workspace`, `cargo clippy --workspace -- -D warnings`); update this section then.
+- `bun install` — install workspace dependencies.
+- `bun run --filter @liminal-hq/cadence tauri dev` (or `cd apps/cadence && bun run tauri dev`) — launch the desktop app.
+- `bun run build` — typecheck and build the frontend.
+- `bun run test:js` — run the frontend test suite (`bun run test:js:ci` for the junit-reporting CI variant).
+- `bun run format` / `bun run format:check` — Prettier.
+- `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --locked -- -D warnings`, `cargo nextest run --workspace --config-file nextest.toml --profile ci` — Rust checks (via the `ghcr.io/liminal-hq/tauri-dev-desktop:latest` image per `AGENTS.md`'s Local Tooling note if `cargo` isn't on the host).
 
 ## Conventions (from AGENTS.md)
 

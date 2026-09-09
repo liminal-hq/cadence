@@ -19,7 +19,7 @@
 
 ## Project Status
 
-Cadence is currently in the specification phase: `SPEC.md` and `SCREENS.md` are the only durable artefacts, and no application code, build tooling, or repository scaffolding exists yet. The next phase is UI design, handed off to Claude Design. The [Repository Layout](#repository-layout) and [Tauri v2](#tauri-v2) sections below describe the *planned* shape of the codebase, carried over from Threshold's engineering patterns per `SPEC.md`, so that early UI and platform decisions do not conflict with how the project will eventually be built. Update this file (removing the "planned" qualifiers) as each part is actually scaffolded.
+Cadence has moved past the specification phase: `apps/cadence` is scaffolded (Tauri v2 + React/TypeScript, Bun-managed) with a desktop title bar, the M3 design tokens from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation) wired up across all four primary destinations, though only Today has a real screen so far -- the rest are placeholders. `apps/cadence-wear`, `packages/core`, and `plugins/` remain planned; the [Repository Layout](#repository-layout) and [Tauri v2](#tauri-v2) sections below still describe those as the *planned* shape, carried over from Threshold's engineering patterns per `SPEC.md`. Update this file further (removing the remaining "planned" qualifiers) as each part is actually scaffolded.
 
 ## Localization and Spelling
 
@@ -147,12 +147,12 @@ Enter or paste your release notes for en-CA here
 
 ## Repository Layout
 
-**Planned** — mirrors Threshold's pnpm workspace + Cargo workspace monorepo shape, per `SPEC.md`'s stated intent to reuse Threshold's engineering patterns. None of this exists yet; create it when implementation begins, not before:
+Mirrors Threshold's Cargo workspace monorepo shape, per `SPEC.md`'s stated intent to reuse Threshold's engineering patterns — except the JS side is **Bun workspaces**, not pnpm (a deliberate departure from both Spindle and Threshold, made when `apps/cadence` was first scaffolded, before there was any installed state to migrate):
 
-- `apps/cadence` — the Tauri app: React/TypeScript frontend in `src/`, Rust backend in `src-tauri/`
-- `apps/cadence-wear` — native Kotlin/Compose Wear OS app (own Gradle project)
-- `packages/core` — shared TypeScript types only; domain and scheduling logic stays in Rust, matching Threshold's `packages/core` pattern
-- `plugins/` — custom Tauri plugins (e.g. wear-sync) once native integrations are needed, following Threshold's `/docs/plugins/plugin-manifest-pattern.md` conventions (Android permissions injected via `build.rs`, never hand-edited manifests)
+- `apps/cadence` — the Tauri app: React/TypeScript frontend in `src/`, Rust backend in `src-tauri/`. Scaffolded: desktop title bar (ported from Threshold's `TitleBar`/`ContextMenu`), M3 design tokens, shared app shell, and the Today screen (the other three primary destinations are still placeholders).
+- `apps/cadence-wear` — **Planned.** Native Kotlin/Compose Wear OS app (own Gradle project). Not scaffolded yet.
+- `packages/core` — **Planned.** Shared TypeScript types only; domain and scheduling logic stays in Rust, matching Threshold's `packages/core` pattern. Not scaffolded yet — there's no shared type to justify it.
+- `plugins/` — **Planned.** Custom Tauri plugins (e.g. wear-sync) once native integrations are needed, following Threshold's `/docs/plugins/plugin-manifest-pattern.md` conventions (Android permissions injected via `build.rs`, never hand-edited manifests). Not scaffolded yet.
 - `docs/` — design and architecture documentation
 
 ## Licence and Copyright
@@ -192,7 +192,7 @@ The dual licence is provided as `LICENSE-MIT` and `LICENSE-APACHE` in the reposi
 
 ## Tauri v2
 
-Once implementation begins, this project will use **Tauri v2** with native mobile support (Android and Wear OS). These are the house patterns and pitfalls carried over from Threshold and Spindle:
+Cadence uses **Tauri v2**; native mobile support (Android and Wear OS) is not built yet. These are the house patterns and pitfalls carried over from Threshold and Spindle:
 
 ### Platform Detection
 
