@@ -1,6 +1,6 @@
-// Today -- the operational home of Cadence (SPEC.md section 8.1). No workout yet, so this
-// renders the no-workout empty state; "Start workout" opens the Sam-default Logging scenario,
-// since there's no real Workout-detail/Add-exercise screen yet to route through
+// Today -- the operational home of Cadence (SPEC.md section 8.1). The two smaller preview
+// links are temporary scaffolding to reach the other demo scenarios until a real workout
+// list exists to launch them from naturally.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -18,6 +18,14 @@ export function TodayScreen() {
 			<Link to="/log/$scenario" params={{ scenario: 'sam-default' }} className="button-filled">
 				Start workout
 			</Link>
+			<div className="screen-empty-state__preview-links">
+				<Link to="/log/$scenario" params={{ scenario: 'sam-superset-dark' }}>
+					Preview: offline superset
+				</Link>
+				<Link to="/log/$scenario" params={{ scenario: 'priya-first-run' }}>
+					Preview: first workout
+				</Link>
+			</div>
 		</div>
 	);
 }

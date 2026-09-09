@@ -15,7 +15,7 @@ import { SetEditorSheet } from '../components/SetEditorSheet/SetEditorSheet';
 import { SetNoteScreen } from '../components/SetNoteScreen/SetNoteScreen';
 import { PlateCalculatorSheet } from '../components/PlateCalculatorSheet/PlateCalculatorSheet';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
-import { formatDurationSec, formatNumber } from '../domain/format';
+import { formatClockTime, formatDurationSec, formatNumber } from '../domain/format';
 import type { Exercise, SetEntry, WorkoutExercise } from '../domain/types';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from '../domain/seedData';
 import './screens.css';
@@ -45,6 +45,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	const [workoutExercise, setWorkoutExercise] = useState<WorkoutExercise | null>(null);
 	const [exercise, setExercise] = useState<Exercise | null>(null);
 	const [siblings, setSiblings] = useState<WorkoutExercise[]>([]);
+	const [siblingExerciseNames, setSiblingExerciseNames] = useState<Record<string, string>>({});
 	const [sets, setSets] = useState<SetEntry[]>([]);
 	const [loadedSetId, setLoadedSetId] = useState<string | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
@@ -65,6 +66,14 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			setExercise(ex);
 			setSiblings(workoutSiblings);
 			setSets(workoutSets);
+
+			const siblingExercises = await Promise.all(
+				workoutSiblings.map((s) => repository.getExercise(s.exerciseId)),
+			);
+			setSiblingExerciseNames(
+				Object.fromEntries(workoutSiblings.map((s, i) => [s.id, siblingExercises[i].name])),
+			);
+
 			const firstPlanned = workoutSets.find((s) => s.status === 'planned');
 			setLoadedSetId((firstPlanned ?? workoutSets[workoutSets.length - 1])?.id ?? null);
 		},
@@ -164,6 +173,11 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		siblingIndex >= 0 && siblingIndex < siblings.length - 1
 			? siblings[siblingIndex + 1]
 			: undefined;
+	const supersetPartner = workoutExercise.supersetGroupId
+		? siblings.find(
+				(s) => s.supersetGroupId === workoutExercise.supersetGroupId && s.id !== workoutExercise.id,
+			)
+		: undefined;
 
 	return (
 		<div className="exercise-logging">
@@ -174,7 +188,32 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			/>
 
 			<div className="exercise-logging__content">
-				{previousExercise || nextExercise ? (
+				{workoutExercise.offlineSince && (
+					<div className="exercise-logging__offline-banner">
+						<span className="material-symbols-rounded">watch_off</span>
+						<span>
+							<strong>Watch offline since {formatClockTime(workoutExercise.offlineSince)}.</strong>{' '}
+							Sets logged there merge here when it reconnects.
+						</span>
+					</div>
+				)}
+
+				{supersetPartner && (
+					<div className="exercise-logging__superset-next">
+						<div>
+							<span className="exercise-logging__superset-next-label">Superset · next up</span>
+							<div className="exercise-logging__superset-next-name">
+								{siblingExerciseNames[supersetPartner.id] ?? supersetPartner.workoutLabel}
+							</div>
+						</div>
+						<button type="button" onClick={() => setCurrentWorkoutExerciseId(supersetPartner.id)}>
+							Switch
+							<span className="material-symbols-rounded">arrow_forward</span>
+						</button>
+					</div>
+				)}
+
+				{!supersetPartner && (previousExercise || nextExercise) ? (
 					<div className="exercise-logging__exercise-nav">
 						<button
 							type="button"
@@ -195,10 +234,15 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					</div>
 				) : null}
 
-				{workoutExercise.technicalNote && (
+				{workoutExercise.technicalNote ? (
 					<div className="exercise-logging__note">
 						<span className="material-symbols-rounded">sticky_note_2</span>
 						<span>{workoutExercise.technicalNote}</span>
+					</div>
+				) : (
+					<div className="exercise-logging__note exercise-logging__note--empty">
+						<span className="material-symbols-rounded">sticky_note_2</span>
+						<span>Add a technique note for this exercise</span>
 					</div>
 				)}
 
@@ -293,6 +337,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					<span className="material-symbols-rounded">add</span>
 					Add set
 				</button>
+
+				{!hasWatch && (
+					<div className="exercise-logging__watch-upsell">
+						<span className="material-symbols-rounded">watch</span>
+						<span>Got a Wear OS watch? Log from your wrist</span>
+					</div>
+				)}
 			</div>
 
 			<div className="exercise-logging__rest-timer">
