@@ -19,7 +19,7 @@
 }
 
 .rest-timer-bar--paused {
-	border: 1px solid var(--cadence-outline-variant);
+	box-shadow: inset 0 0 0 1px var(--cadence-outline-variant);
 }
 
 .rest-timer-bar--elapsed {

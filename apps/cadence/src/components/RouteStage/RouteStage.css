@@ -9,6 +9,8 @@
 	position: relative;
 	width: 100%;
 	height: 100%;
+	display: flex;
+	flex-direction: column;
 	z-index: 2;
 	overflow-y: auto;
 	overflow-x: hidden;
@@ -21,6 +23,8 @@
 .route-stage__underlay {
 	position: absolute;
 	inset: 0;
+	display: flex;
+	flex-direction: column;
 	z-index: 1;
 	overflow: hidden;
 	transform-origin: center;

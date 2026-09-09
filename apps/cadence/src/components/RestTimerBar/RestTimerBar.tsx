@@ -4,9 +4,10 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { RestTimerState } from '../../domain/types';
+import { playRestElapsedChime } from '../../domain/sound';
 import { formatRemaining } from './formatRemaining';
 import './RestTimerBar.css';
 
@@ -21,6 +22,14 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 	const repository = useLoggingRepository();
 	const [state, setState] = useState<RestTimerState>({ status: 'inactive' });
 	const [now, setNow] = useState(() => Date.now());
+	const previousStatus = useRef(state.status);
+
+	useEffect(() => {
+		if (state.status === 'elapsed' && previousStatus.current === 'running') {
+			playRestElapsedChime();
+		}
+		previousStatus.current = state.status;
+	}, [state.status]);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -36,9 +45,13 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 
 	useEffect(() => {
 		if (state.status !== 'running') return;
+		// Resync immediately -- `now` may be stale from a previous rest period (or mount), and a
+		// fresh targetInstant computed against it would show more time remaining than the total
+		// until the first 1s tick corrected it.
+		setNow(Date.now());
 		const interval = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(interval);
-	}, [state.status]);
+	}, [state.status, state.targetInstant]);
 
 	if (state.status === 'inactive') {
 		return (

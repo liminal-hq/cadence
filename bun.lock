@@ -12,6 +12,7 @@
       "name": "@liminal-hq/cadence",
       "version": "0.1.0",
       "dependencies": {
+        "@liminal-hq/undertone": "^0.1.1",
         "@tanstack/react-router": "^1.170.33",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-os": "^2.3.2",
@@ -140,6 +141,8 @@
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
     "@liminal-hq/cadence": ["@liminal-hq/cadence@workspace:apps/cadence"],
+
+    "@liminal-hq/undertone": ["@liminal-hq/undertone@0.1.1", "", {}, "sha512-ni3PLLgP7Mqj2CU0bMz9iee3InAu5Oy49Frbi1jxSsLZtgGLcXlRck8G+dgiImtlaN2uM1UynYV9473sP4Dn6Q=="],
 
     "@napi-rs/lzma-linux-x64-gnu": ["@napi-rs/lzma-linux-x64-gnu@1.5.1", "", { "os": "linux", "cpu": "x64" }, "sha512-oTXEIha4SsuXdTA4Iyskj0kpdx2yVXdhd75c2v3xGrHFfVMsbhTPZU/nMPL4sWKo4pBHm3aucLaqGlF696dTyQ=="],
 

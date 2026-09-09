@@ -15,6 +15,7 @@
 	align-items: center;
 	justify-content: center;
 	color: var(--cadence-on-surface);
+	text-decoration: none;
 	flex-shrink: 0;
 }
 

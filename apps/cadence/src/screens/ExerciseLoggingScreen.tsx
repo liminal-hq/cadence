@@ -170,19 +170,24 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		const completed = await repository.completeSet(loadedSet.id);
 		setSets((prev) => prev.map((s) => (s.id === completed.id ? completed : s)));
 
-		const nextPlanned = sets.find((s, i) => i > loadedIndex && s.status === 'planned');
-		if (nextPlanned) {
-			setLoadedSetId(nextPlanned.id);
-			const label =
-				exercise.metricProfile === 'weight-reps'
-					? `${exercise.name} set ${nextPlanned.order} · ${formatNumber(nextPlanned.weightKg ?? 0)} × ${nextPlanned.reps ?? 0}`
-					: `${exercise.name} set ${nextPlanned.order}`;
-			await repository.startRestTimer(120_000, {
-				forSetId: completed.id,
-				nextSetLabel: label,
-				ownerDevice: hasWatch ? 'watch' : 'phone',
-			});
+		// Logging the last planned set behaves like tapping "Add set" first, so logging stays a
+		// single repeatable action instead of requiring a manual add between every set.
+		let nextSet = sets.find((s, i) => i > loadedIndex && s.status === 'planned');
+		if (!nextSet) {
+			nextSet = await repository.addSet(workoutExercise.id);
+			setSets((prev) => [...prev, nextSet!]);
 		}
+
+		setLoadedSetId(nextSet.id);
+		const label =
+			exercise.metricProfile === 'weight-reps'
+				? `${exercise.name} set ${nextSet.order} · ${formatNumber(nextSet.weightKg ?? 0)} × ${nextSet.reps ?? 0}`
+				: `${exercise.name} set ${nextSet.order}`;
+		await repository.startRestTimer(120_000, {
+			forSetId: completed.id,
+			nextSetLabel: label,
+			ownerDevice: hasWatch ? 'watch' : 'phone',
+		});
 	};
 
 	const handleAddSet = async () => {
@@ -192,8 +197,12 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	};
 
 	const handleDeleteSet = (setId: string) => {
-		setSets((prev) => prev.filter((s) => s.id !== setId));
-		if (loadedSetId === setId) setLoadedSetId(null);
+		const remaining = sets.filter((s) => s.id !== setId);
+		setSets(remaining);
+		if (loadedSetId === setId) {
+			const firstPlanned = remaining.find((s) => s.status === 'planned');
+			setLoadedSetId((firstPlanned ?? remaining[remaining.length - 1])?.id ?? null);
+		}
 	};
 
 	const siblingIndex = siblings.findIndex((s) => s.id === workoutExercise.id);

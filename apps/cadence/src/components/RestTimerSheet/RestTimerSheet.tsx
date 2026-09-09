@@ -43,9 +43,12 @@ export function RestTimerSheet({
 
 	useEffect(() => {
 		if (state?.status !== 'running') return;
+		// Resync immediately -- `now` may be stale from before this rest period started, and a
+		// fresh targetInstant computed against it would briefly show the wrong remaining time.
+		setNow(Date.now());
 		const interval = setInterval(() => setNow(Date.now()), 1000);
 		return () => clearInterval(interval);
-	}, [state?.status]);
+	}, [state?.status, state?.targetInstant]);
 
 	useEffect(() => {
 		// Only auto-close once the real state has loaded and then goes inactive
