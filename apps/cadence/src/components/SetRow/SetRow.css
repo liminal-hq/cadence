@@ -1,4 +1,11 @@
+.set-row-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
 .set-row {
+	flex: 1;
 	display: grid;
 	grid-template-columns: 40px 1fr 1fr 48px;
 	align-items: center;
@@ -12,6 +19,24 @@
 	text-align: left;
 	cursor: pointer;
 	font-variant-numeric: tabular-nums;
+}
+
+.set-row__overflow {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: none;
+	border-radius: var(--cadence-shape-full);
+	color: var(--cadence-on-surface-variant);
+	cursor: pointer;
+}
+
+.set-row__overflow:hover {
+	background: rgba(0, 0, 0, 0.06);
 }
 
 .set-row--completed,

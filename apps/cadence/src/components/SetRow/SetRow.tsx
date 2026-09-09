@@ -17,6 +17,7 @@ interface SetRowProps {
 	pendingSync?: boolean;
 	hasNote?: boolean;
 	onClick?: () => void;
+	onOpenEditor?: () => void;
 }
 
 export function SetRow({
@@ -28,6 +29,7 @@ export function SetRow({
 	pendingSync,
 	hasNote,
 	onClick,
+	onOpenEditor,
 }: SetRowProps) {
 	const statusLabel =
 		state === 'completed' ? (pendingSync ? 'completed, pending sync' : 'completed') : state;
@@ -44,37 +46,49 @@ export function SetRow({
 		.join(', ');
 
 	return (
-		<button
-			type="button"
-			className={`set-row set-row--${state}`}
-			onClick={onClick}
-			aria-current={state === 'loaded' ? 'true' : undefined}
-			aria-label={rowLabel}
-		>
-			<span className="set-row__order" aria-hidden="true">
-				{order}
-				{state === 'loaded' && <span className="set-row__order-caption">loaded</span>}
-			</span>
-			<span className="set-row__value" aria-hidden="true">
-				{primaryValueLabel}
-				{isRecord && (
-					<span className="material-symbols-rounded is-filled set-row__record">trophy</span>
-				)}
-			</span>
-			<span className="set-row__value" aria-hidden="true">
-				{secondaryValueLabel}
-				{hasNote && (
-					<span className="material-symbols-rounded set-row__note-icon">sticky_note_2</span>
-				)}
-			</span>
-			<span className="set-row__status" aria-hidden="true">
-				{state === 'completed' ? (
-					<span className="material-symbols-rounded is-filled set-row__check">check_circle</span>
-				) : (
-					<span className="material-symbols-rounded set-row__circle">circle</span>
-				)}
-				{pendingSync && <span className="set-row__pending-caption">Watch ↑</span>}
-			</span>
-		</button>
+		<div className="set-row-wrapper">
+			<button
+				type="button"
+				className={`set-row set-row--${state}`}
+				onClick={onClick}
+				aria-current={state === 'loaded' ? 'true' : undefined}
+				aria-label={rowLabel}
+			>
+				<span className="set-row__order" aria-hidden="true">
+					{order}
+					{state === 'loaded' && <span className="set-row__order-caption">loaded</span>}
+				</span>
+				<span className="set-row__value" aria-hidden="true">
+					{primaryValueLabel}
+					{isRecord && (
+						<span className="material-symbols-rounded is-filled set-row__record">trophy</span>
+					)}
+				</span>
+				<span className="set-row__value" aria-hidden="true">
+					{secondaryValueLabel}
+					{hasNote && (
+						<span className="material-symbols-rounded set-row__note-icon">sticky_note_2</span>
+					)}
+				</span>
+				<span className="set-row__status" aria-hidden="true">
+					{state === 'completed' ? (
+						<span className="material-symbols-rounded is-filled set-row__check">check_circle</span>
+					) : (
+						<span className="material-symbols-rounded set-row__circle">circle</span>
+					)}
+					{pendingSync && <span className="set-row__pending-caption">Watch ↑</span>}
+				</span>
+			</button>
+			{onOpenEditor && (
+				<button
+					type="button"
+					className="set-row__overflow"
+					aria-label={`Open the full editor for set ${order}`}
+					onClick={onOpenEditor}
+				>
+					<span className="material-symbols-rounded">more_vert</span>
+				</button>
+			)}
+		</div>
 	);
 }

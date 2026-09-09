@@ -10,7 +10,11 @@ import { DetailAppBar } from '../components/DetailAppBar/DetailAppBar';
 import { SetRow, type SetRowState } from '../components/SetRow/SetRow';
 import { StepperCluster, type StepperField } from '../components/StepperCluster/StepperCluster';
 import { RestTimerBar } from '../components/RestTimerBar/RestTimerBar';
+import { RestTimerSheet } from '../components/RestTimerSheet/RestTimerSheet';
+import { SetEditorSheet } from '../components/SetEditorSheet/SetEditorSheet';
+import { SetNoteScreen } from '../components/SetNoteScreen/SetNoteScreen';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
+import { formatDurationSec, formatNumber } from '../domain/format';
 import type { Exercise, SetEntry, WorkoutExercise } from '../domain/types';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from '../domain/seedData';
 import './screens.css';
@@ -20,17 +24,8 @@ interface ExerciseLoggingScreenProps {
 	scenario: Scenario;
 }
 
-function formatValue(value: number): string {
-	return Number.isInteger(value)
-		? String(value)
-		: value.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
-}
-
-function formatDuration(seconds: number): string {
-	const minutes = Math.floor(seconds / 60);
-	const rest = Math.round(seconds % 60);
-	return `${minutes}:${rest.toString().padStart(2, '0')}`;
-}
+type Overlay =
+	{ type: 'setEditor'; setId: string } | { type: 'setNote'; setId: string } | { type: 'restTimer' };
 
 function setRowState(set: SetEntry, loadedSetId: string | null): SetRowState {
 	if (set.status === 'completed') return 'completed';
@@ -48,6 +43,11 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	const [siblings, setSiblings] = useState<WorkoutExercise[]>([]);
 	const [sets, setSets] = useState<SetEntry[]>([]);
 	const [loadedSetId, setLoadedSetId] = useState<string | null>(null);
+	const [overlay, setOverlay] = useState<Overlay | null>(null);
+
+	// Sam has a paired watch (SPEC's persona); Priya doesn't -- drives the rest timer
+	// sheet's haptics-ownership copy and notifications-denied demo.
+	const hasWatch = scenario !== 'priya-first-run';
 
 	const loadWorkoutExercise = useCallback(
 		async (workoutExerciseId: string) => {
@@ -79,8 +79,12 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 
 	const loadedSet = sets.find((s) => s.id === loadedSetId) ?? null;
 	const loadedIndex = sets.findIndex((s) => s.id === loadedSetId);
+	const editorSet =
+		overlay && overlay.type !== 'restTimer'
+			? (sets.find((s) => s.id === overlay.setId) ?? null)
+			: null;
 
-	const persistLoadedSet = async (updated: SetEntry) => {
+	const persistSet = async (updated: SetEntry) => {
 		setSets((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
 		await repository.saveSet(updated);
 	};
@@ -91,15 +95,15 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					label: 'kg',
 					value: loadedSet?.weightKg,
 					increment: exercise.weightIncrementKg ?? 2.5,
-					formatValue,
-					onChange: (value) => loadedSet && persistLoadedSet({ ...loadedSet, weightKg: value }),
+					formatValue: formatNumber,
+					onChange: (value) => loadedSet && persistSet({ ...loadedSet, weightKg: value }),
 				}
 			: {
 					label: 'km',
 					value: loadedSet?.distanceKm,
 					increment: exercise.distanceIncrementKm ?? 0.1,
 					formatValue: (v) => v.toFixed(1),
-					onChange: (value) => loadedSet && persistLoadedSet({ ...loadedSet, distanceKm: value }),
+					onChange: (value) => loadedSet && persistSet({ ...loadedSet, distanceKm: value }),
 				};
 
 	const secondaryField: StepperField =
@@ -108,15 +112,15 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					label: 'reps',
 					value: loadedSet?.reps,
 					increment: exercise.repsIncrement ?? 1,
-					formatValue,
-					onChange: (value) => loadedSet && persistLoadedSet({ ...loadedSet, reps: value }),
+					formatValue: formatNumber,
+					onChange: (value) => loadedSet && persistSet({ ...loadedSet, reps: value }),
 				}
 			: {
 					label: 'min:sec',
 					value: loadedSet?.durationSec,
 					increment: exercise.durationIncrementSec ?? 10,
-					formatValue: formatDuration,
-					onChange: (value) => loadedSet && persistLoadedSet({ ...loadedSet, durationSec: value }),
+					formatValue: formatDurationSec,
+					onChange: (value) => loadedSet && persistSet({ ...loadedSet, durationSec: value }),
 				};
 
 	const handleLog = async () => {
@@ -129,9 +133,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			setLoadedSetId(nextPlanned.id);
 			const label =
 				exercise.metricProfile === 'weight-reps'
-					? `${exercise.name} set ${nextPlanned.order} · ${formatValue(nextPlanned.weightKg ?? 0)} × ${nextPlanned.reps ?? 0}`
+					? `${exercise.name} set ${nextPlanned.order} · ${formatNumber(nextPlanned.weightKg ?? 0)} × ${nextPlanned.reps ?? 0}`
 					: `${exercise.name} set ${nextPlanned.order}`;
-			await repository.startRestTimer(120_000, { forSetId: completed.id, nextSetLabel: label });
+			await repository.startRestTimer(120_000, {
+				forSetId: completed.id,
+				nextSetLabel: label,
+				ownerDevice: hasWatch ? 'watch' : 'phone',
+			});
 		}
 	};
 
@@ -139,6 +147,11 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		const created = await repository.addSet(workoutExercise.id);
 		setSets((prev) => [...prev, created]);
 		setLoadedSetId(created.id);
+	};
+
+	const handleDeleteSet = (setId: string) => {
+		setSets((prev) => prev.filter((s) => s.id !== setId));
+		if (loadedSetId === setId) setLoadedSetId(null);
 	};
 
 	const siblingIndex = siblings.findIndex((s) => s.id === workoutExercise.id);
@@ -248,7 +261,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 							primaryValueLabel={
 								exercise.metricProfile === 'weight-reps'
 									? set.weightKg !== undefined
-										? formatValue(set.weightKg)
+										? formatNumber(set.weightKg)
 										: '—'
 									: set.distanceKm !== undefined
 										? set.distanceKm.toFixed(1)
@@ -257,16 +270,17 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 							secondaryValueLabel={
 								exercise.metricProfile === 'weight-reps'
 									? set.reps !== undefined
-										? formatValue(set.reps)
+										? formatNumber(set.reps)
 										: '—'
 									: set.durationSec !== undefined
-										? formatDuration(set.durationSec)
+										? formatDurationSec(set.durationSec)
 										: '—'
 							}
 							isRecord={set.isRecord}
 							pendingSync={set.pendingSync}
 							hasNote={Boolean(set.note)}
 							onClick={() => setLoadedSetId(set.id)}
+							onOpenEditor={() => setOverlay({ type: 'setEditor', setId: set.id })}
 						/>
 					))}
 				</div>
@@ -278,8 +292,38 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			</div>
 
 			<div className="exercise-logging__rest-timer">
-				<RestTimerBar />
+				<RestTimerBar onOpen={() => setOverlay({ type: 'restTimer' })} />
 			</div>
+
+			{overlay?.type === 'setEditor' && editorSet && (
+				<SetEditorSheet
+					set={editorSet}
+					exercise={exercise}
+					workoutLabel={workoutExercise.workoutLabel}
+					onClose={() => setOverlay(null)}
+					onSave={persistSet}
+					onDelete={() => handleDeleteSet(editorSet.id)}
+					onOpenNote={() => setOverlay({ type: 'setNote', setId: editorSet.id })}
+				/>
+			)}
+
+			{overlay?.type === 'setNote' && editorSet && (
+				<SetNoteScreen
+					setSummary={`${exercise.name} · ${workoutExercise.workoutLabel}`}
+					initialNote={editorSet.note ?? ''}
+					onSave={(note) => persistSet({ ...editorSet, note })}
+					onRemove={() => persistSet({ ...editorSet, note: undefined })}
+					onClose={() => setOverlay({ type: 'setEditor', setId: editorSet.id })}
+				/>
+			)}
+
+			{overlay?.type === 'restTimer' && (
+				<RestTimerSheet
+					hasWatch={hasWatch}
+					notificationsDenied={!hasWatch}
+					onClose={() => setOverlay(null)}
+				/>
+			)}
 		</div>
 	);
 }
