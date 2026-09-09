@@ -88,6 +88,14 @@
 	--cadence-bottom-nav-height: 80px;
 	--cadence-title-bar-height: 32px;
 	--cadence-tap-target: 48px;
+
+	/* Desktop OS chrome (title bar, its context menu) -- fixed dark tones,
+	   deliberately NOT the M3 inverse-surface roles: those flip with the
+	   app's own light/dark theme (inverse of *content*), but the title bar
+	   should stay dark chrome regardless, matching Threshold and Spindle. */
+	--cadence-chrome-surface: #2b292f;
+	--cadence-chrome-on-surface: #e5e1e9;
+	--cadence-chrome-border: rgba(255, 255, 255, 0.12);
 }
 
 @media (prefers-color-scheme: dark) {

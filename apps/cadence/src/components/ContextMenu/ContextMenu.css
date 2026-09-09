@@ -1,6 +1,6 @@
 .context-menu {
 	position: fixed;
-	background: var(--cadence-inverse-surface);
+	background: var(--cadence-chrome-surface);
 	border: 1px solid rgba(255, 255, 255, 0.12);
 	border-radius: var(--cadence-shape-s);
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
@@ -8,7 +8,7 @@
 	min-width: 180px;
 	max-width: 280px;
 	z-index: 10000;
-	color: var(--cadence-inverse-on-surface);
+	color: var(--cadence-chrome-on-surface);
 	font-family: var(--cadence-font-family);
 	user-select: none;
 }
@@ -30,7 +30,7 @@
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.05em;
-	color: var(--cadence-outline-variant);
+	color: rgba(229, 225, 233, 0.7);
 	padding: 4px 12px;
 	margin-bottom: 2px;
 }
@@ -43,7 +43,7 @@
 	padding: 8px 12px;
 	border: none;
 	background: transparent;
-	color: var(--cadence-inverse-on-surface);
+	color: var(--cadence-chrome-on-surface);
 	font-size: var(--cadence-type-body-m-size);
 	text-align: left;
 	cursor: pointer;
@@ -73,7 +73,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--cadence-outline-variant);
+	color: rgba(229, 225, 233, 0.7);
 }
 
 .menu-item-icon svg {
@@ -92,7 +92,7 @@
 .menu-item-shortcut {
 	flex-shrink: 0;
 	font-size: var(--cadence-type-label-m-size);
-	color: var(--cadence-outline-variant);
+	color: rgba(229, 225, 233, 0.7);
 	margin-left: 12px;
 }
 

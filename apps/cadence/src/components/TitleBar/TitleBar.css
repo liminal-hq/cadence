@@ -2,14 +2,14 @@
    light/dark theme, matching Threshold and Spindle's convention. */
 .title-bar {
 	height: var(--cadence-title-bar-height);
-	background: var(--cadence-inverse-surface);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	background: var(--cadence-chrome-surface);
+	border-bottom: 1px solid var(--cadence-chrome-border);
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	user-select: none;
 	font-size: var(--cadence-type-body-m-size);
-	color: var(--cadence-inverse-on-surface);
+	color: var(--cadence-chrome-on-surface);
 	padding: 0;
 	width: 100%;
 	box-sizing: border-box;
@@ -23,7 +23,7 @@
 
 .app-title {
 	font-weight: 500;
-	color: var(--cadence-inverse-on-surface);
+	color: var(--cadence-chrome-on-surface);
 	flex-shrink: 0;
 }
 
@@ -59,7 +59,7 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--cadence-inverse-on-surface);
+	color: var(--cadence-chrome-on-surface);
 	padding: 0;
 }
 

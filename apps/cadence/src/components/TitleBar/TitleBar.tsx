@@ -5,7 +5,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { WindowMinimizeIcon, WindowMaximizeIcon, WindowRestoreIcon, WindowCloseIcon } from '../Icons/Icons';
+import {
+	WindowMinimizeIcon,
+	WindowMaximizeIcon,
+	WindowRestoreIcon,
+	WindowCloseIcon,
+} from '../Icons/Icons';
 import { ContextMenu } from '../ContextMenu/ContextMenu';
 import type { MenuModel } from '../ContextMenu/types';
 import type { PlatformType } from '../../platform';
