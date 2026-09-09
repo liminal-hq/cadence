@@ -1,0 +1,42 @@
+{
+	"$schema": "https://schema.tauri.app/config/2",
+	"productName": "Cadence",
+	"version": "0.1.0",
+	"identifier": "ca.liminalhq.cadence",
+	"build": {
+		"beforeDevCommand": "bun run dev",
+		"devUrl": "http://localhost:1420",
+		"beforeBuildCommand": "bun run build",
+		"frontendDist": "../dist"
+	},
+	"app": {
+		"windows": [
+			{
+				"title": "Cadence",
+				"width": 412,
+				"height": 924,
+				"resizable": false,
+				"maximizable": false,
+				"decorations": false
+			}
+		],
+		"security": {
+			"csp": null
+		}
+	},
+	"bundle": {
+		"active": true,
+		"targets": "all",
+		"publisher": "Liminal HQ",
+		"shortDescription": "A local-first training journal.",
+		"longDescription": "Cadence is a local-first Android training journal, inspired by FitNotes, built with Tauri, Rust, and React.",
+		"copyright": "Copyright 2026 Liminal HQ, Scott Morris",
+		"icon": [
+			"icons/32x32.png",
+			"icons/128x128.png",
+			"icons/128x128@2x.png",
+			"icons/icon.icns",
+			"icons/icon.ico"
+		]
+	}
+}
