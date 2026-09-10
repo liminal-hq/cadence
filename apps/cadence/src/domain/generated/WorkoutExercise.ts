@@ -6,4 +6,4 @@ import type { LastTimeReference } from "./LastTimeReference";
  * prior-performance lookup and label formatting are deferred to the PR that builds the frontend
  * adapter, per the backend design plan's split (backend returns facts, frontend formats labels).
  */
-export type WorkoutExercise = { id: string, exerciseId: string, workoutId: string, workoutLabel: string, order: number, technicalNote: string | null, todayNote: string | null, supersetGroupId: string | null, supersetPosition: number | null, supersetSize: number | null, offlineSince: string | null, lastTimeReference: LastTimeReference | null, };
+export type WorkoutExercise = { id: string, exerciseId: string, workoutId: string, workoutLabel: string, order: number, technicalNote?: string, todayNote?: string, supersetGroupId?: string, supersetPosition?: number, supersetSize?: number, offlineSince?: string, lastTimeReference?: LastTimeReference, };

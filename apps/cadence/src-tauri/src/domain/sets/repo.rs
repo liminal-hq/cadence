@@ -91,9 +91,11 @@ async fn get(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
 /// creates a new logical set, matching SPEC.md 10.2's "editing a completed set updates in place."
 pub async fn save(conn: &mut SqliteConnection, set: &SetEntry) -> Result<SetEntry> {
     let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
         "UPDATE sets SET status = ?, weight_g = ?, reps = ?, distance_m = ?, duration_s = ?, \
-         completed_at_ms = ?, note = ?, pending_sync = ?, updated_at_ms = ? WHERE id = ?",
+         completed_at_ms = ?, note = ?, pending_sync = ?, updated_at_ms = ?, revision = ? \
+         WHERE id = ?",
     )
     .bind(&set.status)
     .bind(set.weight_kg.map(kg_to_g))
@@ -109,6 +111,7 @@ pub async fn save(conn: &mut SqliteConnection, set: &SetEntry) -> Result<SetEntr
     .bind(&set.note)
     .bind(set.pending_sync)
     .bind(now)
+    .bind(revision)
     .bind(&set.id)
     .execute(&mut *conn)
     .await?;
@@ -123,11 +126,14 @@ pub async fn save(conn: &mut SqliteConnection, set: &SetEntry) -> Result<SetEntr
 
 pub async fn complete(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
     let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
-        "UPDATE sets SET status = 'completed', completed_at_ms = ?, updated_at_ms = ? WHERE id = ?",
+        "UPDATE sets SET status = 'completed', completed_at_ms = ?, updated_at_ms = ?, \
+         revision = ? WHERE id = ?",
     )
     .bind(now)
     .bind(now)
+    .bind(revision)
     .bind(id)
     .execute(&mut *conn)
     .await?;
@@ -146,6 +152,9 @@ pub async fn add(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Resu
     let (workout_id, exercise_id) = parent_ids(conn, workout_exercise_id).await?;
     let siblings = list(conn, workout_exercise_id).await?;
     let previous = siblings.last();
+    // MAX(order)+1, not COUNT+1 — a prior delete can leave a gap, and COUNT would collide with
+    // an existing sort_order rather than always extending past it.
+    let next_order = siblings.iter().map(|s| s.order).max().unwrap_or(0) + 1;
     let now = chrono::Utc::now().timestamp_millis();
     let id = uuid::Uuid::new_v4().to_string();
     sqlx::query(
@@ -157,7 +166,7 @@ pub async fn add(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Resu
     .bind(&workout_id)
     .bind(workout_exercise_id)
     .bind(&exercise_id)
-    .bind(siblings.len() as i32 + 1)
+    .bind(next_order)
     .bind(previous.and_then(|p| p.weight_kg).map(kg_to_g))
     .bind(previous.and_then(|p| p.reps))
     .bind(previous.and_then(|p| p.distance_km).map(km_to_m))
@@ -178,7 +187,13 @@ pub async fn log_new(
     values: &SetValues,
 ) -> Result<SetEntry> {
     let (workout_id, exercise_id) = parent_ids(conn, workout_exercise_id).await?;
-    let sibling_count = list(conn, workout_exercise_id).await?.len();
+    let next_order = list(conn, workout_exercise_id)
+        .await?
+        .iter()
+        .map(|s| s.order)
+        .max()
+        .unwrap_or(0)
+        + 1;
     let now = chrono::Utc::now().timestamp_millis();
     let id = uuid::Uuid::new_v4().to_string();
     sqlx::query(
@@ -190,7 +205,7 @@ pub async fn log_new(
     .bind(&workout_id)
     .bind(workout_exercise_id)
     .bind(&exercise_id)
-    .bind(sibling_count as i32 + 1)
+    .bind(next_order)
     .bind(values.weight_kg.map(kg_to_g))
     .bind(values.reps)
     .bind(values.distance_km.map(km_to_m))
@@ -209,7 +224,13 @@ pub async fn log_new(
 pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
     let existing = get(conn, id).await?;
     let (workout_id, exercise_id) = parent_ids(conn, &existing.workout_exercise_id).await?;
-    let sibling_count = list(conn, &existing.workout_exercise_id).await?.len();
+    let next_order = list(conn, &existing.workout_exercise_id)
+        .await?
+        .iter()
+        .map(|s| s.order)
+        .max()
+        .unwrap_or(0)
+        + 1;
     let now = chrono::Utc::now().timestamp_millis();
     let new_id = uuid::Uuid::new_v4().to_string();
     sqlx::query(
@@ -221,7 +242,7 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     .bind(&workout_id)
     .bind(&existing.workout_exercise_id)
     .bind(&exercise_id)
-    .bind(sibling_count as i32 + 1)
+    .bind(next_order)
     .bind(existing.weight_kg.map(kg_to_g))
     .bind(existing.reps)
     .bind(existing.distance_km.map(km_to_m))
@@ -235,11 +256,18 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     get(conn, &new_id).await
 }
 
+/// A no-op if the set doesn't exist (matches `deleteSet`'s silent-no-op mock semantics), otherwise
+/// records a tombstone so a future sync consumer can see the deletion, not just its absence.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
-    sqlx::query("DELETE FROM sets WHERE id = ?")
+    let result = sqlx::query("DELETE FROM sets WHERE id = ?")
         .bind(id)
         .execute(&mut *conn)
         .await?;
+    if result.rows_affected() > 0 {
+        let revision = crate::db::next_revision(conn).await?;
+        let now = chrono::Utc::now().timestamp_millis();
+        crate::db::write_tombstone(conn, "set", id, revision, now).await?;
+    }
     Ok(())
 }
 
@@ -248,11 +276,16 @@ pub async fn update_note(
     id: &str,
     note: Option<&str>,
 ) -> Result<SetEntry> {
-    let result = sqlx::query("UPDATE sets SET note = ? WHERE id = ?")
-        .bind(note)
-        .bind(id)
-        .execute(&mut *conn)
-        .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result =
+        sqlx::query("UPDATE sets SET note = ?, updated_at_ms = ?, revision = ? WHERE id = ?")
+            .bind(note)
+            .bind(now)
+            .bind(revision)
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
     if result.rows_affected() == 0 {
         return Err(Error::NotFound {
             entity: "set",
@@ -396,6 +429,38 @@ mod tests {
         delete(&mut conn, "set-bp-4").await.unwrap();
         let remaining = list(&mut conn, "we-bench-press").await.unwrap();
         assert!(!remaining.iter().any(|s| s.id == "set-bp-4"));
+    }
+
+    #[tokio::test]
+    async fn deleting_an_unknown_set_is_a_silent_no_op() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        delete(&mut conn, "no-such-set").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_records_a_tombstone_for_future_sync() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        delete(&mut conn, "set-bp-4").await.unwrap();
+        let (revision,): (i64,) = sqlx::query_as(
+            "SELECT revision FROM tombstones WHERE entity_type = 'set' AND entity_id = 'set-bp-4'",
+        )
+        .fetch_one(&mut *conn)
+        .await
+        .unwrap();
+        assert!(revision > 0);
+    }
+
+    #[tokio::test]
+    async fn add_extends_past_the_highest_order_even_after_a_middle_set_was_deleted() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        // we-bench-press has sets at order 1..4; deleting order 2 leaves a gap COUNT-based math
+        // would collide on (COUNT=3, +1=4 — already taken by the surviving order-4 set).
+        delete(&mut conn, "set-bp-2").await.unwrap();
+        let added = add(&mut conn, "we-bench-press").await.unwrap();
+        assert_eq!(added.order, 5);
     }
 
     #[tokio::test]

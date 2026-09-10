@@ -124,11 +124,17 @@ pub async fn update_today_note(
     id: &str,
     note: Option<&str>,
 ) -> Result<WorkoutExercise> {
-    let result = sqlx::query("UPDATE workout_exercises SET today_note = ? WHERE id = ?")
-        .bind(note)
-        .bind(id)
-        .execute(&mut *conn)
-        .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE workout_exercises SET today_note = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
+    )
+    .bind(note)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
     if result.rows_affected() == 0 {
         return Err(Error::NotFound {
             entity: "workout exercise",

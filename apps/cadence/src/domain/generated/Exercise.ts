@@ -5,4 +5,4 @@
  * `category` stay open `String`s (validated where written, not CHECK-constrained) so adding a
  * new profile or category is a Rust change, never a migration.
  */
-export type Exercise = { id: string, name: string, category: string, metricProfile: string, weightIncrementKg: number | null, repsIncrement: number | null, distanceIncrementKm: number | null, durationIncrementSec: number | null, archived: boolean, favourite: boolean, };
+export type Exercise = { id: string, name: string, category: string, metricProfile: string, weightIncrementKg?: number, repsIncrement?: number, distanceIncrementKm?: number, durationIncrementSec?: number, archived: boolean, favourite: boolean, };

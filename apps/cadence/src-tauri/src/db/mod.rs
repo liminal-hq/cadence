@@ -19,6 +19,13 @@ use crate::domain::error::Error;
 pub static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");
 
 pub async fn init_pool(db_path: &Path) -> Result<SqlitePool, Error> {
+    // `create_if_missing` only creates the database file itself — on a genuinely fresh install
+    // the app data directory containing it may not exist yet either.
+    if let Some(parent) = db_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| Error::Validation(format!("couldn't create {}: {e}", parent.display())))?;
+    }
+
     let options = SqliteConnectOptions::new()
         .filename(db_path)
         .create_if_missing(true)
@@ -110,6 +117,19 @@ mod tests {
         let _ = std::fs::remove_file(&db_path);
         let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    }
+
+    #[tokio::test]
+    async fn init_pool_creates_a_missing_parent_directory_on_first_launch() {
+        let dir = std::env::temp_dir().join(format!("cadence-test-{}", uuid::Uuid::new_v4()));
+        let db_path = dir.join("cadence.db");
+        assert!(
+            !dir.exists(),
+            "precondition: parent directory doesn't exist yet"
+        );
+        let pool = init_pool(&db_path).await.unwrap();
+        drop(pool);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[tokio::test]

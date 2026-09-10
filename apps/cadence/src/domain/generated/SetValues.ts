@@ -4,4 +4,4 @@
  * The subset of `SetEntry`'s fields a caller supplies when logging or editing a set — mirrors
  * `logNewSet`'s `Partial<Pick<SetEntry, ...>>` parameter shape.
  */
-export type SetValues = { weightKg: number | null, reps: number | null, distanceKm: number | null, durationSec: number | null, };
+export type SetValues = { weightKg?: number, reps?: number, distanceKm?: number, durationSec?: number, };

@@ -6,4 +6,4 @@
  * SPEC.md section 10.3's warning against treating a record flag as an irreplaceable source of
  * truth) and is deferred to the PR that wires up the full command surface.
  */
-export type SetEntry = { id: string, workoutExerciseId: string, order: number, status: string, weightKg: number | null, reps: number | null, distanceKm: number | null, durationSec: number | null, completedAt: string | null, note: string | null, isRecord: boolean, pendingSync: boolean, };
+export type SetEntry = { id: string, workoutExerciseId: string, order: number, status: string, weightKg?: number, reps?: number, distanceKm?: number, durationSec?: number, completedAt?: string, note?: string, isRecord: boolean, pendingSync: boolean, };

@@ -25,20 +25,43 @@ struct WorkoutRow {
     hc_overlaps_workout_id: Option<String>,
 }
 
+/// `hc_source_app`/`hc_record_id`/`hc_imported_at_ms` are only ever written together (every
+/// insert path sets all three or none) — if a row ever has one without the others, that's
+/// corruption, not a workout with partial provenance, so this drops the provenance entirely
+/// rather than rendering a health-connect badge with a blank date or record id.
+fn health_connect_provenance(row: &WorkoutRow) -> Option<WorkoutHealthConnectProvenance> {
+    let source_app = row.hc_source_app.clone()?;
+    let (Some(record_id), Some(imported_at_ms)) = (row.hc_record_id.clone(), row.hc_imported_at_ms)
+    else {
+        log::warn!(
+            "workout {} has hc_source_app set without a matching record_id/imported_at — \
+             dropping health-connect provenance",
+            row.id
+        );
+        return None;
+    };
+    let unmapped_metrics = row.hc_unmapped_metrics.as_deref().and_then(|json| {
+        serde_json::from_str(json)
+            .inspect_err(|e| {
+                log::warn!(
+                    "workout {} has malformed hc_unmapped_metrics JSON: {e}",
+                    row.id
+                )
+            })
+            .ok()
+    });
+    Some(WorkoutHealthConnectProvenance {
+        source_app,
+        record_id,
+        imported_at: ms_to_iso(imported_at_ms),
+        unmapped_metrics,
+        overlaps_with_workout_id: row.hc_overlaps_workout_id.clone(),
+    })
+}
+
 impl From<WorkoutRow> for Workout {
     fn from(row: WorkoutRow) -> Self {
-        let health_connect = row
-            .hc_source_app
-            .map(|source_app| WorkoutHealthConnectProvenance {
-                source_app,
-                record_id: row.hc_record_id.unwrap_or_default(),
-                imported_at: row.hc_imported_at_ms.map(ms_to_iso).unwrap_or_default(),
-                unmapped_metrics: row
-                    .hc_unmapped_metrics
-                    .as_deref()
-                    .and_then(|json| serde_json::from_str(json).ok()),
-                overlaps_with_workout_id: row.hc_overlaps_workout_id,
-            });
+        let health_connect = health_connect_provenance(&row);
 
         Workout {
             id: row.id,
@@ -98,11 +121,16 @@ pub async fn update_note(
     id: &str,
     note: Option<&str>,
 ) -> Result<Workout> {
-    let result = sqlx::query("UPDATE workouts SET note = ? WHERE id = ?")
-        .bind(note)
-        .bind(id)
-        .execute(&mut *conn)
-        .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result =
+        sqlx::query("UPDATE workouts SET note = ?, updated_at_ms = ?, revision = ? WHERE id = ?")
+            .bind(note)
+            .bind(now)
+            .bind(revision)
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
     if result.rows_affected() == 0 {
         return Err(Error::NotFound {
             entity: "workout",
@@ -149,6 +177,20 @@ mod tests {
         );
         // No start/end timestamps reported by the source app.
         assert_eq!(workout.started_at, None);
+    }
+
+    #[tokio::test]
+    async fn drops_health_connect_provenance_when_the_row_is_only_partially_populated() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        // hc_source_app set without a matching record_id/imported_at — shouldn't happen via any
+        // real write path, but a corrupt row here must not surface a half-populated badge.
+        sqlx::query("UPDATE workouts SET hc_source_app = 'Google Fit' WHERE id = 'workout-push-a'")
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        let workout = get(&mut conn, "workout-push-a").await.unwrap();
+        assert_eq!(workout.health_connect, None);
     }
 
     #[tokio::test]

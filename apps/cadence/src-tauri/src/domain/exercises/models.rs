@@ -15,9 +15,13 @@ pub struct Exercise {
     pub name: String,
     pub category: String,
     pub metric_profile: String,
+    #[cfg_attr(test, ts(optional))]
     pub weight_increment_kg: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub reps_increment: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub distance_increment_km: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub duration_increment_sec: Option<i32>,
     pub archived: bool,
     pub favourite: bool,

@@ -14,12 +14,16 @@ pub struct Workout {
     pub id: String,
     pub date: String,
     pub title: String,
+    #[cfg_attr(test, ts(optional))]
     pub note: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub started_at: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub completed_at: Option<String>,
     pub status: String,
     pub source: String,
     pub logged_by_watch: bool,
+    #[cfg_attr(test, ts(optional))]
     pub health_connect: Option<WorkoutHealthConnectProvenance>,
 }
 
@@ -31,7 +35,9 @@ pub struct WorkoutHealthConnectProvenance {
     pub source_app: String,
     pub record_id: String,
     pub imported_at: String,
+    #[cfg_attr(test, ts(optional))]
     pub unmapped_metrics: Option<Vec<String>>,
+    #[cfg_attr(test, ts(optional))]
     pub overlaps_with_workout_id: Option<String>,
 }
 
@@ -48,12 +54,19 @@ pub struct WorkoutExercise {
     pub workout_id: String,
     pub workout_label: String,
     pub order: i32,
+    #[cfg_attr(test, ts(optional))]
     pub technical_note: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub today_note: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub superset_group_id: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub superset_position: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub superset_size: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub offline_since: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub last_time_reference: Option<LastTimeReference>,
 }
 
@@ -65,6 +78,7 @@ pub struct LastTimeReference {
     pub date_label: String,
     pub best_label: String,
     pub sets: Vec<LastTimeReferenceSet>,
+    #[cfg_attr(test, ts(optional))]
     pub quote: Option<String>,
 }
 

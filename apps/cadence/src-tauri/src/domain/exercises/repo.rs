@@ -68,11 +68,17 @@ pub async fn update_favourite(
     id: &str,
     favourite: bool,
 ) -> Result<Exercise> {
-    let result = sqlx::query("UPDATE exercises SET favourite = ? WHERE id = ?")
-        .bind(favourite)
-        .bind(id)
-        .execute(&mut *conn)
-        .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE exercises SET favourite = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
+    )
+    .bind(favourite)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
     if result.rows_affected() == 0 {
         return Err(Error::NotFound {
             entity: "exercise",

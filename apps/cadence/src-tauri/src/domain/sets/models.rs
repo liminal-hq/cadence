@@ -16,11 +16,17 @@ pub struct SetEntry {
     pub workout_exercise_id: String,
     pub order: i32,
     pub status: String,
+    #[cfg_attr(test, ts(optional))]
     pub weight_kg: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub reps: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub distance_km: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub duration_sec: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub completed_at: Option<String>,
+    #[cfg_attr(test, ts(optional))]
     pub note: Option<String>,
     pub is_record: bool,
     pub pending_sync: bool,
@@ -33,8 +39,12 @@ pub struct SetEntry {
 #[cfg_attr(test, ts(export, export_to = "../../src/domain/generated/"))]
 #[serde(rename_all = "camelCase")]
 pub struct SetValues {
+    #[cfg_attr(test, ts(optional))]
     pub weight_kg: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub reps: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
     pub distance_km: Option<f64>,
+    #[cfg_attr(test, ts(optional))]
     pub duration_sec: Option<i32>,
 }
