@@ -28,3 +28,10 @@
 	display: flex;
 	flex-direction: column;
 }
+
+/* For section bodies holding something other than SettingsRow (which pads itself) — a
+   SegmentedControl, a Surface card, free text. */
+.settings-section__body--padded {
+	padding: 0 var(--cadence-space-4);
+	gap: var(--cadence-space-3);
+}

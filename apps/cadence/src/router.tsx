@@ -24,6 +24,7 @@ import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
 import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
+import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -110,7 +111,11 @@ function settingsStubRoute(path: string, screen: string) {
 	});
 }
 
-const settingsUnitsRoute = settingsStubRoute('/settings/units', 'Units');
+const settingsUnitsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/units',
+	component: UnitsSettingsScreen,
+});
 const settingsTimersRoute = settingsStubRoute('/settings/timers', 'Rest & workout timers');
 const settings1rmFormulaRoute = settingsStubRoute('/settings/1rm-formula', '1RM formula');
 const settingsPlatesRoute = settingsStubRoute('/settings/plates', 'Plates & barbells');
