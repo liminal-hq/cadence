@@ -128,7 +128,8 @@
 }
 
 .plate-calculator-sheet__stepper-item:disabled {
-	opacity: 0.4;
+	color: color-mix(in srgb, var(--cadence-on-surface) 38%, transparent);
+	border-color: color-mix(in srgb, var(--cadence-on-surface) 12%, transparent);
 	cursor: default;
 }
 
@@ -158,18 +159,6 @@
 	gap: 8px;
 }
 
-.plate-calculator-sheet__resolutions button {
-	height: 40px;
-	padding: 0 16px;
-	border-radius: var(--cadence-shape-full);
-	background: var(--cadence-secondary-container);
-	color: var(--cadence-on-secondary-container);
-	border: none;
-	font-size: 13px;
-	font-weight: 600;
-	cursor: pointer;
-}
-
 .plate-calculator-sheet__escape-hatch {
 	margin: 0;
 	font-size: 12px;
@@ -191,11 +180,4 @@
 
 .plate-calculator-sheet__close {
 	align-self: flex-end;
-	height: 40px;
-	padding: 0 16px;
-	background: none;
-	border: none;
-	color: var(--cadence-primary);
-	font-weight: 600;
-	cursor: pointer;
 }
