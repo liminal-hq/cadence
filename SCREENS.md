@@ -515,6 +515,28 @@ Watch
 
 **States:** no candidates; unmapped metric type; recognized metric type with confident mapping; candidate overlaps an existing Cadence workout (must be explicitly resolved, never silently merged); already-imported candidate (deduplicated by external record ID, shown as such rather than hidden); import failure with retry.
 
+### P-66 — Plates and barbells
+
+**Scope:** Initial  
+**Purpose:** Maintain the barbell configurations the plate calculator (P-17) loads against.
+
+**Entry:** Settings hub (P-60).
+
+**Content and actions:** list of barbell configs (name, bar weight, a default badge on the default entry); add/edit/delete a config; per config: name, bar weight, display unit, default flag, and its per-side available plate list (add/remove a plate weight).
+
+**States:** no plates added yet on a config; deleting the default config; a config's own delete action, gated behind a confirmation.
+
+### P-67 — Accessibility and feedback
+
+**Scope:** Initial  
+**Purpose:** App-wide motion and haptic preferences, distinct from P-61's rest-timer-specific feedback controls.
+
+**Entry:** Settings hub (P-60).
+
+**Content and actions:** haptic on set complete; haptic when rest ends; reduce motion (turns off screen transitions and coach-mark animation).
+
+**States:** none beyond each toggle's own on/off.
+
 ## 8. Wear OS: active workout execution
 
 ### W-01 — Watch home
