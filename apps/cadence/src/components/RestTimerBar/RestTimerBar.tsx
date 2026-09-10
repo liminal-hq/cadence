@@ -72,14 +72,23 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 	if (state.status === 'paused') {
 		const remainingMs = state.remainingMsAtPause ?? 0;
 		return (
-			<div className="rest-timer-bar rest-timer-bar--paused" onClick={onOpen}>
-				<span className="material-symbols-rounded rest-timer-bar__icon">pause_circle</span>
-				<div className="rest-timer-bar__text">
-					<span>
-						<strong>Paused · {formatRemaining(remainingMs)}</strong>
+			<div className="rest-timer-bar rest-timer-bar--paused">
+				<button
+					type="button"
+					className="rest-timer-bar__tap-target"
+					aria-label={`Open rest timer, paused with ${formatRemaining(remainingMs)} remaining`}
+					onClick={onOpen}
+				>
+					<span className="material-symbols-rounded rest-timer-bar__icon" aria-hidden="true">
+						pause_circle
 					</span>
-					<span className="rest-timer-bar__muted">on {state.ownerDevice ?? 'phone'}</span>
-				</div>
+					<div className="rest-timer-bar__text">
+						<span>
+							<strong>Paused · {formatRemaining(remainingMs)}</strong>
+						</span>
+						<span className="rest-timer-bar__muted">on {state.ownerDevice ?? 'phone'}</span>
+					</div>
+				</button>
 				<button
 					type="button"
 					className="rest-timer-bar__icon-button"
@@ -141,20 +150,29 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 	const elapsedFraction = Math.min(1, Math.max(0, 1 - remainingMs / totalMs));
 
 	return (
-		<div className="rest-timer-bar rest-timer-bar--running" onClick={onOpen}>
-			<span className="material-symbols-rounded rest-timer-bar__icon">timer</span>
-			<div className="rest-timer-bar__text">
-				<span className="rest-timer-bar__running-row">
-					<strong>Rest {formatRemaining(remainingMs)}</strong>
-					<span className="rest-timer-bar__muted">of {formatRemaining(totalMs)}</span>
+		<div className="rest-timer-bar rest-timer-bar--running">
+			<button
+				type="button"
+				className="rest-timer-bar__tap-target"
+				aria-label={`Open rest timer, ${formatRemaining(remainingMs)} remaining of ${formatRemaining(totalMs)}`}
+				onClick={onOpen}
+			>
+				<span className="material-symbols-rounded rest-timer-bar__icon" aria-hidden="true">
+					timer
 				</span>
-				<div className="rest-timer-bar__progress">
-					<div
-						className="rest-timer-bar__progress-fill"
-						style={{ width: `${elapsedFraction * 100}%` }}
-					/>
+				<div className="rest-timer-bar__text">
+					<span className="rest-timer-bar__running-row">
+						<strong>Rest {formatRemaining(remainingMs)}</strong>
+						<span className="rest-timer-bar__muted">of {formatRemaining(totalMs)}</span>
+					</span>
+					<div className="rest-timer-bar__progress">
+						<div
+							className="rest-timer-bar__progress-fill"
+							style={{ width: `${elapsedFraction * 100}%` }}
+						/>
+					</div>
 				</div>
-			</div>
+			</button>
 			<button
 				type="button"
 				className="rest-timer-bar__chip-button"

@@ -35,10 +35,6 @@
 	cursor: pointer;
 }
 
-.set-row__overflow:hover {
-	background: rgba(0, 0, 0, 0.06);
-}
-
 .set-row--completed,
 .set-row--planned {
 	color: var(--cadence-on-surface);
