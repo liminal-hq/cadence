@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { MouseEventHandler } from 'react';
+import { classNames } from '../classNames';
 import './IconButton.css';
 
 export interface IconButtonProps {
@@ -35,7 +36,11 @@ export function IconButton({
 			onClick={onClick}
 		>
 			<span
-				className={`material-symbols-rounded ui-icon-button__glyph${iconFilled ? ' is-filled' : ''}`}
+				className={classNames(
+					'material-symbols-rounded',
+					'ui-icon-button__glyph',
+					iconFilled && 'is-filled',
+				)}
 				aria-hidden="true"
 			>
 				{icon}

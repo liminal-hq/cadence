@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { classNames } from '../classNames';
 import './SegmentedControl.css';
 
 export interface SegmentedControlOption<T extends string> {
@@ -39,7 +40,11 @@ export function SegmentedControl<T extends string>({
 					>
 						{option.icon && (
 							<span
-								className={`material-symbols-rounded ui-segmented-control__icon${option.iconFilled ? ' is-filled' : ''}`}
+								className={classNames(
+									'material-symbols-rounded',
+									'ui-segmented-control__icon',
+									option.iconFilled && 'is-filled',
+								)}
 								aria-hidden="true"
 							>
 								{option.icon}
