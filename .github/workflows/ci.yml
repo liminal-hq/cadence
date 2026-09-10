@@ -85,10 +85,7 @@ jobs:
 
       - name: Run Rust tests
         id: rust_tests
-        # --no-tests=pass: there are no Rust unit tests yet (no domain logic to
-        # test), so treat an empty test run as a pass rather than a failure.
-        # Drop this flag once the first real Rust test exists.
-        run: cargo nextest run --workspace --config-file nextest.toml --profile ci --no-tests=pass
+        run: cargo nextest run --workspace --config-file nextest.toml --profile ci
 
       - name: Upload Rust test artefacts
         if: always()

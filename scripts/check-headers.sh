@@ -14,8 +14,9 @@ cd "$(git rev-parse --show-toplevel)"
 # scratch (adding a header would just create drift against the
 # generator), and tool-scaffolded boilerplate nobody hand-writes.
 EXEMPT_FILES=(
-  "apps/cadence/vite.config.ts"     # build-tool config
-  "apps/cadence/src/vite-env.d.ts"  # Vite-scaffolded ambient types
+  "apps/cadence/vite.config.ts"                 # build-tool config
+  "apps/cadence/src/vite-env.d.ts"               # Vite-scaffolded ambient types
+  "apps/cadence/src/domain/generated/*.ts"       # ts-rs output, regenerated from Rust structs
 )
 
 is_exempt() {

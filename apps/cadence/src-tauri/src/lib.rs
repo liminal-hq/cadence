@@ -3,6 +3,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+// `db`/`domain` are built out incrementally, ahead of the Tauri command surface that will call
+// into them once every entity area exists — dead_code is expected here until that later PR wires
+// them into `run()`'s `invoke_handler!`. Remove these two `allow`s at that point.
+#[allow(dead_code)]
+mod db;
+#[allow(dead_code)]
+mod domain;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // debug() keeps the context menu, devtools, and reload shortcuts enabled in debug builds
