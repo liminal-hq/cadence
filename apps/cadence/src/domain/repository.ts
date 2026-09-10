@@ -13,6 +13,7 @@ import type {
 	RestTimerState,
 	SetEntry,
 	Settings,
+	Workout,
 	WorkoutExercise,
 } from './types';
 
@@ -67,6 +68,17 @@ export interface LoggingRepository {
 	updateSettings(patch: Partial<Settings>): Promise<Settings>;
 	/** Counts of what P-62's delete-all confirmation is about to remove. */
 	getHistorySummary(): Promise<{ workoutCount: number; setCount: number }>;
-	/** Clears logged sets and workout exercises only — exercises, barbells, and settings survive. */
+	/** Clears logged sets only — the workoutExercise scaffold, exercises, barbells, and settings
+	 *  all survive, since Today and Logging resolve workout exercises by id independently of
+	 *  whether they have any recorded history. */
 	deleteAllHistory(): Promise<void>;
+
+	getWorkout(id: string): Promise<Workout>;
+	/** Inclusive of both bounds, ordered by date — drives both Calendar's month queries and
+	 *  List's pagination. */
+	listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]>;
+	/** Creates a new planned-status copy of every set in `workoutId`, dated `targetDate` — the
+	 *  "Copy to today" action, one level up from duplicateSet's already-established pattern. */
+	duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout>;
+	updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout>;
 }

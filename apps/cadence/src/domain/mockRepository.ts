@@ -14,9 +14,17 @@ import type {
 	RestTimerState,
 	SetEntry,
 	Settings,
+	Workout,
 	WorkoutExercise,
 } from './types';
-import { BARBELL_CONFIGS, DEFAULT_SETTINGS, EXERCISES, SETS, WORKOUT_EXERCISES } from './seedData';
+import {
+	BARBELL_CONFIGS,
+	DEFAULT_SETTINGS,
+	EXERCISES,
+	SETS,
+	WORKOUT_EXERCISES,
+	WORKOUTS,
+} from './seedData';
 
 const EPSILON = 0.001;
 
@@ -95,6 +103,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	private exercises = new Map(EXERCISES.map((e) => [e.id, e]));
 	private workoutExercises = new Map(WORKOUT_EXERCISES.map((we) => [we.id, { ...we }]));
 	private sets = new Map(SETS.map((s) => [s.id, { ...s }]));
+	private workouts = new Map(WORKOUTS.map((w) => [w.id, { ...w }]));
 	private restTimer: RestTimerState = { status: 'inactive' };
 	private restTimerListeners = new Set<(state: RestTimerState) => void>();
 	private restTimerTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -374,26 +383,80 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
-		// "Workouts" here means workouts with recorded history (at least one set), not every
-		// workoutExercise slot that exists — those slots are the routine scaffold Today and
-		// Logging navigate against, not history, and survive a history deletion below.
-		const workoutIdsWithSets = new Set<string>();
-		for (const set of this.sets.values()) {
-			const workoutExercise = this.workoutExercises.get(set.workoutExerciseId);
-			if (workoutExercise) workoutIdsWithSets.add(workoutExercise.workoutId);
-		}
-		return { workoutCount: workoutIdsWithSets.size, setCount: this.sets.size };
+		const completedWorkouts = [...this.workouts.values()].filter((w) => w.status === 'completed');
+		return { workoutCount: completedWorkouts.length, setCount: this.sets.size };
 	}
 
 	async deleteAllHistory(): Promise<void> {
-		// Clears logged sets only — not the workoutExercises themselves, which Today and
-		// ExerciseLoggingScreen still resolve by id after this runs. There's no separate
-		// Workout entity yet to distinguish "routine scaffold" from "recorded history"
-		// (that's PR C's job); until then, deleting the scaffold too would strand every
-		// demo scenario's Start-workout link.
+		// Clears logged sets and completed workouts only — workoutExercises (the routine
+		// scaffold Today and Logging navigate against) and in-progress workouts survive, since
+		// they're not "history" yet.
+		for (const [id, workout] of this.workouts) {
+			if (workout.status === 'completed') this.workouts.delete(id);
+		}
 		this.sets.clear();
 		this.clearScheduledElapse();
 		this.setRestTimer({ status: 'inactive' });
+	}
+
+	async getWorkout(id: string): Promise<Workout> {
+		const workout = this.workouts.get(id);
+		if (!workout) throw new Error(`Unknown workout: ${id}`);
+		return workout;
+	}
+
+	async listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]> {
+		return [...this.workouts.values()]
+			.filter((w) => w.date >= startDate && w.date <= endDate)
+			.sort((a, b) => a.date.localeCompare(b.date));
+	}
+
+	async duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout> {
+		const source = await this.getWorkout(workoutId);
+		const sourceWorkoutExercises = [...this.workoutExercises.values()]
+			.filter((we) => we.workoutId === workoutId)
+			.sort((a, b) => a.order - b.order);
+
+		const duplicated: Workout = {
+			id: newId('workout'),
+			date: targetDate,
+			title: source.title,
+			status: 'in-progress',
+			source: 'manual',
+		};
+		this.workouts.set(duplicated.id, duplicated);
+
+		for (const sourceWe of sourceWorkoutExercises) {
+			const newWe: WorkoutExercise = {
+				...sourceWe,
+				id: newId('we'),
+				workoutId: duplicated.id,
+			};
+			this.workoutExercises.set(newWe.id, newWe);
+
+			const sourceSets = await this.listSets(sourceWe.id);
+			for (const sourceSet of sourceSets) {
+				const newSet: SetEntry = {
+					...sourceSet,
+					id: newId('set'),
+					workoutExerciseId: newWe.id,
+					status: 'planned',
+					completedAt: undefined,
+					isRecord: false,
+					pendingSync: false,
+				};
+				this.sets.set(newSet.id, newSet);
+			}
+		}
+
+		return duplicated;
+	}
+
+	async updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout> {
+		const existing = await this.getWorkout(workoutId);
+		const updated = { ...existing, note };
+		this.workouts.set(workoutId, updated);
+		return updated;
 	}
 }
 

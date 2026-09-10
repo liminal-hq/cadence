@@ -15,7 +15,7 @@ export type WeightUnit = 'kg' | 'lb';
 export interface Exercise {
 	id: string;
 	name: string;
-	/** Category id -- see src/data/categoryColours.ts. */
+	/** Category id — see src/data/categoryColours.ts. */
 	category: string;
 	metricProfile: MetricProfile;
 	/** Configured stepper increments, used by StepperCluster. */
@@ -23,6 +23,8 @@ export interface Exercise {
 	repsIncrement?: number;
 	distanceIncrementKm?: number;
 	durationIncrementSec?: number;
+	/** Archived exercises keep their history but render italicised and can't be logged fresh. */
+	archived?: boolean;
 }
 
 export interface WorkoutExercise {
@@ -73,7 +75,7 @@ export type RestTimerOwner = 'phone' | 'watch';
 
 export interface RestTimerState {
 	status: RestTimerStatus;
-	/** ISO instant the timer will complete -- the canonical model (SPEC 8.6), not a tick count. */
+	/** ISO instant the timer will complete — the canonical model (SPEC 8.6), not a tick count. */
 	targetInstant?: string;
 	totalMs?: number;
 	/** Captured remaining time so pausing/resuming doesn't need wall-clock math to round-trip. */
@@ -85,7 +87,7 @@ export interface RestTimerState {
 
 /**
  * Barbell/plate values are all expressed in the config's own `displayUnit`
- * (kg or lb), not canonical kg -- the calculator only ever does arithmetic
+ * (kg or lb), not canonical kg — the calculator only ever does arithmetic
  * within one consistent unit. Converting a set's canonical kg weight into
  * the chosen barbell's unit is the caller's job (see PlateCalculatorSheet),
  * matching SPEC 10.4's "define the conversion at the domain boundary".
@@ -134,4 +136,39 @@ export interface Settings {
 	 *  real OS permission API, which doesn't exist in this mock/desktop context. */
 	notificationsDenied: boolean;
 	automaticBackupEnabled: boolean;
+}
+
+/** SPEC.md section 10.1's Workout.source — 'watch' isn't a source, it's a *device* that logged
+ *  into an otherwise-manual workout (see WorkoutExercise), not a distinct provenance. */
+export type WorkoutSource = 'manual' | 'fitnotes-import' | 'health-connect-import';
+
+export type WorkoutStatus = 'in-progress' | 'completed';
+
+export interface WorkoutHealthConnectProvenance {
+	sourceApp: string;
+	/** The external record ID — SPEC 10.2's dedup key for re-imports, not used by the mock yet. */
+	recordId: string;
+	importedAt: string;
+	/** Recognized-but-not-mapped-to-a-set metrics from the source record, shown but never turned
+	 *  into sets (P-43's "Also recorded" card). */
+	unmappedMetrics?: string[];
+	/** Set when this import overlaps a manually logged workout on the same date, requiring
+	 *  explicit user resolution (SPEC 10.2) — never silently merged or discarded. */
+	overlapsWithWorkoutId?: string;
+}
+
+export interface Workout {
+	id: string;
+	/** The user's intended training date (local date, not an instant) — SPEC 10.2 keeps this
+	 *  separate from start/end timestamps so a late-night session still counts for its day. */
+	date: string;
+	title: string;
+	note?: string;
+	startedAt?: string;
+	completedAt?: string;
+	status: WorkoutStatus;
+	source: WorkoutSource;
+	/** True when any set in this workout was logged from the paired watch. */
+	loggedByWatch?: boolean;
+	healthConnect?: WorkoutHealthConnectProvenance;
 }
