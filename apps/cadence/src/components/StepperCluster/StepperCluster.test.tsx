@@ -1,3 +1,5 @@
+// Stepper increments respect the configured step, and Log stays disabled until both fields are set.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

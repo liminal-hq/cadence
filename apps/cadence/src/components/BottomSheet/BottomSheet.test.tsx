@@ -1,3 +1,5 @@
+// The sheet dismisses on backdrop/Escape/drag, not on content clicks.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

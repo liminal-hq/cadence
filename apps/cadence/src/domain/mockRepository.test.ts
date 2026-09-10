@@ -1,3 +1,5 @@
+// Covers set mutation, the rest timer state machine, and plate calculation branching.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
@@ -53,6 +55,13 @@ describe('MockLoggingRepository', () => {
 		expect(duplicated.reps).toBe(9);
 		expect(duplicated.completedAt).toBeUndefined();
 		expect(duplicated.isRecord).toBe(false);
+	});
+
+	it('deletes a set so it no longer appears when the workout exercise is reloaded', async () => {
+		await repo.deleteSet('set-bp-2');
+
+		const sets = await repo.listSets('we-bench-press');
+		expect(sets.find((s) => s.id === 'set-bp-2')).toBeUndefined();
 	});
 
 	describe('rest timer', () => {

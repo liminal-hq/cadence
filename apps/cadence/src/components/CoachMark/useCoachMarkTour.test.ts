@@ -1,3 +1,5 @@
+// The 5-step tour advances, skips from any step, and finishes with no counter.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
