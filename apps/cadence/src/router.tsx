@@ -30,6 +30,7 @@ import { DataManagementScreen } from './screens/settings/DataManagementScreen';
 import { WatchSyncScreen } from './screens/settings/WatchSyncScreen';
 import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
+import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -150,10 +151,11 @@ const settingsPlatesEditorRoute = createRoute({
 const settingsCategoriesRoute = settingsStubRoute('/settings/categories', 'Categories');
 const settingsGraphsRoute = settingsStubRoute('/settings/graphs', 'Week start & graphs');
 const settingsThemeRoute = settingsStubRoute('/settings/theme', 'Theme & wallpaper colours');
-const settingsAccessibilityRoute = settingsStubRoute(
-	'/settings/accessibility',
-	'Motion, haptics & sound',
-);
+const settingsAccessibilityRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/accessibility',
+	component: AccessibilitySettingsScreen,
+});
 const settingsWatchRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/settings/watch',
