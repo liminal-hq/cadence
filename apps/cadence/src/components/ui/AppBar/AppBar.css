@@ -1,0 +1,85 @@
+.ui-app-bar {
+	height: var(--cadence-top-bar-height);
+	display: flex;
+	align-items: center;
+	background: var(--cadence-surface);
+	flex-shrink: 0;
+}
+
+.ui-app-bar--large {
+	padding: 0 4px 0 16px;
+	gap: 8px;
+}
+
+.ui-app-bar--medium {
+	padding: 0 4px;
+	gap: 4px;
+}
+
+.ui-app-bar__back {
+	width: var(--cadence-tap-target);
+	height: var(--cadence-tap-target);
+	border-radius: var(--cadence-shape-full);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--cadence-on-surface);
+	text-decoration: none;
+	flex-shrink: 0;
+}
+
+/* size="large" title: shares a baseline row with its subtitle, matching TopAppBar */
+.ui-app-bar--large .ui-app-bar__title {
+	flex: 1;
+	font-size: var(--cadence-type-title-l-size);
+	line-height: var(--cadence-type-title-l-line);
+	font-weight: var(--cadence-type-title-l-weight);
+	color: var(--cadence-on-surface);
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ui-app-bar--large .ui-app-bar__subtitle {
+	font-size: var(--cadence-type-body-m-size);
+	font-weight: 400;
+	color: var(--cadence-on-surface-variant);
+}
+
+/* size="medium" title: stacked title-row + subtitle, matching DetailAppBar */
+.ui-app-bar__titles {
+	flex: 1;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.ui-app-bar__title-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
+
+.ui-app-bar--medium .ui-app-bar__title {
+	font-size: var(--cadence-type-title-m-size);
+	line-height: var(--cadence-type-title-m-line);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.ui-app-bar--medium .ui-app-bar__subtitle {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

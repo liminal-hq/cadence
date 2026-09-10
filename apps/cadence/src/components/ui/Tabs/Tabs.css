@@ -1,0 +1,26 @@
+.ui-tabs {
+	display: flex;
+	height: 48px;
+	border-bottom: 1px solid var(--cadence-outline-variant);
+}
+
+.ui-tabs__tab {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: none;
+	border-bottom: 3px solid transparent;
+	color: var(--cadence-on-surface-variant);
+	font-size: var(--cadence-type-title-s-size);
+	line-height: var(--cadence-type-title-s-line);
+	font-weight: var(--cadence-type-title-s-weight);
+	cursor: pointer;
+	margin-bottom: -1px;
+}
+
+.ui-tabs__tab--active {
+	color: var(--cadence-primary);
+	border-bottom-color: var(--cadence-primary);
+}

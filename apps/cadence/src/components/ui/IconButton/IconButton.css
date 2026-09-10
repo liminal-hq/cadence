@@ -1,0 +1,71 @@
+.ui-icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	border-radius: var(--cadence-shape-full);
+	color: var(--cadence-on-surface-variant);
+	cursor: pointer;
+}
+
+.ui-icon-button--size-small {
+	width: 32px;
+	height: 32px;
+}
+.ui-icon-button--size-small .ui-icon-button__glyph {
+	font-size: 18px;
+}
+
+.ui-icon-button--size-medium {
+	width: 36px;
+	height: 36px;
+}
+.ui-icon-button--size-medium .ui-icon-button__glyph {
+	font-size: 20px;
+}
+
+.ui-icon-button--size-default {
+	width: 40px;
+	height: 40px;
+}
+.ui-icon-button--size-default .ui-icon-button__glyph {
+	font-size: 24px;
+}
+
+.ui-icon-button--size-large {
+	width: var(--cadence-tap-target);
+	height: var(--cadence-tap-target);
+}
+.ui-icon-button--size-large .ui-icon-button__glyph {
+	font-size: 24px;
+}
+
+.ui-icon-button--size-xl {
+	width: 64px;
+	height: 64px;
+}
+.ui-icon-button--size-xl .ui-icon-button__glyph {
+	font-size: 32px;
+}
+
+.ui-icon-button--tonal {
+	background: var(--cadence-surface-container-highest);
+	color: var(--cadence-on-surface);
+}
+
+.ui-icon-button--filled {
+	background: var(--cadence-primary);
+	color: var(--cadence-on-primary);
+}
+
+.ui-icon-button:disabled {
+	color: color-mix(in srgb, var(--cadence-on-surface) 38%, transparent);
+	cursor: default;
+}
+
+.ui-icon-button--tonal:disabled,
+.ui-icon-button--filled:disabled {
+	background: color-mix(in srgb, var(--cadence-on-surface) 12%, transparent);
+}

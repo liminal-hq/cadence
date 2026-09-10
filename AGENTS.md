@@ -12,6 +12,7 @@
 - [Pull Request Labels](#pull-request-labels)
 - [Git Workflow](#git-workflow)
 - [Local Tooling](#local-tooling)
+- [Frontend Code Conventions](#frontend-code-conventions)
 - [Documentation](#documentation)
 - [Repository Layout](#repository-layout)
 - [Licence and Copyright](#licence-and-copyright)
@@ -41,6 +42,8 @@ Examples:
 
 - Manual line breaks mid-paragraph don't survive Markdown rendering as intended (they either collapse into the same line anyway or break formatting), and they create noisy diffs when a later edit only changes one word but reflows the whole wrapped block.
 - This does not apply to genuinely separate list items, headings, or intentional line breaks (e.g. two-space trailing breaks, blank lines between paragraphs) — only to breaking up one continuous sentence/paragraph across multiple lines.
+
+**Em dashes:** use a real em dash (`—`) in prose, never `--` as a substitute. Same scope as the hard-wrap rule above — PR/issue descriptions, docs, README files, `SPEC.md`, `SCREENS.md`, commit messages, and code comments. Doesn't apply to an actual double-hyphen that means something else in context (a CLI flag like `--check`, a numeric range, etc.) — only to `--` standing in for the punctuation mark.
 
 ## Commit Messages
 
@@ -141,6 +144,10 @@ Enter or paste your release notes for en-CA here
 ## Local Tooling
 
 - **Rust fallback:** If Rust tooling such as `cargo` is not available on the host, prefer using the locally available `ghcr.io/liminal-hq/tauri-dev-desktop:latest` image to run Rust and Tauri commands against the checked-out workspace, once this repository has Rust code to build.
+
+## Frontend Code Conventions
+
+- **No barrel files.** Don't create an `index.ts`/`index.tsx` that only re-exports from sibling files. Import directly from the file that defines the thing (e.g. `import { Button } from '../ui/Button/Button'`, not from a `components/ui/index.ts` that re-exports it). Barrels obscure the real dependency graph, slow down tree-shaking and IDE "go to definition," and this codebase's existing components already all import each other directly — a barrel would be an inconsistent, one-off pattern.
 
 ## Documentation
 
