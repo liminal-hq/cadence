@@ -55,7 +55,11 @@ export function PlateCalculatorSheet({
 	const [result, setResult] = useState<PlateCalculationResult | null>(null);
 
 	useEffect(() => {
-		repository.listBarbellConfigs().then(setBarbells);
+		repository.listBarbellConfigs().then((list) => {
+			setBarbells(list);
+			const defaultIndex = list.findIndex((b) => b.isDefault);
+			if (defaultIndex >= 0) setBarbellIndex(defaultIndex);
+		});
 	}, [repository]);
 
 	const barbell = barbells[barbellIndex];

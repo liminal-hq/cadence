@@ -1,4 +1,4 @@
-// The compact docked rest timer bar -- subscribed to the repository's RestTimerState (not
+// The compact docked rest timer bar — subscribed to the repository's RestTimerState (not
 // polled), with a local 1s tick re-deriving the countdown from the last-known target instant
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
@@ -26,10 +26,12 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 
 	useEffect(() => {
 		if (state.status === 'elapsed' && previousStatus.current === 'running') {
-			playRestElapsedChime();
+			repository.getSettings().then((settings) => {
+				if (settings.soundEnabled) playRestElapsedChime();
+			});
 		}
 		previousStatus.current = state.status;
-	}, [state.status]);
+	}, [state.status, repository]);
 
 	useEffect(() => {
 		let cancelled = false;

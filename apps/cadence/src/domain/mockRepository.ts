@@ -1,4 +1,4 @@
-// In-memory LoggingRepository over seedData.ts. Session-lifetime only --
+// In-memory LoggingRepository over seedData.ts. Session-lifetime only —
 // resets on reload. Swapping in a real backend later means constructing a
 // Tauri `invoke()`-backed LoggingRepository and changing the one line in
 // RepositoryProvider's default, not touching any call site.
@@ -13,9 +13,10 @@ import type {
 	PlateCalculationResult,
 	RestTimerState,
 	SetEntry,
+	Settings,
 	WorkoutExercise,
 } from './types';
-import { BARBELL_CONFIGS, EXERCISES, SETS, WORKOUT_EXERCISES } from './seedData';
+import { BARBELL_CONFIGS, DEFAULT_SETTINGS, EXERCISES, SETS, WORKOUT_EXERCISES } from './seedData';
 
 const EPSILON = 0.001;
 
@@ -26,7 +27,7 @@ interface PlateCombo {
 
 /**
  * Sorted by total descending; ties broken by fewer plates, then by
- * preferring larger plates first -- e.g. 25+5+1.25 sorts ahead of
+ * preferring larger plates first — e.g. 25+5+1.25 sorts ahead of
  * 20+10+1.25 for the same 31.25 total, matching how a lifter would
  * actually prefer to load a bar.
  */
@@ -97,6 +98,8 @@ export class MockLoggingRepository implements LoggingRepository {
 	private restTimer: RestTimerState = { status: 'inactive' };
 	private restTimerListeners = new Set<(state: RestTimerState) => void>();
 	private restTimerTimeout: ReturnType<typeof setTimeout> | undefined;
+	private barbells = new Map(BARBELL_CONFIGS.map((b) => [b.id, { ...b }]));
+	private settings: Settings = { ...DEFAULT_SETTINGS };
 
 	async getExercise(id: string): Promise<Exercise> {
 		const exercise = this.exercises.get(id);
@@ -318,7 +321,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async listBarbellConfigs(): Promise<BarbellConfig[]> {
-		return BARBELL_CONFIGS;
+		return [...this.barbells.values()];
 	}
 
 	async calculatePlates(
@@ -326,6 +329,52 @@ export class MockLoggingRepository implements LoggingRepository {
 		barbell: BarbellConfig,
 	): Promise<PlateCalculationResult> {
 		return calculatePlatesPure(targetWeight, barbell);
+	}
+
+	private clearOtherDefaults(exceptId: string) {
+		for (const [id, config] of this.barbells) {
+			if (id !== exceptId && config.isDefault)
+				this.barbells.set(id, { ...config, isDefault: false });
+		}
+	}
+
+	async addBarbellConfig(config: Omit<BarbellConfig, 'id'>): Promise<BarbellConfig> {
+		const created: BarbellConfig = { ...config, id: newId('barbell') };
+		this.barbells.set(created.id, created);
+		if (created.isDefault) this.clearOtherDefaults(created.id);
+		return created;
+	}
+
+	async updateBarbellConfig(config: BarbellConfig): Promise<BarbellConfig> {
+		if (!this.barbells.has(config.id)) throw new Error(`Unknown barbell config: ${config.id}`);
+		this.barbells.set(config.id, config);
+		if (config.isDefault) this.clearOtherDefaults(config.id);
+		return config;
+	}
+
+	async deleteBarbellConfig(id: string): Promise<void> {
+		this.barbells.delete(id);
+	}
+
+	async getSettings(): Promise<Settings> {
+		return this.settings;
+	}
+
+	async updateSettings(patch: Partial<Settings>): Promise<Settings> {
+		this.settings = { ...this.settings, ...patch };
+		return this.settings;
+	}
+
+	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
+		const workoutIds = new Set([...this.workoutExercises.values()].map((we) => we.workoutId));
+		return { workoutCount: workoutIds.size, setCount: this.sets.size };
+	}
+
+	async deleteAllHistory(): Promise<void> {
+		this.workoutExercises.clear();
+		this.sets.clear();
+		this.clearScheduledElapse();
+		this.setRestTimer({ status: 'inactive' });
 	}
 }
 

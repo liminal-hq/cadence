@@ -1,4 +1,4 @@
-// Domain types for the logging flow -- the subset of SPEC.md section 10.1's
+// Domain types for the logging and settings flows — the subset of SPEC.md section 10.1's
 // core entities this UI needs. Lives under apps/cadence/src/domain rather
 // than packages/core: nothing else consumes these yet (no wear app, no Rust
 // domain layer to mirror against), so hoisting now would be premature.
@@ -97,6 +97,8 @@ export interface BarbellConfig {
 	displayUnit: WeightUnit;
 	/** Per-side available plate weights, descending. */
 	availablePlates: number[];
+	/** At most one config is ever the default — PlateCalculatorSheet opens on it. */
+	isDefault?: boolean;
 }
 
 export interface PlateCalculationResult {
@@ -109,4 +111,27 @@ export interface PlateCalculationResult {
 	nearestHigher?: number;
 	shortfall?: number;
 	smallestPlate?: number;
+}
+
+export type RestFeedbackDevice = 'watch' | 'phone' | 'both';
+
+/** Durable application preferences (SPEC.md section 8.10) — session-lifetime in the mock
+ *  repository today, same persistence boundary as everything else it backs. */
+export interface Settings {
+	weightUnit: WeightUnit;
+	defaultRestMs: number;
+	restAutoStart: boolean;
+	restReplacesRunning: boolean;
+	vibrateEnabled: boolean;
+	soundEnabled: boolean;
+	restFeedbackDevice: RestFeedbackDevice;
+	workoutTimerAutoStart: boolean;
+	keepScreenOnDuringWorkout: boolean;
+	hapticOnSetComplete: boolean;
+	hapticOnRestEnd: boolean;
+	reducedMotion: boolean;
+	/** Drives P-61's notifications-denied banner; "Turn on" flips this rather than calling a
+	 *  real OS permission API, which doesn't exist in this mock/desktop context. */
+	notificationsDenied: boolean;
+	automaticBackupEnabled: boolean;
 }
