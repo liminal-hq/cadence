@@ -16,6 +16,9 @@ export interface SettingsRowProps {
 	statusTone?: 'default' | 'attention';
 	/** Colours the label/icon for a destructive row, e.g. "Delete all history". */
 	tone?: 'default' | 'error';
+	/** A small tag/chip shown alongside the chevron, e.g. a "Default" badge — unlike `trailing`,
+	 *  this doesn't suppress the chevron on a still-navigable row. */
+	badge?: ReactNode;
 	/** A Switch or other control, replacing the default chevron. */
 	trailing?: ReactNode;
 	onClick?: () => void;
@@ -28,6 +31,7 @@ export function SettingsRow({
 	status,
 	statusTone = 'default',
 	tone = 'default',
+	badge,
 	trailing,
 	onClick,
 }: SettingsRowProps) {
@@ -52,6 +56,7 @@ export function SettingsRow({
 					{status}
 				</span>
 			)}
+			{badge}
 			{trailing}
 			{!trailing && onClick && (
 				<span className="material-symbols-rounded settings-row__chevron" aria-hidden="true">

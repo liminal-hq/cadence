@@ -1,0 +1,47 @@
+.barbell-editor__field {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.barbell-editor__label {
+	font-size: var(--cadence-type-label-l-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface);
+}
+
+.barbell-editor__input {
+	border: 1px solid var(--cadence-outline-variant);
+	border-radius: var(--cadence-shape-xs);
+	padding: 10px 12px;
+	font-family: inherit;
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+	background: var(--cadence-surface-container-lowest);
+}
+
+.barbell-editor__input:focus {
+	outline: 2px solid var(--cadence-primary);
+	outline-offset: -1px;
+}
+
+.barbell-editor__plates {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-2);
+}
+
+.barbell-editor__empty {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.barbell-editor__add-plate {
+	display: flex;
+	gap: var(--cadence-space-2);
+}
+
+.barbell-editor__add-plate .barbell-editor__input {
+	flex: 1;
+}

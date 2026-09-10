@@ -28,6 +28,8 @@ import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
 import { TimerSettingsScreen } from './screens/settings/TimerSettingsScreen';
 import { DataManagementScreen } from './screens/settings/DataManagementScreen';
 import { WatchSyncScreen } from './screens/settings/WatchSyncScreen';
+import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
+import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -129,7 +131,22 @@ const settingsTimerOverridesRoute = settingsStubRoute(
 	'Per-exercise overrides',
 );
 const settings1rmFormulaRoute = settingsStubRoute('/settings/1rm-formula', '1RM formula');
-const settingsPlatesRoute = settingsStubRoute('/settings/plates', 'Plates & barbells');
+const settingsPlatesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/plates',
+	component: PlatesSettingsScreen,
+});
+
+function BarbellEditorRoute() {
+	const { barbellId } = settingsPlatesEditorRoute.useParams();
+	return <BarbellEditorScreen barbellId={barbellId} />;
+}
+
+const settingsPlatesEditorRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/plates/$barbellId',
+	component: BarbellEditorRoute,
+});
 const settingsCategoriesRoute = settingsStubRoute('/settings/categories', 'Categories');
 const settingsGraphsRoute = settingsStubRoute('/settings/graphs', 'Week start & graphs');
 const settingsThemeRoute = settingsStubRoute('/settings/theme', 'Theme & wallpaper colours');
@@ -167,6 +184,7 @@ const routeTree = rootRoute.addChildren([
 	settingsTimerOverridesRoute,
 	settings1rmFormulaRoute,
 	settingsPlatesRoute,
+	settingsPlatesEditorRoute,
 	settingsCategoriesRoute,
 	settingsGraphsRoute,
 	settingsThemeRoute,
