@@ -22,6 +22,7 @@
 .rest-timer-bar--elapsed {
 	background: var(--cadence-primary-container);
 	color: var(--cadence-on-primary-container);
+	box-shadow: inset 0 0 0 1px var(--cadence-on-primary-container);
 }
 
 .rest-timer-bar__icon {
