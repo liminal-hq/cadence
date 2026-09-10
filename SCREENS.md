@@ -1,4 +1,5 @@
 # Cadence
+
 ## Screen and State Inventory
 
 **Status:** Initial UI-planning companion to [SPEC.md](SPEC.md)  
@@ -15,11 +16,11 @@ It does not prescribe a layout, visual system, or component library. Cadence's U
 
 ### Scope labels
 
-| Label | Meaning |
-|---|---|
-| **Initial** | Required for the first coherent phone-and-watch release. |
+| Label       | Meaning                                                                     |
+| ----------- | --------------------------------------------------------------------------- |
+| **Initial** | Required for the first coherent phone-and-watch release.                    |
 | **Planned** | Part of the product direction; design seams now, implementation may follow. |
-| **Future** | Requires validation, platform work, or explicit consent before commitment. |
+| **Future**  | Requires validation, platform work, or explicit consent before commitment.  |
 
 ### Inventory fields
 
@@ -619,32 +620,32 @@ Watch
 
 ## 10. System-owned surfaces to design with
 
-| ID | Surface | Scope | Cadence responsibility and critical states |
-|---|---|---|---|
-| S-01 | Android active-workout notification | Initial | Show active workout/rest state and safe controls; permission denied; phone locked; timer elapsed; watch-primary haptics. |
-| S-02 | Wear OS timer notification | Initial | Surface ongoing rest countdown and open W-05; ambient mode; dismissed notification; haptics complete. |
-| S-03 | Android document picker | Initial | Select import/restore source and backup/export destination; cancelled; inaccessible provider; duplicate filename. |
-| S-04 | Android share sheet | Planned | Share user-selected workout text only; no available target; cancelled; private fields excluded. |
-| S-05 | Android home-screen widget | Planned | Resume active workout/rest timer/quick start; stale widget refresh; no active workout; privacy-safe display. |
-| S-06 | Health Connect consent UI | Planned | Android's own permission prompt for the export (write) and import (read) scopes requested from P-64; declined/revoked/unavailable; core app still works regardless of outcome. |
-| S-07 | Platform permission prompts | Initial/Future | Explain notification/haptics-related needs before prompt; denied/retry; no coercive blocking. |
+| ID   | Surface                             | Scope          | Cadence responsibility and critical states                                                                                                                                     |
+| ---- | ----------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| S-01 | Android active-workout notification | Initial        | Show active workout/rest state and safe controls; permission denied; phone locked; timer elapsed; watch-primary haptics.                                                       |
+| S-02 | Wear OS timer notification          | Initial        | Surface ongoing rest countdown and open W-05; ambient mode; dismissed notification; haptics complete.                                                                          |
+| S-03 | Android document picker             | Initial        | Select import/restore source and backup/export destination; cancelled; inaccessible provider; duplicate filename.                                                              |
+| S-04 | Android share sheet                 | Planned        | Share user-selected workout text only; no available target; cancelled; private fields excluded.                                                                                |
+| S-05 | Android home-screen widget          | Planned        | Resume active workout/rest timer/quick start; stale widget refresh; no active workout; privacy-safe display.                                                                   |
+| S-06 | Health Connect consent UI           | Planned        | Android's own permission prompt for the export (write) and import (read) scopes requested from P-64; declined/revoked/unavailable; core app still works regardless of outcome. |
+| S-07 | Platform permission prompts         | Initial/Future | Explain notification/haptics-related needs before prompt; denied/retry; no coercive blocking.                                                                                  |
 
 ## 11. Cross-screen state matrix
 
-| State | Phone surfaces affected | Watch surfaces affected | Required behaviour |
-|---|---|---|---|
-| No workout yet | Today, Quick start, History | Watch home | Make first exercise/routine discoverable; do not show an error. |
-| Empty workout | Today, Workout detail | Watch home, Workout controls | Allow adding an exercise or safely discarding the draft. |
-| Active manual workout | Today, Workout detail, Exercise logging | Current exercise, Exercise picker | Show next useful action and durable state. |
-| Planned workout | Workout detail, Exercise logging | Current exercise | Clearly distinguish planned/incomplete from completed while allowing edits. |
-| Rest timer running | Today, Logging, Timer, notification | Current exercise, Rest timer, notification | Same logical expiry; avoid duplicate alerts; retain context after sleep/backgrounding. |
-| All sets complete | Workout detail, Logging | Current exercise, Workout controls | Offer next exercise/workout completion; never force closure. |
-| Phone/watch disconnected | Sync status, active workout | Watch home, Current exercise, Sync status | Continue locally; visibly queue changes; never lose or duplicate a set. |
-| Historical workout | History, Calendar, Workout detail, Exercise detail | Not normally shown as an execution flow | Remains editable and traceable from analytics. |
-| No history for exercise | Logging, Exercise detail, Graph | Current exercise | Replace charts/previous set with useful empty guidance. |
-| Import/restore in progress | Data management, recovery prompt | Watch sync status | Suspend or carefully queue sync; show durable completion/failure result. |
-| Health Connect import candidates available | History hub, Health Connect settings, Import review | Not shown on watch | Surface as a discoverable, dismissible call-to-action; never auto-import. |
-| Accessibility mode | All | All | State is not colour-only; controls retain clear labels, focus order, and scalable layout. |
+| State                                      | Phone surfaces affected                             | Watch surfaces affected                    | Required behaviour                                                                        |
+| ------------------------------------------ | --------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| No workout yet                             | Today, Quick start, History                         | Watch home                                 | Make first exercise/routine discoverable; do not show an error.                           |
+| Empty workout                              | Today, Workout detail                               | Watch home, Workout controls               | Allow adding an exercise or safely discarding the draft.                                  |
+| Active manual workout                      | Today, Workout detail, Exercise logging             | Current exercise, Exercise picker          | Show next useful action and durable state.                                                |
+| Planned workout                            | Workout detail, Exercise logging                    | Current exercise                           | Clearly distinguish planned/incomplete from completed while allowing edits.               |
+| Rest timer running                         | Today, Logging, Timer, notification                 | Current exercise, Rest timer, notification | Same logical expiry; avoid duplicate alerts; retain context after sleep/backgrounding.    |
+| All sets complete                          | Workout detail, Logging                             | Current exercise, Workout controls         | Offer next exercise/workout completion; never force closure.                              |
+| Phone/watch disconnected                   | Sync status, active workout                         | Watch home, Current exercise, Sync status  | Continue locally; visibly queue changes; never lose or duplicate a set.                   |
+| Historical workout                         | History, Calendar, Workout detail, Exercise detail  | Not normally shown as an execution flow    | Remains editable and traceable from analytics.                                            |
+| No history for exercise                    | Logging, Exercise detail, Graph                     | Current exercise                           | Replace charts/previous set with useful empty guidance.                                   |
+| Import/restore in progress                 | Data management, recovery prompt                    | Watch sync status                          | Suspend or carefully queue sync; show durable completion/failure result.                  |
+| Health Connect import candidates available | History hub, Health Connect settings, Import review | Not shown on watch                         | Surface as a discoverable, dismissible call-to-action; never auto-import.                 |
+| Accessibility mode                         | All                                                 | All                                        | State is not colour-only; controls retain clear labels, focus order, and scalable layout. |
 
 ## 12. Implementation sequence
 

@@ -1,4 +1,5 @@
 # Cadence
+
 ## Initial Product, UX, Data Model & Platform Specification
 
 **Status:** Initial design specification  
@@ -59,10 +60,10 @@ Cadence's initial design should make these outcomes possible:
 
 The specification captures the full product direction so that early UI decisions do not close off important workflows. It deliberately separates the first shippable product from later capability.
 
-| Scope | Meaning |
-|---|---|
-| **Initial release** | Required for the first coherent Cadence experience and the first Wear OS companion. |
-| **Planned expansion** | Designed for now, but may follow after initial release. |
+| Scope                  | Meaning                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------- |
+| **Initial release**    | Required for the first coherent Cadence experience and the first Wear OS companion.         |
+| **Planned expansion**  | Designed for now, but may follow after initial release.                                     |
 | **Future exploration** | Valuable possibilities that require product validation, platform maturity, or user consent. |
 
 ### Initial release
@@ -95,19 +96,19 @@ The specification captures the full product direction so that early UI decisions
 
 ## 5. Core vocabulary
 
-| Term | Meaning |
-|---|---|
-| **Workout** | A user-visible training session, usually on a single calendar day. Cadence stores it explicitly, while still allowing immediate set entry to create one implicitly. |
-| **Exercise** | A reusable activity definition such as Bench Press, Plank, or Running. |
-| **Set** | One independently editable performance or planned performance for an exercise. It can include weight, reps, distance, duration, and a comment. |
-| **Planned set** | A persisted set created by a routine or copied workout that has not yet been marked complete. |
-| **Completed set** | A set the user has marked as performed. Completion is separate from whether the set exists. |
-| **Routine** | A reusable template containing one or more sections and their exercises/set templates. |
-| **Routine section** | A named segment of a routine, for example Push, Pull, Legs, or Workout A. |
-| **Superset** | An ordered, workout-specific group of exercises to alternate through. It also covers tri-sets and circuits. |
-| **Exercise metric profile** | The metric fields an exercise supports: weight, reps, distance, duration, or a valid combination. |
-| **Measurement** | A tracked body or custom metric, for example bodyweight, waist, body-fat percentage, or calories. |
-| **Device session** | The short-lived synchronization context linking the phone and watch to the same active workout. It is not a separate workout record. |
+| Term                          | Meaning                                                                                                                                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Workout**                   | A user-visible training session, usually on a single calendar day. Cadence stores it explicitly, while still allowing immediate set entry to create one implicitly.                                                                               |
+| **Exercise**                  | A reusable activity definition such as Bench Press, Plank, or Running.                                                                                                                                                                            |
+| **Set**                       | One independently editable performance or planned performance for an exercise. It can include weight, reps, distance, duration, and a comment.                                                                                                    |
+| **Planned set**               | A persisted set created by a routine or copied workout that has not yet been marked complete.                                                                                                                                                     |
+| **Completed set**             | A set the user has marked as performed. Completion is separate from whether the set exists.                                                                                                                                                       |
+| **Routine**                   | A reusable template containing one or more sections and their exercises/set templates.                                                                                                                                                            |
+| **Routine section**           | A named segment of a routine, for example Push, Pull, Legs, or Workout A.                                                                                                                                                                         |
+| **Superset**                  | An ordered, workout-specific group of exercises to alternate through. It also covers tri-sets and circuits.                                                                                                                                       |
+| **Exercise metric profile**   | The metric fields an exercise supports: weight, reps, distance, duration, or a valid combination.                                                                                                                                                 |
+| **Measurement**               | A tracked body or custom metric, for example bodyweight, waist, body-fat percentage, or calories.                                                                                                                                                 |
+| **Device session**            | The short-lived synchronization context linking the phone and watch to the same active workout. It is not a separate workout record.                                                                                                              |
 | **External exercise session** | A workout or measurement recorded by another app and stored in Health Connect, not originated in Cadence. It never becomes a Cadence record automatically; the user reviews and imports it explicitly (see §9.7), and its provenance is retained. |
 
 ## 6. Conceptual model
@@ -181,12 +182,12 @@ Profile / Settings
 
 ### Primary Android destinations
 
-| Destination | Primary question answered | Essential content |
-|---|---|---|
-| **Today** | What am I doing now? | Active/selected workout, next action, rest timer, quick-add, recent/favourite exercises. |
-| **History** | What have I done? | Calendar and chronological workouts; filters for exercise/category. |
-| **Plan** | What could I do? | Routines, routine sections, exercise library, favourites. |
-| **Progress** | How am I progressing? | Exercise insights, PRs, statistics, goals, aggregate analysis, measurements. |
+| Destination  | Primary question answered | Essential content                                                                        |
+| ------------ | ------------------------- | ---------------------------------------------------------------------------------------- |
+| **Today**    | What am I doing now?      | Active/selected workout, next action, rest timer, quick-add, recent/favourite exercises. |
+| **History**  | What have I done?         | Calendar and chronological workouts; filters for exercise/category.                      |
+| **Plan**     | What could I do?          | Routines, routine sections, exercise library, favourites.                                |
+| **Progress** | How am I progressing?     | Exercise insights, PRs, statistics, goals, aggregate analysis, measurements.             |
 
 On phones, these destinations should use bottom navigation where appropriate. On large screens, use an adaptive navigation rail or drawer. The active workout must always be reachable in one action from any primary destination.
 
@@ -431,12 +432,12 @@ Cadence should avoid double alarms. If both devices are connected and awake, the
 
 The app must work when devices are connected, temporarily disconnected, or when only one is available.
 
-| Situation | Required behaviour |
-|---|---|
-| Connected | Set changes, completion state, active exercise, workout state, and timer intent synchronize promptly in both directions. |
-| Watch temporarily offline | The watch queues mutations locally with IDs, timestamps, and device revision metadata; the user can continue logging. |
-| Phone temporarily offline | The phone remains fully usable; it queues mutations for the watch when appropriate. |
-| Reconnection | Sync is idempotent, shows any unresolved conflict, and never silently drops a logged set. |
+| Situation                  | Required behaviour                                                                                                                                                    |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Connected                  | Set changes, completion state, active exercise, workout state, and timer intent synchronize promptly in both directions.                                              |
+| Watch temporarily offline  | The watch queues mutations locally with IDs, timestamps, and device revision metadata; the user can continue logging.                                                 |
+| Phone temporarily offline  | The phone remains fully usable; it queues mutations for the watch when appropriate.                                                                                   |
+| Reconnection               | Sync is idempotent, shows any unresolved conflict, and never silently drops a logged set.                                                                             |
 | Conflict on the same field | Prefer the latest explicit edit, preserve the competing value in an audit/recovery record where feasible, and surface a concise resolution UI for material conflicts. |
 
 The wearable data layer must not be the sole owner of workout data. The phone's local database remains the durable primary store; the watch maintains a syncable local subset sufficient for active workout execution and short offline continuity. Locally committed watch mutations are durable watch records until acknowledged by the phone, not best-effort messages.
@@ -475,22 +476,22 @@ Cadence should use a local, versioned relational database (for example Room over
 
 ### 10.1 Core entities
 
-| Entity | Required fields / responsibilities |
-|---|---|
-| `Category` | ID, name, colour, sort order, archived state. |
-| `Exercise` | ID, name, category ID, metric profile, notes, URL, favourite, unit/increment/rest/graph defaults, archive state. |
-| `Workout` | ID, local date, title, note, start/end timestamps, state, created/updated metadata, source routine metadata, source (`manual` / `fitnotes-import` / `health-connect-import`), external source app and record ID when imported, Health Connect export state. |
-| `WorkoutExercise` | Workout ID, exercise ID, display order, optional group reference, state/notes needed for workout context. |
-| `Set` | ID, workout ID, workout-exercise ID, exercise ID, order, metric values, unit metadata, planned/completed state, completion timestamp, source template ID, created/updated metadata. |
-| `SetNote` | Set ID, text, created/updated metadata. |
-| `Routine` / `RoutineSection` / `RoutineExercise` / `SetTemplate` | Ordered template hierarchy and population rules. |
-| `Superset` / `SupersetMember` | Workout-specific group, member order, colour, auto-advance and rest behaviour. |
-| `ExerciseGoal` | Exercise ID, target metric values, title, dates, progress configuration. |
-| `MeasurementDefinition` / `MeasurementRecord` | Generic body/custom metric definitions and dated values. |
-| `RestTimer` | Logical timer state tied to workout/exercise/set context, duration, target instant, device ownership/preference, and revision. |
-| `DeviceMutation` | Mutation ID, source device, entity/version, timestamp, sync/acknowledgement state; required for durable watch reconciliation. |
-| `HealthImportCandidate` | External record ID, source app, record type, date/duration, recognized/unrecognized metric summary, reviewed/imported/dismissed state; staging record for the Health Connect import review (§9.7), never a Cadence workout until explicitly imported. |
-| `AppSettings` | Units, theme, accessibility, home/history/progress preferences, timer behaviour, privacy, and integration settings. |
+| Entity                                                           | Required fields / responsibilities                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Category`                                                       | ID, name, colour, sort order, archived state.                                                                                                                                                                                                               |
+| `Exercise`                                                       | ID, name, category ID, metric profile, notes, URL, favourite, unit/increment/rest/graph defaults, archive state.                                                                                                                                            |
+| `Workout`                                                        | ID, local date, title, note, start/end timestamps, state, created/updated metadata, source routine metadata, source (`manual` / `fitnotes-import` / `health-connect-import`), external source app and record ID when imported, Health Connect export state. |
+| `WorkoutExercise`                                                | Workout ID, exercise ID, display order, optional group reference, state/notes needed for workout context.                                                                                                                                                   |
+| `Set`                                                            | ID, workout ID, workout-exercise ID, exercise ID, order, metric values, unit metadata, planned/completed state, completion timestamp, source template ID, created/updated metadata.                                                                         |
+| `SetNote`                                                        | Set ID, text, created/updated metadata.                                                                                                                                                                                                                     |
+| `Routine` / `RoutineSection` / `RoutineExercise` / `SetTemplate` | Ordered template hierarchy and population rules.                                                                                                                                                                                                            |
+| `Superset` / `SupersetMember`                                    | Workout-specific group, member order, colour, auto-advance and rest behaviour.                                                                                                                                                                              |
+| `ExerciseGoal`                                                   | Exercise ID, target metric values, title, dates, progress configuration.                                                                                                                                                                                    |
+| `MeasurementDefinition` / `MeasurementRecord`                    | Generic body/custom metric definitions and dated values.                                                                                                                                                                                                    |
+| `RestTimer`                                                      | Logical timer state tied to workout/exercise/set context, duration, target instant, device ownership/preference, and revision.                                                                                                                              |
+| `DeviceMutation`                                                 | Mutation ID, source device, entity/version, timestamp, sync/acknowledgement state; required for durable watch reconciliation.                                                                                                                               |
+| `HealthImportCandidate`                                          | External record ID, source app, record type, date/duration, recognized/unrecognized metric summary, reviewed/imported/dismissed state; staging record for the Health Connect import review (§9.7), never a Cadence workout until explicitly imported.       |
+| `AppSettings`                                                    | Units, theme, accessibility, home/history/progress preferences, timer behaviour, privacy, and integration settings.                                                                                                                                         |
 
 ### 10.2 Invariants
 
@@ -636,11 +637,11 @@ The slice should include at least Weight + Reps exercise logging, one routine wi
 
 ## Appendix: FitNotes-inspired principles retained and intentionally changed
 
-| Retained | Modernized for Cadence |
-|---|---|
-| Fast manual, local-first logging | Explicit workout IDs support same-day sessions and phone/watch synchronization. |
-| Exercise + set facts as the durable core | Foreign keys, migrations, numeric precision, and stable sync IDs protect those facts. |
-| History adjacent to training | Clear primary navigation replaces feature discovery through drawers/overflows/long presses. |
-| Optional routines, planned sets, and supersets | A reviewable materialization flow and provenance make planning safer. |
+| Retained                                          | Modernized for Cadence                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Fast manual, local-first logging                  | Explicit workout IDs support same-day sessions and phone/watch synchronization.                        |
+| Exercise + set facts as the durable core          | Foreign keys, migrations, numeric precision, and stable sync IDs protect those facts.                  |
+| History adjacent to training                      | Clear primary navigation replaces feature discovery through drawers/overflows/long presses.            |
+| Optional routines, planned sets, and supersets    | A reviewable materialization flow and provenance make planning safer.                                  |
 | User-owned exercise taxonomy and portable backups | Guided FitNotes import, documented backup format, and user-controlled integrations extend portability. |
-| Optional body tracking and analysis | Health data becomes a consent-based contextual layer rather than a dependency. |
+| Optional body tracking and analysis               | Health data becomes a consent-based contextual layer rather than a dependency.                         |
