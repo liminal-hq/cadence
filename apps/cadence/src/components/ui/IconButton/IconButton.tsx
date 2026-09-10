@@ -1,7 +1,4 @@
-// M3 icon button — standard/tonal/filled, 5 sizes (2 are Cadence-specific: `large` keeps the
-// 48px visible circle already shipped in the app bars rather than true M3's 40px default with
-// an invisible hit-slop margin; `medium`/`xl` cover StepperCluster's steppers and
-// RestTimerSheet's play/pause, which don't fit the M3 scale either).
+// M3 icon button — standard, tonal, and filled variants across 5 sizes, 2 of them Cadence-specific
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

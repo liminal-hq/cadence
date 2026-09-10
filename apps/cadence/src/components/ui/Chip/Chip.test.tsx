@@ -1,5 +1,4 @@
-// Filter chips toggle a selected/aria-pressed state; assist chips don't; input chips expose
-// a separate remove control rather than nesting a button inside a button.
+// Filter chips toggle a selected/aria-pressed state, assist chips don't, and input chips expose a separate remove control
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

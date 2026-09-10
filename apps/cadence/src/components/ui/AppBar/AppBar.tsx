@@ -1,5 +1,4 @@
-// Shared app-bar shell that TopAppBar and DetailAppBar both configure, replacing two
-// previously near-identical, independently-hardcoded headers.
+// Shared app-bar shell that TopAppBar and DetailAppBar both configure, replacing two independently-hardcoded headers
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

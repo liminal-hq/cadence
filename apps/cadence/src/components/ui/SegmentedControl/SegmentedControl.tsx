@@ -1,6 +1,4 @@
-// M3 (labs) segmented button — geometry from material-web's
-// _md-comp-outlined-segmented-button.scss. Real <button>s per segment, so keyboard
-// activation and state layers both come free.
+// M3 (labs) segmented button, geometry from material-web's segmented-button token file
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

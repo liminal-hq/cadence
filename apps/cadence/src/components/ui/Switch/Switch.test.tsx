@@ -1,4 +1,4 @@
-// Renders as a real switch role; onChange fires with the toggled value; disabled suppresses it.
+// Renders as a real switch role, onChange fires with the toggled value, and disabled suppresses it
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

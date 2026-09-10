@@ -1,6 +1,4 @@
-// Back arrow, exercise title + category tag, subtitle, and actions — the exercise-detail
-// pattern SPEC.md section 7 calls for reuse of across Logging, History, Progress. A thin,
-// size="medium" configuration of the shared AppBar primitive.
+// Exercise-detail app bar, a thin size="medium" configuration of the shared AppBar primitive
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -26,7 +24,7 @@ export function DetailAppBar({ title, category, subtitle, backTo, actions }: Det
 			subtitle={subtitle}
 			size="medium"
 			back={{ to: backTo }}
-			tag={{ label: category, background: colour.background, color: colour.text }}
+			tag={{ label: category, background: colour.background, colour: colour.text }}
 			actions={actions}
 		/>
 	);

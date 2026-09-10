@@ -1,5 +1,4 @@
-// Static, non-interactive label pill — distinct from Chip, which is always interactive.
-// Consolidates DetailAppBar's category pill and RestTimerSheet's watch/phone badge.
+// Static, non-interactive label pill, distinct from Chip, which is always interactive
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,13 +8,13 @@ import './Tag.css';
 export interface TagProps {
 	label: string;
 	background: string;
-	color: string;
+	colour: string;
 	icon?: string;
 }
 
-export function Tag({ label, background, color, icon }: TagProps) {
+export function Tag({ label, background, colour, icon }: TagProps) {
 	return (
-		<span className="ui-tag" style={{ background, color }}>
+		<span className="ui-tag" style={{ background, color: colour }}>
 			{icon && (
 				<span className="material-symbols-rounded ui-tag__icon" aria-hidden="true">
 					{icon}

@@ -1,5 +1,4 @@
-// onClose fires on Escape and on a scrim click but not a content click; renders via
-// role="alertdialog"; nothing renders at all while closed.
+// onClose fires on Escape and a scrim click but not a content click, and it renders via role="alertdialog"
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

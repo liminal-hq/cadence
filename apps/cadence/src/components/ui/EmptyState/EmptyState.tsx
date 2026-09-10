@@ -1,5 +1,4 @@
-// Centred headline/body/optional-action block for a screen with nothing in it yet.
-// Promoted from screens.css's screen-empty-state classes, used by TodayScreen/ComingSoon.
+// Centred headline/body/optional-action block for a screen with nothing in it yet
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

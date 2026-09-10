@@ -1,5 +1,4 @@
-// Clicking an option calls onChange; the active option carries aria-current; disabled
-// options can't be selected.
+// Clicking an option calls onChange, the active option carries aria-current, and disabled options can't be selected
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

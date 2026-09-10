@@ -1,5 +1,4 @@
-// Tab-root top app bar — a thin, size="large" configuration of the shared AppBar primitive.
-// Actions are configured per destination by TabsLayout, not hardcoded here.
+// Tab-root top app bar, a thin size="large" configuration of the shared AppBar primitive
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

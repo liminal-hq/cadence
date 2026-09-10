@@ -1,5 +1,4 @@
-// Clicking a tab calls onChange; the active tab carries aria-selected; ArrowRight/ArrowLeft
-// move between tabs (real M3 tab keyboard behaviour), wrapping at the ends.
+// Clicking a tab calls onChange, the active tab carries aria-selected, and ArrowRight/ArrowLeft move between tabs
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

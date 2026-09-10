@@ -1,4 +1,4 @@
-// aria-label is always required and rendered; size/variant map to the right classes.
+// aria-label is always required and rendered, and size/variant map to the right classes
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

@@ -1,23 +1,25 @@
-// M3 Chip — assist (static action), filter (selectable), input (dismissible via a trailing
-// ✕). Geometry from material-web's _md-comp-assist-chip.scss/_md-comp-filter-chip.scss.
-// Input chips render as a wrapper + two sibling <button>s (body + remove) rather than a
-// button-inside-a-button, matching the pattern already used for SetRow/RestTimerBar.
+// M3 Chip — assist, filter, and input variants, geometry from material-web's chip token files
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { MouseEventHandler } from 'react';
+import { classNames } from '../classNames';
 import './Chip.css';
 
-export interface ChipProps {
-	variant: 'assist' | 'filter' | 'input';
+interface ChipBaseProps {
 	label: string;
 	icon?: string;
-	selected?: boolean;
 	size?: 'default' | 'small';
 	onClick?: MouseEventHandler<HTMLButtonElement>;
-	onRemove?: () => void;
 }
+
+export type ChipProps =
+	| (ChipBaseProps & { variant: 'assist'; selected?: never; onRemove?: never })
+	| (ChipBaseProps & { variant: 'filter'; selected?: boolean; onRemove?: never })
+	// onRemove is required, not optional — an input chip with nothing wired to remove it
+	// would otherwise silently render as an indistinguishable assist chip.
+	| (ChipBaseProps & { variant: 'input'; selected?: never; onRemove: () => void });
 
 export function Chip({
 	variant,
@@ -28,14 +30,12 @@ export function Chip({
 	onClick,
 	onRemove,
 }: ChipProps) {
-	const classes = [
+	const classes = classNames(
 		'ui-chip',
 		`ui-chip--${variant}`,
 		`ui-chip--size-${size}`,
-		selected ? 'ui-chip--selected' : '',
-	]
-		.filter(Boolean)
-		.join(' ');
+		selected && 'ui-chip--selected',
+	);
 
 	const iconEl = icon && (
 		<span className="material-symbols-rounded ui-chip__icon" aria-hidden="true">
@@ -43,7 +43,7 @@ export function Chip({
 		</span>
 	);
 
-	if (variant === 'input' && onRemove) {
+	if (variant === 'input') {
 		return (
 			<div className={`${classes} ui-chip--wrapper`}>
 				<button type="button" className="ui-chip__body" onClick={onClick} disabled={!onClick}>

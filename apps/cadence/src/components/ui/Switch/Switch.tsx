@@ -1,6 +1,4 @@
-// M3 Switch — geometry from material-web's _md-comp-switch.scss. Always shows a checkmark
-// in the thumb on the selected state (the accessible, recommended M3 shape) rather than
-// reproducing the Settings design canvas's own inconsistent mix of switch visuals.
+// M3 Switch, geometry from material-web's switch token file, always showing a checkmark on the selected thumb
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

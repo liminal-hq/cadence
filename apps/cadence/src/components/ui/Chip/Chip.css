@@ -21,7 +21,7 @@
 	font-size: var(--cadence-type-label-m-size);
 }
 
-.ui-chip:has(.ui-chip__icon) {
+.ui-chip:not(.ui-chip--wrapper):has(.ui-chip__icon) {
 	padding-left: 8px;
 }
 

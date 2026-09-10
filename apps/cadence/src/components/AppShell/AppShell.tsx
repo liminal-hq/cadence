@@ -1,6 +1,4 @@
-// Shared app shell: top app bar, scrollable content, bottom navigation.
-// Identical on desktop and mobile — the platform TitleBar (desktop only)
-// renders outside this component.
+// Shared app shell: top app bar, scrollable content, and bottom navigation, identical on desktop and mobile
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

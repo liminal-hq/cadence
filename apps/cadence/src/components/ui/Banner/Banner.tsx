@@ -1,6 +1,4 @@
-// Icon + message + optional action/dismiss, tinted container — consolidates the offline
-// banner, the notifications-denied warning, the draft-restored banner, and the Health
-// Connect/Settings banners, which all independently converged on this same shape.
+// Icon, message, and an optional action/dismiss in a tinted container, consolidating several repeated banner shapes
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

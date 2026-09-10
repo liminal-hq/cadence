@@ -1,11 +1,10 @@
-// M3 Button — filled/tonal/outlined/text, geometry from material-web's
-// _md-comp-*-button.scss token files. State layers come free from global.css's generic
-// `button` selector since this always renders a real <button>.
+// M3 Button — filled, tonal, outlined, and text variants, geometry from material-web's button token files
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { MouseEventHandler, ReactNode } from 'react';
+import { classNames } from '../classNames';
 import './Button.css';
 
 export interface ButtonProps {
@@ -34,16 +33,14 @@ export function Button({
 	onClick,
 	type = 'button',
 }: ButtonProps) {
-	const classes = [
+	const classes = classNames(
 		'ui-button',
 		`ui-button--${variant}`,
 		`ui-button--size-${size}`,
-		tone === 'error' ? 'ui-button--tone-error' : '',
-		fullWidth ? 'ui-button--full-width' : '',
-		icon ? `ui-button--icon-${iconPosition}` : '',
-	]
-		.filter(Boolean)
-		.join(' ');
+		tone === 'error' && 'ui-button--tone-error',
+		fullWidth && 'ui-button--full-width',
+		icon && `ui-button--icon-${iconPosition}`,
+	);
 
 	const iconEl = icon && (
 		<span className="material-symbols-rounded ui-button__icon" aria-hidden="true">

@@ -1,4 +1,4 @@
-// Headline/body always render; action/children are optional slots, not required.
+// Headline and body always render; action and children are optional slots
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

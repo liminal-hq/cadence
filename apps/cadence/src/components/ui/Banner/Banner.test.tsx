@@ -1,5 +1,4 @@
-// Action and dismiss are optional and only render when provided; dismiss fires a callback
-// rather than hiding itself — the parent owns visibility, same as every other primitive here.
+// Action and dismiss render only when provided, and dismiss fires a callback rather than hiding itself
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

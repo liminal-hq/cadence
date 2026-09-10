@@ -1,4 +1,4 @@
-// Variant/tone/size classes render correctly; onClick fires unless disabled.
+// Variant/tone/size classes render correctly, and onClick fires unless disabled
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

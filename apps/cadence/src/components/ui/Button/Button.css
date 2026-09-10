@@ -57,6 +57,11 @@
 	color: var(--cadence-on-secondary-container);
 }
 
+.ui-button--tonal.ui-button--tone-error {
+	background: var(--cadence-error-container);
+	color: var(--cadence-on-error-container);
+}
+
 .ui-button--tonal:disabled {
 	background: color-mix(in srgb, var(--cadence-on-surface) 12%, transparent);
 	color: color-mix(in srgb, var(--cadence-on-surface) 38%, transparent);

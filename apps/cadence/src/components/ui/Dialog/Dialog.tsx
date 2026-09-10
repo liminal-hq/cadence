@@ -1,6 +1,4 @@
-// Centred scrim + sheet shell for confirmations — distinct from BottomSheet, which is
-// bottom-anchored. Traps focus while open and restores it to the trigger on close, matching
-// SetNoteScreen's existing unsaved-changes dialog semantics (role="alertdialog").
+// Centred scrim + sheet shell for confirmations, distinct from the bottom-anchored BottomSheet
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -16,14 +14,27 @@ export interface DialogProps {
 	ariaLabel?: string;
 	children: ReactNode;
 	actions?: ReactNode;
+	/** Defaults to the interruptive 'alertdialog' semantics SetNoteScreen's existing dialog
+	 *  uses; pass 'dialog' for a plain, non-warning confirmation. */
+	role?: 'alertdialog' | 'dialog';
 }
 
 const FOCUSABLE_SELECTOR =
 	'button:not(:disabled), [href], input:not(:disabled), textarea:not(:disabled), select:not(:disabled), [tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ open, onClose, headline, ariaLabel, children, actions }: DialogProps) {
+export function Dialog({
+	open,
+	onClose,
+	headline,
+	ariaLabel,
+	children,
+	actions,
+	role = 'alertdialog',
+}: DialogProps) {
 	const panelRef = useRef<HTMLDivElement>(null);
 	const previouslyFocused = useRef<HTMLElement | null>(null);
+	const onCloseRef = useRef(onClose);
+	onCloseRef.current = onClose;
 
 	useEffect(() => {
 		if (!open) return;
@@ -35,7 +46,7 @@ export function Dialog({ open, onClose, headline, ariaLabel, children, actions }
 
 		function handleKeyDown(event: KeyboardEvent) {
 			if (event.key === 'Escape') {
-				onClose();
+				onCloseRef.current();
 				return;
 			}
 			if (event.key !== 'Tab' || !panel) return;
@@ -59,7 +70,12 @@ export function Dialog({ open, onClose, headline, ariaLabel, children, actions }
 			document.removeEventListener('keydown', handleKeyDown);
 			previouslyFocused.current?.focus();
 		};
-	}, [open, onClose]);
+		// Deliberately keyed on `open` alone: onClose is read via a ref so a caller passing a
+		// fresh closure each render (the idiomatic `onClose={() => setOpen(false)}`) doesn't
+		// re-run this effect — and re-capturing/re-focusing — on every unrelated rerender
+		// while the dialog is already open.
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [open]);
 
 	if (!open) return null;
 
@@ -68,7 +84,7 @@ export function Dialog({ open, onClose, headline, ariaLabel, children, actions }
 			<div
 				ref={panelRef}
 				className="ui-dialog"
-				role="alertdialog"
+				role={role}
 				aria-modal="true"
 				aria-label={headline ? undefined : ariaLabel}
 				aria-labelledby={headline ? 'ui-dialog-headline' : undefined}
