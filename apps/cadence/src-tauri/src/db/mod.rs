@@ -143,6 +143,15 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rest_timer_accepts_the_elapsed_status() {
+        let pool = init_test_pool().await;
+        sqlx::query("UPDATE rest_timer SET status = 'elapsed' WHERE id = 1")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn next_revision_increments_monotonically() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();

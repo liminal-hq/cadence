@@ -1,3 +1,6 @@
+// Row mapping and persistence for workout-exercises, including the computed workout label and
+// superset size.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

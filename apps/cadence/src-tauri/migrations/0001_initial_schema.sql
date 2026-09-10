@@ -342,7 +342,11 @@ CREATE UNIQUE INDEX uq_barbell_configs_default ON barbell_configs (is_default) W
 -- ticks" model already anticipates this.
 CREATE TABLE rest_timer (
     id                     INTEGER PRIMARY KEY CHECK (id = 1),
-    status                 TEXT NOT NULL DEFAULT 'inactive' CHECK (status IN ('inactive','running','paused')),
+    -- 'elapsed' is persisted, not purely derived on read: the coordinator's scheduled-elapse task
+    -- flips this the same way the mock's own scheduleElapse callback does, so it survives process
+    -- death and a restart's first read reflects it immediately.
+    status                 TEXT NOT NULL DEFAULT 'inactive'
+        CHECK (status IN ('inactive','running','paused','elapsed')),
     target_instant_ms      INTEGER,
     total_ms               INTEGER,
     remaining_ms_at_pause  INTEGER,

@@ -1,3 +1,6 @@
+// Row mapping and persistence for sets, including the composite foreign-key lookup that ties a
+// set to its workout-exercise's exercise.
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
