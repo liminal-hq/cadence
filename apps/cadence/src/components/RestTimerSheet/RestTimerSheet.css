@@ -100,7 +100,8 @@
 	padding: 0 18px;
 	border-radius: var(--cadence-shape-full);
 	background: var(--cadence-surface-container-highest);
-	border: none;
+	border: 1px solid var(--cadence-outline-variant);
+	color: var(--cadence-on-surface);
 	font-size: 15px;
 	font-weight: 600;
 	cursor: pointer;
