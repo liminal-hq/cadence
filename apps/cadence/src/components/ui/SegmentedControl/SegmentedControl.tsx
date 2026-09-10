@@ -9,6 +9,7 @@ export interface SegmentedControlOption<T extends string> {
 	value: T;
 	label: string;
 	icon?: string;
+	iconFilled?: boolean;
 	disabled?: boolean;
 }
 
@@ -38,7 +39,7 @@ export function SegmentedControl<T extends string>({
 					>
 						{option.icon && (
 							<span
-								className="material-symbols-rounded ui-segmented-control__icon"
+								className={`material-symbols-rounded ui-segmented-control__icon${option.iconFilled ? ' is-filled' : ''}`}
 								aria-hidden="true"
 							>
 								{option.icon}

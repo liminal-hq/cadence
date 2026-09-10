@@ -9,7 +9,7 @@ import './Banner.css';
 export interface BannerProps {
 	icon: string;
 	message: string;
-	tone?: 'attention' | 'primary';
+	tone?: 'attention' | 'primary' | 'neutral';
 	action?: { label: string; onClick: () => void };
 	onDismiss?: () => void;
 }
