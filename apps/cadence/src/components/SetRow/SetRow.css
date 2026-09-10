@@ -1,0 +1,123 @@
+.set-row-wrapper {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.set-row {
+	flex: 1;
+	display: grid;
+	grid-template-columns: 40px 1fr 1fr 48px;
+	align-items: center;
+	gap: 8px;
+	min-height: 48px;
+	padding: 4px 8px;
+	border-radius: var(--cadence-shape-s);
+	border: none;
+	background: none;
+	font-family: inherit;
+	text-align: left;
+	cursor: pointer;
+	font-variant-numeric: tabular-nums;
+}
+
+.set-row__overflow {
+	flex-shrink: 0;
+	width: 32px;
+	height: 32px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: none;
+	border: none;
+	border-radius: var(--cadence-shape-full);
+	color: var(--cadence-on-surface-variant);
+	cursor: pointer;
+}
+
+.set-row--completed,
+.set-row--planned {
+	color: var(--cadence-on-surface);
+}
+
+.set-row--loaded {
+	outline: 2px solid var(--cadence-primary);
+	outline-offset: -2px;
+	color: var(--cadence-on-surface);
+}
+
+.set-row__order {
+	font-size: var(--cadence-type-body-m-size);
+	font-weight: 600;
+	color: var(--cadence-on-surface-variant);
+	display: flex;
+	flex-direction: column;
+	line-height: 1.2;
+}
+
+.set-row--loaded .set-row__order {
+	color: var(--cadence-primary);
+}
+
+.set-row__order-caption {
+	font-size: 9px;
+	font-weight: 500;
+	letter-spacing: 0.01em;
+}
+
+.set-row__value {
+	font-size: var(--cadence-type-body-l-size);
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.set-row--loaded .set-row__value {
+	font-weight: 600;
+}
+
+.set-row--planned .set-row__value {
+	color: var(--cadence-on-surface-variant);
+}
+
+.set-row__record {
+	font-size: 16px;
+	color: var(--cadence-tertiary);
+}
+
+.set-row__note-icon {
+	font-size: 14px;
+	color: var(--cadence-on-surface-variant);
+}
+
+.set-row--loaded .set-row__note-icon {
+	color: var(--cadence-primary);
+}
+
+.set-row__status {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.set-row__check {
+	font-size: 24px;
+	color: var(--cadence-primary);
+}
+
+.set-row__circle {
+	font-size: 22px;
+	color: var(--cadence-outline);
+}
+
+.set-row--loaded .set-row__circle {
+	color: var(--cadence-primary);
+}
+
+.set-row__pending-caption {
+	font-size: 9px;
+	font-weight: 600;
+	color: var(--cadence-attention);
+}

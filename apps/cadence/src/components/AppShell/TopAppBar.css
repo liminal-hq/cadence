@@ -42,7 +42,3 @@
 	cursor: pointer;
 	flex-shrink: 0;
 }
-
-.top-app-bar__action:hover {
-	background: rgba(0, 0, 0, 0.06);
-}

@@ -5,7 +5,11 @@
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let mut builder = tauri::Builder::default().plugin(tauri_plugin_os::init());
+    // debug() keeps the context menu, devtools, and reload shortcuts enabled in debug builds
+    // (so they're still there while developing) and disables everything in release builds.
+    let mut builder = tauri::Builder::default()
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_prevent_default::debug());
 
     #[cfg(desktop)]
     {

@@ -3,7 +3,9 @@
 	"private": true,
 	"version": "0.1.0",
 	"packageManager": "bun@1.3.10",
-	"workspaces": ["apps/*"],
+	"workspaces": [
+		"apps/*"
+	],
 	"scripts": {
 		"dev": "bun run --filter @liminal-hq/cadence dev",
 		"build": "bun run --filter @liminal-hq/cadence build",

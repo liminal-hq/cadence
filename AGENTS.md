@@ -19,7 +19,7 @@
 
 ## Project Status
 
-Cadence has moved past the specification phase: `apps/cadence` is scaffolded (Tauri v2 + React/TypeScript, Bun-managed) with a desktop title bar, the M3 design tokens from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation) wired up across all four primary destinations, though only Today has a real screen so far -- the rest are placeholders. `apps/cadence-wear`, `packages/core`, and `plugins/` remain planned; the [Repository Layout](#repository-layout) and [Tauri v2](#tauri-v2) sections below still describe those as the *planned* shape, carried over from Threshold's engineering patterns per `SPEC.md`. Update this file further (removing the remaining "planned" qualifiers) as each part is actually scaffolded.
+Cadence has moved past the specification phase: `apps/cadence` is scaffolded (Tauri v2 + React/TypeScript, Bun-managed) with a desktop title bar, the M3 design tokens from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation) wired up across all four primary destinations. `@tanstack/react-router` now backs navigation (a `/today|/history|/plan|/progress` tab layout plus a sibling `/log/$scenario` route), and the P-14 Exercise logging flow is built out in full against a mock `LoggingRepository` (an async, in-memory implementation seeded with reference fixture data, structured so a real Rust/Tauri-backed implementation is a drop-in swap later): the "Preferred direction" fixed stepper-cluster pattern, the Set editor/Set note/expanded rest timer sheets, the plate calculator, all three demo scenarios (Sam's default set, the superset/offline-watch pair, Priya's first workout), and Priya's 5-step coach mark tour. Threshold's `RouteStage`/`ScreenStack` "peek" screen-transition architecture is ported too, though it's inert on desktop by construction until there's an Android target to attach the native predictive-back plugin to. History/Plan/Progress remain placeholders. `apps/cadence-wear`, `packages/core`, and `plugins/` remain planned; the [Repository Layout](#repository-layout) and [Tauri v2](#tauri-v2) sections below still describe those as the _planned_ shape, carried over from Threshold's engineering patterns per `SPEC.md`. Update this file further (removing the remaining "planned" qualifiers) as each part is actually scaffolded.
 
 ## Localization and Spelling
 
@@ -37,7 +37,7 @@ Examples:
 
 ## Markdown Formatting
 
-**REQUIREMENT:** Do not hard-wrap markdown prose. Write each paragraph or bullet as a single unwrapped line in the source, no matter how long — let the renderer (GitHub, a browser, an editor's soft-wrap) reflow it for display. This applies everywhere: commit bodies, PR descriptions, docs under `docs/`, README files, `SPEC.md`, `SCREENS.md`, code comments written in Markdown.
+**REQUIREMENT:** Do not hard-wrap markdown prose. Write each paragraph or bullet as a single unwrapped line in the source, no matter how long — let the renderer (GitHub, a browser, an editor's soft-wrap) reflow it for display. This applies everywhere: PR descriptions, docs under `docs/`, README files, `SPEC.md`, `SCREENS.md`, code comments written in Markdown. Commit message bodies are the one exception — hard-wrap those (see [Commit Messages](#commit-messages)); `git log`/`git show` in a terminal don't reflow long lines the way GitHub's PR view does.
 
 - Manual line breaks mid-paragraph don't survive Markdown rendering as intended (they either collapse into the same line anyway or break formatting), and they create noisy diffs when a later edit only changes one word but reflows the whole wrapped block.
 - This does not apply to genuinely separate list items, headings, or intentional line breaks (e.g. two-space trailing breaks, blank lines between paragraphs) — only to breaking up one continuous sentence/paragraph across multiple lines.
@@ -52,7 +52,9 @@ Examples:
 
 - Explain what and why (not how)
 - Use markdown: **bold**, _italics_, `code`, bullet lists
+- **Backtick every code-level reference** — component/function/class/variable names, file and directory paths, CSS selectors/properties/values, npm and crate package names, route paths, HTML tag names, config keys, and CLI flags (e.g. `RestTimerBar`, `apps/cadence/src/domain`, `:hover`, `overflow-x: hidden`, `@tanstack/react-router`, `/log/$scenario`, `<button>`, `--flag`). This applies inline in prose, not just in fenced code blocks. Plain-English descriptions and user-facing UI strings (button labels, screen names, dialog copy) use quotes instead, not backticks — they aren't code.
 - **NO markdown headings** - use **bold labels** for sections (not always required)
+- Hard-wrap paragraphs (~72-100 chars), unlike other markdown in this repo — see [Markdown Formatting](#markdown-formatting)
 
 **Specific Updates**: Each commit message should reflect the specific changes made in that commit. Do not just recap the entire project history or scope. Focus on the now.
 

@@ -1,0 +1,201 @@
+.plate-calculator-sheet {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 16px;
+	font-variant-numeric: tabular-nums;
+}
+
+.plate-calculator-sheet__header {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.plate-calculator-sheet__title {
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+}
+
+.plate-calculator-sheet__barbell {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 32px;
+	padding: 0 10px;
+	border-radius: var(--cadence-shape-s);
+	border: 1px solid var(--cadence-outline-variant);
+	background: none;
+	font-size: 12.5px;
+	color: var(--cadence-on-surface);
+	cursor: pointer;
+}
+
+.plate-calculator-sheet__bar {
+	width: 100%;
+	display: flex;
+	align-items: flex-end;
+	justify-content: center;
+	gap: 4px;
+	min-height: 96px;
+}
+
+.plate-calculator-sheet__side {
+	display: flex;
+	align-items: flex-end;
+	gap: 2px;
+}
+
+.plate-calculator-sheet__side:first-child {
+	flex-direction: row-reverse;
+}
+
+.plate-calculator-sheet__plate-column {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+}
+
+.plate-calculator-sheet__plate {
+	border-radius: 2px;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.plate-calculator-sheet__plate-label {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--cadence-on-surface-variant);
+}
+
+.plate-calculator-sheet__bar-segment {
+	width: 24px;
+	height: 8px;
+	background: var(--cadence-outline);
+	border-radius: 2px;
+	margin-bottom: 10px;
+}
+
+.plate-calculator-sheet__headline {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	text-align: center;
+}
+
+.plate-calculator-sheet__headline-value {
+	font-size: 22px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+}
+
+.plate-calculator-sheet__headline-unit {
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--cadence-on-surface-variant);
+}
+
+.plate-calculator-sheet__subline {
+	font-size: 12.5px;
+	color: var(--cadence-on-surface-variant);
+}
+
+.plate-calculator-sheet__subline.is-warning {
+	color: var(--cadence-attention);
+	font-weight: 600;
+}
+
+.plate-calculator-sheet__stepper {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.plate-calculator-sheet__stepper-item {
+	display: inline-flex;
+	align-items: center;
+	height: 36px;
+	padding: 0 10px;
+	border-radius: var(--cadence-shape-s);
+	border: 1px solid var(--cadence-outline-variant);
+	background: none;
+	color: var(--cadence-on-surface);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.plate-calculator-sheet__stepper-item:disabled {
+	opacity: 0.4;
+	cursor: default;
+}
+
+.plate-calculator-sheet__current {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	height: 36px;
+	padding: 0 14px;
+	border-radius: var(--cadence-shape-s);
+	font-size: 14px;
+	font-weight: 700;
+}
+
+.plate-calculator-sheet__current.is-loadable {
+	background: var(--cadence-secondary-container);
+	color: var(--cadence-on-secondary-container);
+}
+
+.plate-calculator-sheet__current.is-warning {
+	background: var(--cadence-attention-container);
+	color: var(--cadence-on-attention-container);
+}
+
+.plate-calculator-sheet__resolutions {
+	display: flex;
+	gap: 8px;
+}
+
+.plate-calculator-sheet__resolutions button {
+	height: 40px;
+	padding: 0 16px;
+	border-radius: var(--cadence-shape-full);
+	background: var(--cadence-secondary-container);
+	color: var(--cadence-on-secondary-container);
+	border: none;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.plate-calculator-sheet__escape-hatch {
+	margin: 0;
+	font-size: 12px;
+	color: var(--cadence-on-surface-variant);
+	text-align: center;
+}
+
+.plate-calculator-sheet__disclosure {
+	margin: 0;
+	font-size: 12px;
+	color: var(--cadence-on-surface-variant);
+	text-align: center;
+}
+
+.plate-calculator-sheet__disclosure strong {
+	color: var(--cadence-primary);
+	font-weight: 600;
+}
+
+.plate-calculator-sheet__close {
+	align-self: flex-end;
+	height: 40px;
+	padding: 0 16px;
+	background: none;
+	border: none;
+	color: var(--cadence-primary);
+	font-weight: 600;
+	cursor: pointer;
+}

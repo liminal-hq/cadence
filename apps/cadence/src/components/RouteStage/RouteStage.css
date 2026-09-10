@@ -1,0 +1,61 @@
+.route-stage {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+}
+
+.route-stage__top {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	z-index: 2;
+	overflow-y: auto;
+	overflow-x: hidden;
+	background-color: var(--cadence-surface);
+	transition:
+		transform 220ms ease-out,
+		opacity 220ms ease-out;
+}
+
+.route-stage__underlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	flex-direction: column;
+	z-index: 1;
+	overflow: hidden;
+	transform-origin: center;
+	background-color: var(--cadence-surface);
+	transition: transform 220ms ease-out;
+	pointer-events: none;
+}
+
+.route-stage__top.is-dragging,
+.route-stage__underlay.is-dragging {
+	transition: none;
+}
+
+.route-stage__top.is-dragging {
+	will-change: transform, opacity;
+}
+
+.route-stage__underlay.is-dragging {
+	will-change: transform;
+}
+
+.route-stage__underlay-scrim {
+	position: absolute;
+	inset: 0;
+	background-color: rgba(0, 0, 0, 0.3);
+	pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.route-stage__top,
+	.route-stage__underlay {
+		transition: none;
+	}
+}

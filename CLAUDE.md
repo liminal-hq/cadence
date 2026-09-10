@@ -8,7 +8,7 @@ Cadence is a modern, local-first Android training journal inspired by FitNotes, 
 
 ## Status
 
-Cadence has moved past specification-only. `apps/cadence` is scaffolded: Tauri v2 + React/TypeScript frontend (Bun-managed, not pnpm), a desktop-only title bar ported from Threshold, M3 design tokens lifted from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation across the four primary destinations). Only Today has a real screen so far; History/Plan/Progress are wired-up placeholders. There's no Rust domain logic/SQLite yet and no Android/Wear OS build.
+Cadence has moved past specification-only. `apps/cadence` is scaffolded: Tauri v2 + React/TypeScript frontend (Bun-managed, not pnpm), a desktop-only title bar ported from Threshold, M3 design tokens lifted from the Claude Design handoff, and a shared app shell (top app bar + bottom navigation across the four primary destinations), with `@tanstack/react-router` now backing navigation. The P-14 Exercise logging flow is built out in full -- the "Preferred direction" fixed stepper-cluster pattern, the Set editor/Set note/expanded rest timer sheets, the plate calculator, all three demo scenarios, and Priya's 5-step coach mark tour -- against a mock `LoggingRepository` under `src/domain/` (an async, in-memory implementation designed as a drop-in swap for a future Rust/SQLite backend). Threshold's `RouteStage`/`ScreenStack` "peek" screen-transition architecture is also ported, though it's inert on desktop until an Android target exists to attach the native predictive-back plugin to. History/Plan/Progress remain wired-up placeholders. There's no Rust domain logic/SQLite yet and no Android/Wear OS build.
 
 - `SPEC.md` — the product, UX, data model, and platform specification. This is the current source of truth.
 - `SCREENS.md` — the companion screen-and-state inventory for UI planning, derived from `SPEC.md`.
@@ -32,10 +32,10 @@ The UI design work itself is done: a Claude Design handoff (Foundations canvas +
 ## Conventions (from AGENTS.md)
 
 - **PR titles**: human-readable, imperative, sentence case, ~70 chars, **no Conventional Commit prefix**. Descriptions use `## Summary` + `## Test plan` (checklists, concrete commands). Every PR gets a category label (`enhancement`, `bug`, `documentation`, …) plus scope labels (`android`, `wear-os`, `frontend`, `backend`, `rust`, `plugin`, `data-model`, `sync`). PRs open ready for review, not as drafts.
-- **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); write bodies to a file and `git commit -F` when they contain backticks.
+- **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); backtick every code-level reference (identifiers, paths, CSS, package names, tags — not UI strings, which use quotes); write bodies to a file and `git commit -F` when they contain backticks.
 - **Licence headers** on new source files, once they exist: one-line summary + `(c) Copyright 2026 Liminal HQ, Scott Morris` + `SPDX-License-Identifier: Apache-2.0 OR MIT`.
 - **Docs sync**: user-facing behaviour or screen/state changes update `SPEC.md` and `SCREENS.md` respectively, in the same change.
-- **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is.
+- **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is. Commit message bodies are the exception — hard-wrap those.
 - **Git**: never push (especially force-push) unless explicitly asked; prefer the `gh` CLI for GitHub work.
 
 Keep this file and `AGENTS.md` in sync: when a convention changes there, update the summary here in the same PR.

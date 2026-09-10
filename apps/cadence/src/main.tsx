@@ -5,11 +5,16 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { App } from './App';
+import { RouterProvider } from '@tanstack/react-router';
+import { router } from './router';
+import { RepositoryProvider } from './domain/RepositoryProvider';
+import { mockRepository } from './domain/mockRepository';
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 	<React.StrictMode>
-		<App />
+		<RepositoryProvider repository={mockRepository}>
+			<RouterProvider router={router} />
+		</RepositoryProvider>
 	</React.StrictMode>,
 );
