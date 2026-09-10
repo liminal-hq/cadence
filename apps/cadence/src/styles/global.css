@@ -17,6 +17,17 @@ body {
 	font-family: var(--cadence-font-family);
 	-webkit-font-smoothing: antialiased;
 	overflow: hidden;
+	/* No arbitrary text selection, matching native Android's default (a TextView isn't
+	   selectable unless it opts in) -- text inputs are unaffected by this regardless, since
+	   native text-editing controls always allow selecting their own value. */
+	user-select: none;
+	-webkit-user-select: none;
+}
+
+input,
+textarea {
+	user-select: text;
+	-webkit-user-select: text;
 }
 
 .material-symbols-rounded {
