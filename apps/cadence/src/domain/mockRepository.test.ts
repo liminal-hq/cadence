@@ -177,12 +177,14 @@ describe('MockLoggingRepository', () => {
 			expect(summary.setCount).toBe(10);
 		});
 
-		it('clears workout exercises and sets, leaving exercises and settings intact', async () => {
+		it('clears sets but keeps workout exercises, exercises, and settings intact', async () => {
 			await repo.deleteAllHistory();
 
 			const summary = await repo.getHistorySummary();
 			expect(summary).toEqual({ workoutCount: 0, setCount: 0 });
-			await expect(repo.getWorkoutExercise('we-bench-press')).rejects.toThrow();
+			// The routine scaffold survives — Today and Logging still resolve these by id.
+			await expect(repo.getWorkoutExercise('we-bench-press')).resolves.toBeDefined();
+			await expect(repo.listSets('we-bench-press')).resolves.toEqual([]);
 			await expect(repo.getExercise('ex-bench-press')).resolves.toBeDefined();
 			expect(await repo.getSettings()).toEqual(await new MockLoggingRepository().getSettings());
 		});

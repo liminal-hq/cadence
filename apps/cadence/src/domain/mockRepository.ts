@@ -246,6 +246,11 @@ export class MockLoggingRepository implements LoggingRepository {
 			ownerDevice?: RestTimerState['ownerDevice'];
 		},
 	): Promise<RestTimerState> {
+		// "New rest replaces a running one" off: a request that arrives while one is already
+		// counting down is dropped rather than restarting the clock.
+		if (this.restTimer.status === 'running' && !this.settings.restReplacesRunning) {
+			return this.restTimer;
+		}
 		const targetInstant = new Date(Date.now() + totalMs).toISOString();
 		this.scheduleElapse(totalMs);
 		this.setRestTimer({
@@ -353,11 +358,14 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async deleteBarbellConfig(id: string): Promise<void> {
+		// Never allow the list to reach zero — PlateCalculatorSheet has no empty-state to fall
+		// back to, and every set editor's Plates chip assumes at least one config exists.
+		if (this.barbells.size <= 1) return;
 		this.barbells.delete(id);
 	}
 
 	async getSettings(): Promise<Settings> {
-		return this.settings;
+		return { ...this.settings };
 	}
 
 	async updateSettings(patch: Partial<Settings>): Promise<Settings> {
@@ -366,12 +374,23 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
-		const workoutIds = new Set([...this.workoutExercises.values()].map((we) => we.workoutId));
-		return { workoutCount: workoutIds.size, setCount: this.sets.size };
+		// "Workouts" here means workouts with recorded history (at least one set), not every
+		// workoutExercise slot that exists — those slots are the routine scaffold Today and
+		// Logging navigate against, not history, and survive a history deletion below.
+		const workoutIdsWithSets = new Set<string>();
+		for (const set of this.sets.values()) {
+			const workoutExercise = this.workoutExercises.get(set.workoutExerciseId);
+			if (workoutExercise) workoutIdsWithSets.add(workoutExercise.workoutId);
+		}
+		return { workoutCount: workoutIdsWithSets.size, setCount: this.sets.size };
 	}
 
 	async deleteAllHistory(): Promise<void> {
-		this.workoutExercises.clear();
+		// Clears logged sets only — not the workoutExercises themselves, which Today and
+		// ExerciseLoggingScreen still resolve by id after this runs. There's no separate
+		// Workout entity yet to distinguish "routine scaffold" from "recorded history"
+		// (that's PR C's job); until then, deleting the scaffold too would strand every
+		// demo scenario's Start-workout link.
 		this.sets.clear();
 		this.clearScheduledElapse();
 		this.setRestTimer({ status: 'inactive' });

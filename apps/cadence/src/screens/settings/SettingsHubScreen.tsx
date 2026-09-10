@@ -127,7 +127,10 @@ export function SettingsHubScreen() {
 
 	return (
 		<div className="settings-screen">
-			<AppBar title="Settings" size="large" />
+			{/* Settings is a top-level route outside TabsLayout (like /log/$scenario), so it has
+			    no bottom nav — back is the only way out until a real caller (History's own
+			    screen, once PR C lands) replaces this fallback with its own contextual origin. */}
+			<AppBar title="Settings" size="large" back={{ to: '/today' }} />
 			<div className="settings-screen__content">
 				{sections.map((section) => (
 					<section key={section.title}>

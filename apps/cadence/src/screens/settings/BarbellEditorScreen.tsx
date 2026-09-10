@@ -40,17 +40,37 @@ export function BarbellEditorScreen({ barbellId }: BarbellEditorScreenProps) {
 	const [draft, setDraft] = useState<Draft | null>(isNew ? BLANK_DRAFT : null);
 	const [plateInput, setPlateInput] = useState('');
 	const [deleteOpen, setDeleteOpen] = useState(false);
+	const [barbellCount, setBarbellCount] = useState(0);
 
 	useEffect(() => {
-		if (isNew) return;
+		if (isNew) {
+			// A brand-new barbell should default to the user's actual unit preference, not always kg.
+			repository.getSettings().then((settings) => {
+				setDraft((current) =>
+					current
+						? {
+								...current,
+								displayUnit: settings.weightUnit,
+								barWeight: settings.weightUnit === 'lb' ? 45 : 20,
+							}
+						: current,
+				);
+			});
+			return;
+		}
 		repository.listBarbellConfigs().then((list) => {
+			setBarbellCount(list.length);
 			const found = list.find((b) => b.id === barbellId);
 			if (found) {
 				const { id: _id, ...rest } = found;
 				setDraft(rest);
+			} else {
+				// Stale id (e.g. browser back/forward after deleting it) — bounce back rather than
+				// leaving a permanently blank, chromeless screen.
+				navigate({ to: '/settings/plates' });
 			}
 		});
-	}, [repository, barbellId, isNew]);
+	}, [repository, barbellId, isNew, navigate]);
 
 	if (!draft) return null;
 
@@ -90,7 +110,13 @@ export function BarbellEditorScreen({ barbellId }: BarbellEditorScreenProps) {
 				size="medium"
 				back={{ to: '/settings/plates' }}
 				trailingContent={
-					<Button variant="text" disabled={!draft.name.trim()} onClick={handleSave}>
+					<Button
+						variant="text"
+						disabled={
+							!draft.name.trim() || !(draft.barWeight > 0) || draft.availablePlates.length === 0
+						}
+						onClick={handleSave}
+					>
 						Save
 					</Button>
 				}
@@ -150,7 +176,9 @@ export function BarbellEditorScreen({ barbellId }: BarbellEditorScreenProps) {
 					<div className="settings-section__body settings-section__body--padded">
 						<div className="barbell-editor__plates">
 							{draft.availablePlates.length === 0 && (
-								<p className="barbell-editor__empty">No plates added yet</p>
+								<p className="barbell-editor__empty">
+									Add at least one plate weight to save this barbell
+								</p>
 							)}
 							{draft.availablePlates.map((plate, index) => (
 								<Chip
@@ -181,7 +209,7 @@ export function BarbellEditorScreen({ barbellId }: BarbellEditorScreenProps) {
 					</div>
 				</section>
 
-				{!isNew && (
+				{!isNew && barbellCount > 1 && (
 					<section>
 						<div className="settings-section__body">
 							<SettingsRow

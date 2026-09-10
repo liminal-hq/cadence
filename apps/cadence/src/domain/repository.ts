@@ -60,6 +60,7 @@ export interface LoggingRepository {
 	/** Setting `isDefault: true` clears it on every other config — at most one default at a time. */
 	addBarbellConfig(config: Omit<BarbellConfig, 'id'>): Promise<BarbellConfig>;
 	updateBarbellConfig(config: BarbellConfig): Promise<BarbellConfig>;
+	/** A no-op when this is the last remaining config — the plate calculator has no empty state. */
 	deleteBarbellConfig(id: string): Promise<void>;
 
 	getSettings(): Promise<Settings>;

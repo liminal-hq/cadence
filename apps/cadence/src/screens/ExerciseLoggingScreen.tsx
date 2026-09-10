@@ -82,6 +82,9 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>
 	> | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
+	// Settings' Rest & workout timers screen — read once on mount since nothing here needs to
+	// react live to a change made in a different screen mid-workout.
+	const [restSettings, setRestSettings] = useState({ restAutoStart: true, defaultRestMs: 120_000 });
 
 	// Sam has a paired watch (SPEC's persona); Priya doesn't — drives the rest timer
 	// sheet's haptics-ownership copy and notifications-denied demo.
@@ -139,6 +142,15 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	useEffect(() => {
 		loadWorkoutExercise(currentWorkoutExerciseId);
 	}, [currentWorkoutExerciseId, loadWorkoutExercise]);
+
+	useEffect(() => {
+		repository.getSettings().then((settings) => {
+			setRestSettings({
+				restAutoStart: settings.restAutoStart,
+				defaultRestMs: settings.defaultRestMs,
+			});
+		});
+	}, [repository]);
 
 	if (!workoutExercise || !exercise) return null;
 
@@ -230,11 +242,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				exercise.metricProfile === 'weight-reps'
 					? `${exercise.name} set ${created.order} · ${formatNumber(created.weightKg ?? 0)} × ${created.reps ?? 0}`
 					: `${exercise.name} set ${created.order}`;
-			await repository.startRestTimer(120_000, {
-				forSetId: created.id,
-				nextSetLabel: label,
-				ownerDevice: hasWatch ? 'watch' : 'phone',
-			});
+			if (restSettings.restAutoStart) {
+				await repository.startRestTimer(restSettings.defaultRestMs, {
+					forSetId: created.id,
+					nextSetLabel: label,
+					ownerDevice: hasWatch ? 'watch' : 'phone',
+				});
+			}
 			return;
 		}
 
@@ -261,11 +275,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			exercise.metricProfile === 'weight-reps'
 				? `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)} · ${formatNumber(upcoming.weightKg ?? 0)} × ${upcoming.reps ?? 0}`
 				: `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)}`;
-		await repository.startRestTimer(120_000, {
-			forSetId: completed.id,
-			nextSetLabel: label,
-			ownerDevice: hasWatch ? 'watch' : 'phone',
-		});
+		if (restSettings.restAutoStart) {
+			await repository.startRestTimer(restSettings.defaultRestMs, {
+				forSetId: completed.id,
+				nextSetLabel: label,
+				ownerDevice: hasWatch ? 'watch' : 'phone',
+			});
+		}
 	};
 
 	const handleAddSet = async () => {

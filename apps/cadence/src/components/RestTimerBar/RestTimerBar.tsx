@@ -6,7 +6,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { RestTimerState } from '../../domain/types';
+import type { Settings, RestTimerState } from '../../domain/types';
 import { playRestElapsedChime } from '../../domain/sound';
 import { formatRemaining } from './formatRemaining';
 import './RestTimerBar.css';
@@ -22,12 +22,21 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 	const repository = useLoggingRepository();
 	const [state, setState] = useState<RestTimerState>({ status: 'inactive' });
 	const [now, setNow] = useState(() => Date.now());
+	const [settings, setSettings] = useState<Settings | null>(null);
 	const previousStatus = useRef(state.status);
 
 	useEffect(() => {
+		repository.getSettings().then(setSettings);
+	}, [repository]);
+
+	useEffect(() => {
 		if (state.status === 'elapsed' && previousStatus.current === 'running') {
-			repository.getSettings().then((settings) => {
-				if (settings.soundEnabled) playRestElapsedChime();
+			repository.getSettings().then((current) => {
+				// Sound is a phone-local effect — skip it when the user routed rest-end feedback to
+				// the watch only, so a watch-only preference doesn't also buzz/chime the phone.
+				if (current.soundEnabled && current.restFeedbackDevice !== 'watch') {
+					playRestElapsedChime();
+				}
 			});
 		}
 		previousStatus.current = state.status;
@@ -56,6 +65,7 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 	}, [state.status, state.targetInstant]);
 
 	if (state.status === 'inactive') {
+		const restMs = settings?.defaultRestMs ?? DEFAULT_REST_MS;
 		return (
 			<div className="rest-timer-bar rest-timer-bar--inactive">
 				<span className="material-symbols-rounded rest-timer-bar__icon">timer</span>
@@ -63,9 +73,9 @@ export function RestTimerBar({ onOpen, onGo }: RestTimerBarProps) {
 				<button
 					type="button"
 					className="rest-timer-bar__outlined-button"
-					onClick={() => repository.startRestTimer(DEFAULT_REST_MS)}
+					onClick={() => repository.startRestTimer(restMs)}
 				>
-					Start {formatRemaining(DEFAULT_REST_MS)}
+					Start {formatRemaining(restMs)}
 				</button>
 			</div>
 		);

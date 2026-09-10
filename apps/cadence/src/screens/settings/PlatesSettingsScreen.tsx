@@ -1,5 +1,5 @@
 // P-66 Plates & barbells list — real CRUD over the BarbellConfig shape that already existed
-// in domain/types.ts and seedData.ts from the Logging PR, so this needed no new domain modeling
+// in domain/types.ts and seedData.ts from the Logging PR, so this needed no new domain modelling
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

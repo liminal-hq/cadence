@@ -21,7 +21,10 @@ import './DataManagementScreen.css';
 export function DataManagementScreen() {
 	const repository = useLoggingRepository();
 	const [settings, setSettings] = useState<Settings | null>(null);
-	const [historySummary, setHistorySummary] = useState({ workoutCount: 0, setCount: 0 });
+	const [historySummary, setHistorySummary] = useState<{
+		workoutCount: number;
+		setCount: number;
+	} | null>(null);
 	const [backupStatus, setBackupStatus] = useState('Backed up 2 days ago · verified');
 	const [exportStatus, setExportStatus] = useState<string | undefined>(undefined);
 	const [integrityStatus, setIntegrityStatus] = useState('Last checked 2 days ago · no issues');
@@ -43,7 +46,7 @@ export function DataManagementScreen() {
 		setHistorySummary(await repository.getHistorySummary());
 	}
 
-	if (!settings) return null;
+	if (!settings || !historySummary) return null;
 
 	return (
 		<div className="settings-screen">

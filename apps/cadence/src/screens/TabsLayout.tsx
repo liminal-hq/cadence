@@ -6,6 +6,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { useMemo } from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { Destination } from '../components/AppShell/BottomNav';
@@ -30,14 +31,17 @@ const SCREEN_TITLES: Record<Destination, string> = {
  *  others stay unwired until each destination's own screen lands. */
 function useScreenActions(): Record<Destination, AppBarAction[] | undefined> {
 	const navigate = useNavigate();
-	return {
-		today: undefined,
-		history: [
-			{ icon: 'settings', label: 'Settings', onClick: () => navigate({ to: '/settings' }) },
-		],
-		plan: undefined,
-		progress: undefined,
-	};
+	return useMemo(
+		() => ({
+			today: undefined,
+			history: [
+				{ icon: 'settings', label: 'Settings', onClick: () => navigate({ to: '/settings' }) },
+			],
+			plan: undefined,
+			progress: undefined,
+		}),
+		[navigate],
+	);
 }
 
 const TODAY_LABEL = new Intl.DateTimeFormat('en-CA', {

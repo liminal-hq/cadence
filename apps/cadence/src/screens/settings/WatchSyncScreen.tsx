@@ -15,23 +15,35 @@ import { Dialog } from '../../components/ui/Dialog/Dialog';
 import './settings.css';
 import './WatchSyncScreen.css';
 
-const LEDGER_ROWS_PENDING = [
-	{ label: 'On phone', value: '12 sets' },
-	{ label: 'Last known on watch', value: '13 sets' },
-	{ label: 'Waiting to send', value: '0 sets' },
-	{ label: 'Expected from watch', value: '1 set' },
-];
+type Resolution = 'pending' | 'kept-phone' | 'kept-watch';
 
-const LEDGER_ROWS_CONNECTED = [
-	{ label: 'On phone', value: '13 sets' },
-	{ label: 'Last known on watch', value: '13 sets' },
-	{ label: 'Waiting to send', value: '0 sets' },
-	{ label: 'Expected from watch', value: '0 sets' },
-];
+const LEDGER_ROWS: Record<Resolution, { label: string; value: string }[]> = {
+	pending: [
+		{ label: 'On phone', value: '12 sets' },
+		{ label: 'Last known on watch', value: '13 sets' },
+		{ label: 'Waiting to send', value: '0 sets' },
+		{ label: 'Expected from watch', value: '1 set' },
+	],
+	// Keeping the phone's value means the watch's extra set is discarded from the count —
+	// both devices converge on the phone's 12, not the watch's 13.
+	'kept-phone': [
+		{ label: 'On phone', value: '12 sets' },
+		{ label: 'Last known on watch', value: '12 sets' },
+		{ label: 'Waiting to send', value: '0 sets' },
+		{ label: 'Expected from watch', value: '0 sets' },
+	],
+	'kept-watch': [
+		{ label: 'On phone', value: '13 sets' },
+		{ label: 'Last known on watch', value: '13 sets' },
+		{ label: 'Waiting to send', value: '0 sets' },
+		{ label: 'Expected from watch', value: '0 sets' },
+	],
+};
 
 export function WatchSyncScreen() {
-	const [resolved, setResolved] = useState(false);
+	const [resolution, setResolution] = useState<Resolution>('pending');
 	const [removeOpen, setRemoveOpen] = useState(false);
+	const resolved = resolution !== 'pending';
 
 	return (
 		<div className="settings-screen">
@@ -63,7 +75,7 @@ export function WatchSyncScreen() {
 				<section>
 					<h2 className="settings-section__title">Active workout sync</h2>
 					<Surface tone="container" radius="l" className="watch-ledger">
-						{(resolved ? LEDGER_ROWS_CONNECTED : LEDGER_ROWS_PENDING).map((row) => (
+						{LEDGER_ROWS[resolution].map((row) => (
 							<div className="watch-ledger__row" key={row.label}>
 								<span className="watch-ledger__label">{row.label}</span>
 								<span className="watch-ledger__value">{row.value}</span>
@@ -92,10 +104,10 @@ export function WatchSyncScreen() {
 									The value you don't keep stays visible in the set's history — nothing is deleted.
 								</p>
 								<div className="watch-conflict-card__actions">
-									<Button variant="outlined" onClick={() => setResolved(true)}>
+									<Button variant="outlined" onClick={() => setResolution('kept-phone')}>
 										Keep phone
 									</Button>
-									<Button variant="tonal" onClick={() => setResolved(true)}>
+									<Button variant="tonal" onClick={() => setResolution('kept-watch')}>
 										Keep watch
 									</Button>
 								</div>
