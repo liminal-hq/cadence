@@ -19,6 +19,16 @@ export function formatClockTime(iso: string): string {
 	return new Date(iso).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit' });
 }
 
+/** An em dash when either timestamp is missing (an imported workout whose source didn't report
+ *  timing) rather than inventing a duration. */
+export function formatWorkoutDuration(startedAt?: string, completedAt?: string): string {
+	if (!startedAt || !completedAt) return '—';
+	const minutes = Math.round(
+		(new Date(completedAt).getTime() - new Date(startedAt).getTime()) / 60_000,
+	);
+	return `${minutes} min`;
+}
+
 const KG_PER_LB = 0.45359237;
 
 export function kgToLb(kg: number): number {

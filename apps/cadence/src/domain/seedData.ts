@@ -18,6 +18,11 @@ import type {
 
 export type Scenario = 'sam-default' | 'sam-superset-dark' | 'priya-first-run';
 
+/** The narrative "today" every seeded timestamp is anchored to — not `new Date()`, since this
+ *  fixture data doesn't move with the real clock and History needs a fixed reference point to
+ *  highlight on the calendar and label "Today"/"Yesterday" against. */
+export const TODAY_DATE = '2026-09-09';
+
 export const SCENARIO_TO_WORKOUT_EXERCISE_ID: Record<Scenario, string> = {
 	'sam-default': 'we-bench-press',
 	'sam-superset-dark': 'we-lateral-raise',
@@ -996,8 +1001,8 @@ export const WORKOUTS: Workout[] = [
 		id: 'workout-2026-08-27-hc',
 		date: '2026-08-27',
 		title: 'Morning Run',
-		startedAt: '2026-08-27T06:15:00',
-		completedAt: '2026-08-27T06:47:00',
+		// No start/end timestamps — the source app didn't report them, so P-42's list shows an
+		// em dash where a duration would otherwise go, rather than inventing one.
 		status: 'completed',
 		source: 'health-connect-import',
 		healthConnect: {

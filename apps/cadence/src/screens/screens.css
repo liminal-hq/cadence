@@ -1,3 +1,18 @@
+/** A full-height column: header, then a scrollable content region — the shape every
+ * non-AppShell screen (Logging, Settings, History) shares. */
+.screen-shell {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.screen-shell__content {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+}
+
 .screen-empty-state__headline {
 	font-size: var(--cadence-type-title-l-size);
 	line-height: var(--cadence-type-title-l-line);

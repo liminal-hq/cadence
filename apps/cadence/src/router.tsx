@@ -18,7 +18,8 @@ import { TitleBar } from './components/TitleBar/TitleBar';
 import { RouteStage } from './components/RouteStage/RouteStage';
 import { TabsLayout } from './screens/TabsLayout';
 import { TodayScreen } from './screens/TodayScreen';
-import { HistoryScreen } from './screens/HistoryScreen';
+import { HistoryHubScreen } from './screens/history/HistoryHubScreen';
+import { WorkoutDetailScreen } from './screens/history/WorkoutDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
@@ -81,7 +82,7 @@ const todayRoute = createRoute({
 const historyRoute = createRoute({
 	getParentRoute: () => tabsLayoutRoute,
 	path: '/history',
-	component: HistoryScreen,
+	component: HistoryHubScreen,
 });
 const planRoute = createRoute({
 	getParentRoute: () => tabsLayoutRoute,
@@ -98,6 +99,17 @@ const logRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/log/$scenario',
 	component: LoggingRoute,
+});
+
+function WorkoutDetailRoute() {
+	const { workoutId } = workoutDetailRoute.useParams();
+	return <WorkoutDetailScreen workoutId={workoutId} />;
+}
+
+const workoutDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/history/workout/$workoutId',
+	component: WorkoutDetailRoute,
 });
 
 const settingsRoute = createRoute({
@@ -180,6 +192,7 @@ const routeTree = rootRoute.addChildren([
 	indexRoute,
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
 	logRoute,
+	workoutDetailRoute,
 	settingsRoute,
 	settingsUnitsRoute,
 	settingsTimersRoute,
