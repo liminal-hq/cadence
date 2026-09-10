@@ -7,8 +7,13 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 pub mod error;
+pub mod events;
 pub mod units;
 
+pub mod barbells;
 pub mod exercises;
+pub mod history;
+pub mod rest_timer;
 pub mod sets;
+pub mod settings;
 pub mod workouts;
