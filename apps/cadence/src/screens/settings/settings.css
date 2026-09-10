@@ -35,3 +35,9 @@
 	padding: 0 var(--cadence-space-4);
 	gap: var(--cadence-space-3);
 }
+
+.settings-rest-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-2);
+}

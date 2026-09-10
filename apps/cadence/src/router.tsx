@@ -25,6 +25,7 @@ import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
 import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
+import { TimerSettingsScreen } from './screens/settings/TimerSettingsScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -103,7 +104,7 @@ const settingsRoute = createRoute({
 /** Rows the Settings hub links to that don't have a real screen yet — each still resolves to a
  *  working destination, just not a finished one (same "wired but not built" pattern ComingSoon
  *  already established for the Plan/Progress tabs). */
-function settingsStubRoute(path: string, screen: string) {
+function settingsStubRoute<Path extends string>(path: Path, screen: string) {
 	return createRoute({
 		getParentRoute: () => rootRoute,
 		path,
@@ -116,7 +117,15 @@ const settingsUnitsRoute = createRoute({
 	path: '/settings/units',
 	component: UnitsSettingsScreen,
 });
-const settingsTimersRoute = settingsStubRoute('/settings/timers', 'Rest & workout timers');
+const settingsTimersRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/timers',
+	component: TimerSettingsScreen,
+});
+const settingsTimerOverridesRoute = settingsStubRoute(
+	'/settings/timers/overrides',
+	'Per-exercise overrides',
+);
 const settings1rmFormulaRoute = settingsStubRoute('/settings/1rm-formula', '1RM formula');
 const settingsPlatesRoute = settingsStubRoute('/settings/plates', 'Plates & barbells');
 const settingsCategoriesRoute = settingsStubRoute('/settings/categories', 'Categories');
@@ -145,6 +154,7 @@ const routeTree = rootRoute.addChildren([
 	settingsRoute,
 	settingsUnitsRoute,
 	settingsTimersRoute,
+	settingsTimerOverridesRoute,
 	settings1rmFormulaRoute,
 	settingsPlatesRoute,
 	settingsCategoriesRoute,
