@@ -20,7 +20,11 @@ export interface SegmentedControlProps<T extends string> {
 	onChange: (value: T) => void;
 }
 
-export function SegmentedControl<T extends string>({ options, value, onChange }: SegmentedControlProps<T>) {
+export function SegmentedControl<T extends string>({
+	options,
+	value,
+	onChange,
+}: SegmentedControlProps<T>) {
 	return (
 		<div className="ui-segmented-control" role="group">
 			{options.map((option) => {
@@ -35,7 +39,10 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
 						onClick={() => onChange(option.value)}
 					>
 						{option.icon && (
-							<span className="material-symbols-rounded ui-segmented-control__icon" aria-hidden="true">
+							<span
+								className="material-symbols-rounded ui-segmented-control__icon"
+								aria-hidden="true"
+							>
 								{option.icon}
 							</span>
 						)}

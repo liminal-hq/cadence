@@ -19,7 +19,15 @@ export interface ChipProps {
 	onRemove?: () => void;
 }
 
-export function Chip({ variant, label, icon, selected = false, size = 'default', onClick, onRemove }: ChipProps) {
+export function Chip({
+	variant,
+	label,
+	icon,
+	selected = false,
+	size = 'default',
+	onClick,
+	onRemove,
+}: ChipProps) {
 	const classes = [
 		'ui-chip',
 		`ui-chip--${variant}`,

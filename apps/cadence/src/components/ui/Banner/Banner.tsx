@@ -28,9 +28,7 @@ export function Banner({ icon, message, tone = 'attention', action, onDismiss }:
 					{action.label}
 				</button>
 			)}
-			{onDismiss && (
-				<IconButton icon="close" label="Dismiss" size="small" onClick={onDismiss} />
-			)}
+			{onDismiss && <IconButton icon="close" label="Dismiss" size="small" onClick={onDismiss} />}
 		</div>
 	);
 }

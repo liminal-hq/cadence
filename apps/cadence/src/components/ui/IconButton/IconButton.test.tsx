@@ -13,10 +13,15 @@ describe('IconButton', () => {
 		expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
 	});
 
-	it.each(['small', 'medium', 'default', 'large', 'xl'] as const)('supports the %s size', (size) => {
-		render(<IconButton icon="close" label="Close" size={size} />);
-		expect(screen.getByRole('button', { name: 'Close' })).toHaveClass(`ui-icon-button--size-${size}`);
-	});
+	it.each(['small', 'medium', 'default', 'large', 'xl'] as const)(
+		'supports the %s size',
+		(size) => {
+			render(<IconButton icon="close" label="Close" size={size} />);
+			expect(screen.getByRole('button', { name: 'Close' })).toHaveClass(
+				`ui-icon-button--size-${size}`,
+			);
+		},
+	);
 
 	it('fires onClick when enabled', () => {
 		const onClick = vi.fn();

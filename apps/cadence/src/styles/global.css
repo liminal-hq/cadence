@@ -18,7 +18,7 @@ body {
 	-webkit-font-smoothing: antialiased;
 	overflow: hidden;
 	/* No arbitrary text selection, matching native Android's default (a TextView isn't
-	   selectable unless it opts in) -- text inputs are unaffected by this regardless, since
+	   selectable unless it opts in) — text inputs are unaffected by this regardless, since
 	   native text-editing controls always allow selecting their own value. */
 	user-select: none;
 	-webkit-user-select: none;
@@ -49,10 +49,11 @@ textarea {
 
 button {
 	font-family: inherit;
+	font-size: inherit;
 }
 
 /* Material 3 state layers, matching the real opacity/timing constants from Google's
-   material-web (md-sys-state: hover 8%, focus/pressed 10%) rather than approximated values --
+   material-web (md-sys-state: hover 8%, focus/pressed 10%) rather than approximated values —
    two layers, same as their <md-ripple>: ::before is hover/focus (near-instant 15ms fade),
    ::after is the press layer (a quick 105ms fade in, a slower 375ms fade out on release,
    which is what makes a tap read as deliberate rather than flickery). Tinted with the
@@ -62,7 +63,7 @@ button {
    treatment (see TitleBar.css/ContextMenu.css) rather than M3. */
 button:not(.control-button):not(.menu-item),
 a.button-filled,
-a.detail-app-bar__back {
+a.ui-app-bar__back {
 	position: relative;
 }
 
@@ -70,8 +71,8 @@ button:not(.control-button):not(.menu-item)::before,
 button:not(.control-button):not(.menu-item)::after,
 a.button-filled::before,
 a.button-filled::after,
-a.detail-app-bar__back::before,
-a.detail-app-bar__back::after {
+a.ui-app-bar__back::before,
+a.ui-app-bar__back::after {
 	content: '';
 	position: absolute;
 	inset: 0;
@@ -83,33 +84,33 @@ a.detail-app-bar__back::after {
 
 button:not(.control-button):not(.menu-item)::before,
 a.button-filled::before,
-a.detail-app-bar__back::before {
+a.ui-app-bar__back::before {
 	transition: opacity 15ms linear;
 }
 
 button:not(.control-button):not(.menu-item)::after,
 a.button-filled::after,
-a.detail-app-bar__back::after {
+a.ui-app-bar__back::after {
 	transition: opacity 375ms linear;
 }
 
 @media (hover: hover) {
 	button:not(.control-button):not(.menu-item):not(:disabled):hover::before,
 	a.button-filled:hover::before,
-	a.detail-app-bar__back:hover::before {
+	a.ui-app-bar__back:hover::before {
 		opacity: 0.08;
 	}
 }
 
 button:not(.control-button):not(.menu-item):not(:disabled):focus-visible::before,
 a.button-filled:focus-visible::before,
-a.detail-app-bar__back:focus-visible::before {
+a.ui-app-bar__back:focus-visible::before {
 	opacity: 0.1;
 }
 
 button:not(.control-button):not(.menu-item):not(:disabled):active::after,
 a.button-filled:active::after,
-a.detail-app-bar__back:active::after {
+a.ui-app-bar__back:active::after {
 	opacity: 0.1;
 	transition-duration: 105ms;
 }

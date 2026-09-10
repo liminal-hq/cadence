@@ -1,4 +1,4 @@
-// P-14 Exercise logging -- the "Preferred direction" fixed stepper-cluster pattern: a pinned
+// P-14 Exercise logging — the "Preferred direction" fixed stepper-cluster pattern: a pinned
 // cluster loads one set at a time, the list below is read-only, and a docked rest timer bar
 // keeps rest visible without leaving the screen (SPEC.md section 7)
 //
@@ -40,12 +40,12 @@ type Overlay =
 const COACH_MARK_STEPS = [
 	{
 		title: 'Tap a set to load it',
-		body: 'It loads into the stepper below -- use −/+ to fill it in.',
+		body: 'It loads into the stepper below — use −/+ to fill it in.',
 	},
 	{ title: 'Log when it’s done', body: 'Log finishes the set, starts rest and moves you on.' },
 	{
 		title: 'Last time lands here',
-		body: 'Next time this shows your weight and reps -- and a trophy if you beat it.',
+		body: 'Next time this shows your weight and reps — and a trophy if you beat it.',
 	},
 	{
 		title: 'Rest starts by itself',
@@ -53,7 +53,7 @@ const COACH_MARK_STEPS = [
 	},
 	{
 		title: 'Got a Wear OS watch?',
-		body: 'Install Cadence on it to log from your wrist -- even offline.',
+		body: 'Install Cadence on it to log from your wrist — even offline.',
 	},
 ];
 
@@ -74,19 +74,19 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	const [siblingExerciseNames, setSiblingExerciseNames] = useState<Record<string, string>>({});
 	const [sets, setSets] = useState<SetEntry[]>([]);
 	const [loadedSetId, setLoadedSetId] = useState<string | null>(null);
-	// Non-null exactly when loadedSetId is null and there's no next planned set to advance to --
+	// Non-null exactly when loadedSetId is null and there's no next planned set to advance to —
 	// the cluster's "draft" mode: values for a set that doesn't exist yet, created on Log rather
 	// than sitting in the list beforehand as an unchecked, pre-filled row (which read as
-	// confusing -- values that looked recorded but weren't).
+	// confusing — values that looked recorded but weren't).
 	const [draftValues, setDraftValues] = useState<Partial<
 		Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>
 	> | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
 
-	// Sam has a paired watch (SPEC's persona); Priya doesn't -- drives the rest timer
+	// Sam has a paired watch (SPEC's persona); Priya doesn't — drives the rest timer
 	// sheet's haptics-ownership copy and notifications-denied demo.
 	const hasWatch = scenario !== 'priya-first-run';
-	// The coach mark tour is Priya's first-workout-only onboarding moment (SPEC's persona) --
+	// The coach mark tour is Priya's first-workout-only onboarding moment (SPEC's persona) —
 	// it doesn't run for Sam, who's already used the app.
 	const coachMarks = useCoachMarkTour(scenario === 'priya-first-run');
 
@@ -205,7 +205,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				};
 
 	// Re-visiting an already-completed set via the cluster's prev/next stepper is editing, not
-	// logging -- its fields already save live on every +/- press (see persistSet below), so the
+	// logging — its fields already save live on every +/- press (see persistSet below), so the
 	// button returns to logging mode rather than completing-and-advancing again.
 	const isEditingCompletedSet = !isDraftMode && loadedSet?.status === 'completed';
 
@@ -224,7 +224,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			if (!draftValues) return;
 			const created = await repository.logNewSet(workoutExercise.id, draftValues);
 			setSets((prev) => [...prev, created]);
-			// Stay in draft mode with the same values -- repeating the same weight/reps for a
+			// Stay in draft mode with the same values — repeating the same weight/reps for a
 			// straight set is then just another tap of Log, no re-entry needed.
 			const label =
 				exercise.metricProfile === 'weight-reps'
@@ -241,7 +241,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		if (!loadedSet) return;
 
 		if (loadedSet.status === 'completed') {
-			// "Save": edits already persisted live on every +/- press -- just return to logging.
+			// "Save": edits already persisted live on every +/- press — just return to logging.
 			enterDraftMode(loadedSet);
 			return;
 		}
@@ -319,6 +319,11 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				title={exercise.name}
 				category={exercise.category}
 				subtitle={workoutExercise.workoutLabel}
+				backTo="/today"
+				actions={[
+					{ icon: 'monitoring', label: 'History' },
+					{ icon: 'more_vert', label: 'More' },
+				]}
 			/>
 
 			<div className="exercise-logging__content">

@@ -1,30 +1,17 @@
-// M3 top app bar -- screen title plus calendar/settings actions.
-// Shared between desktop and mobile; the only chrome above it on desktop
-// is the platform TitleBar.
+// Tab-root top app bar — a thin, size="large" configuration of the shared AppBar primitive.
+// Actions are configured per destination by TabsLayout, not hardcoded here.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import './TopAppBar.css';
+import { AppBar, type AppBarAction } from '../ui/AppBar/AppBar';
 
 interface TopAppBarProps {
 	title: string;
 	subtitle?: string;
+	actions?: AppBarAction[];
 }
 
-export function TopAppBar({ title, subtitle }: TopAppBarProps) {
-	return (
-		<header className="top-app-bar">
-			<div className="top-app-bar__title">
-				{title}
-				{subtitle && <span className="top-app-bar__subtitle">{subtitle}</span>}
-			</div>
-			<button className="top-app-bar__action" aria-label="Calendar">
-				<span className="material-symbols-rounded">calendar_month</span>
-			</button>
-			<button className="top-app-bar__action" aria-label="Settings">
-				<span className="material-symbols-rounded">settings</span>
-			</button>
-		</header>
-	);
+export function TopAppBar({ title, subtitle, actions }: TopAppBarProps) {
+	return <AppBar title={title} subtitle={subtitle} size="large" actions={actions} />;
 }

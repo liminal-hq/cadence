@@ -21,7 +21,13 @@ describe('Banner', () => {
 
 	it('fires the action callback', () => {
 		const onClick = vi.fn();
-		render(<Banner icon="health_and_safety" message="2 workouts found." action={{ label: 'Review', onClick }} />);
+		render(
+			<Banner
+				icon="health_and_safety"
+				message="2 workouts found."
+				action={{ label: 'Review', onClick }}
+			/>,
+		);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Review' }));
 		expect(onClick).toHaveBeenCalledOnce();
@@ -29,7 +35,9 @@ describe('Banner', () => {
 
 	it('fires onDismiss without hiding itself', () => {
 		const onDismiss = vi.fn();
-		render(<Banner icon="notifications_off" message="Notifications are off." onDismiss={onDismiss} />);
+		render(
+			<Banner icon="notifications_off" message="Notifications are off." onDismiss={onDismiss} />,
+		);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
 		expect(onDismiss).toHaveBeenCalledOnce();

@@ -17,7 +17,10 @@ describe('SegmentedControl', () => {
 	it('marks the current value as active via aria-current', () => {
 		render(<SegmentedControl options={options} value="calendar" onChange={() => {}} />);
 
-		expect(screen.getByRole('button', { name: 'Calendar' })).toHaveAttribute('aria-current', 'true');
+		expect(screen.getByRole('button', { name: 'Calendar' })).toHaveAttribute(
+			'aria-current',
+			'true',
+		);
 		expect(screen.getByRole('button', { name: 'List' })).toHaveAttribute('aria-current', 'false');
 	});
 

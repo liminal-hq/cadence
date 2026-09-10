@@ -1,4 +1,4 @@
-// M3 bottom navigation bar -- the four primary Cadence destinations
+// M3 bottom navigation bar — the four primary Cadence destinations
 // (SPEC.md section 7). Shared verbatim between desktop and mobile.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris

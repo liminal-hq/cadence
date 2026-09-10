@@ -1,11 +1,11 @@
 /* Design tokens lifted from the Claude Design handoff's Foundations canvas:
    M3 colour roles (seed #7C5CFF, tertiary from the rose stop, a custom
    "attention" role from the orange stop), type scale, shape scale, and
-   spacing. Light is the default; dark overrides via prefers-color-scheme --
+   spacing. Light is the default; dark overrides via prefers-color-scheme —
    there is no dynamic-colour (wallpaper) support yet. */
 
 :root {
-	/* Colour roles -- light */
+	/* Colour roles — light */
 	--cadence-primary: #5e44cc;
 	--cadence-on-primary: #ffffff;
 	--cadence-primary-container: #e7deff;
@@ -46,12 +46,18 @@
 	--cadence-type-headline-size: 28px;
 	--cadence-type-headline-line: 36px;
 	--cadence-type-headline-weight: 500;
+	--cadence-type-headline-s-size: 24px;
+	--cadence-type-headline-s-line: 32px;
+	--cadence-type-headline-s-weight: 400;
 	--cadence-type-title-l-size: 22px;
 	--cadence-type-title-l-line: 28px;
 	--cadence-type-title-l-weight: 500;
 	--cadence-type-title-m-size: 16px;
 	--cadence-type-title-m-line: 24px;
 	--cadence-type-title-m-weight: 600;
+	--cadence-type-title-s-size: 14px;
+	--cadence-type-title-s-line: 20px;
+	--cadence-type-title-s-weight: 500;
 	--cadence-type-body-l-size: 16px;
 	--cadence-type-body-l-line: 24px;
 	--cadence-type-body-m-size: 14px;
@@ -71,14 +77,14 @@
 	--cadence-shape-xl: 28px;
 	--cadence-shape-full: 9999px;
 
-	/* Spacing -- 4dp grid */
+	/* Spacing — 4dp grid */
 	--cadence-space-1: 4px;
 	--cadence-space-2: 8px;
 	--cadence-space-3: 12px;
 	--cadence-space-4: 16px;
 	--cadence-space-6: 24px;
 
-	/* Motion -- M3 emphasized easing */
+	/* Motion — M3 emphasized easing */
 	--cadence-motion-fast: 200ms;
 	--cadence-motion-slow: 350ms;
 	--cadence-motion-easing: cubic-bezier(0.2, 0, 0, 1);
@@ -89,7 +95,7 @@
 	--cadence-title-bar-height: 32px;
 	--cadence-tap-target: 48px;
 
-	/* Desktop OS chrome (title bar, its context menu) -- fixed dark tones,
+	/* Desktop OS chrome (title bar, its context menu) — fixed dark tones,
 	   deliberately NOT the M3 inverse-surface roles: those flip with the
 	   app's own light/dark theme (inverse of *content*), but the title bar
 	   should stay dark chrome regardless, matching Threshold and Spindle. */

@@ -1,12 +1,12 @@
-// Shared app-bar shell — TopAppBar (size="large", tab roots) and DetailAppBar
-// (size="medium", back + optional category tag) are both thin configured wrappers around
-// this, replacing what used to be two near-identical, independently-hardcoded headers.
-// The two sizes keep their original, different title/subtitle layouts (large: title and
-// subtitle share one baseline row; medium: subtitle stacks on its own line below the title
-// row) so adopting this primitive doesn't change either screen's appearance.
+// Shared app-bar shell that TopAppBar and DetailAppBar both configure, replacing two
+// previously near-identical, independently-hardcoded headers.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// The two sizes keep their original, different title/subtitle layouts (large: title and
+// subtitle share one baseline row; medium: subtitle stacks on its own line below the title
+// row) so adopting this primitive doesn't change either screen's appearance.
 
 import { Link } from '@tanstack/react-router';
 import type { ReactNode } from 'react';
@@ -32,7 +32,15 @@ export interface AppBarProps {
 	trailingContent?: ReactNode;
 }
 
-export function AppBar({ title, subtitle, size = 'large', back, tag, actions, trailingContent }: AppBarProps) {
+export function AppBar({
+	title,
+	subtitle,
+	size = 'large',
+	back,
+	tag,
+	actions,
+	trailingContent,
+}: AppBarProps) {
 	return (
 		<header className={`ui-app-bar ui-app-bar--${size}`}>
 			{back && (

@@ -17,7 +17,11 @@ describe('EmptyState', () => {
 
 	it('renders an action node when provided', () => {
 		render(
-			<EmptyState headline="No history yet" body="Log a set to get started." action={<button>Start</button>} />,
+			<EmptyState
+				headline="No history yet"
+				body="Log a set to get started."
+				action={<button>Start</button>}
+			/>,
 		);
 
 		expect(screen.getByRole('button', { name: 'Start' })).toBeInTheDocument();

@@ -1,12 +1,3 @@
-.screen-empty-state {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	text-align: center;
-	gap: 12px;
-	padding: 48px 24px;
-}
-
 .screen-empty-state__headline {
 	font-size: var(--cadence-type-title-l-size);
 	line-height: var(--cadence-type-title-l-line);
