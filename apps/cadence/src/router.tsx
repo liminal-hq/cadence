@@ -26,6 +26,7 @@ import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
 import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
 import { TimerSettingsScreen } from './screens/settings/TimerSettingsScreen';
+import { DataManagementScreen } from './screens/settings/DataManagementScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -141,7 +142,11 @@ const settingsNotificationsRoute = settingsStubRoute(
 	'/settings/notifications',
 	'Notifications, widgets & shortcuts',
 );
-const settingsDataRoute = settingsStubRoute('/settings/data', 'Backup & data');
+const settingsDataRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/data',
+	component: DataManagementScreen,
+});
 const settingsDiagnosticsRoute = settingsStubRoute(
 	'/settings/diagnostics',
 	'Diagnostics & experiments',
