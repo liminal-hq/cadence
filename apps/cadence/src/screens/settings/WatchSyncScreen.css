@@ -1,0 +1,115 @@
+.watch-device-card {
+	padding: var(--cadence-space-4);
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-4);
+}
+
+.watch-device-card__icon {
+	font-size: 32px;
+	color: var(--cadence-on-surface-variant);
+}
+
+.watch-device-card__text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.watch-device-card__name {
+	margin: 0;
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.watch-device-card__status {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+}
+
+.watch-device-card__status--attention {
+	color: var(--cadence-attention);
+}
+
+.watch-device-card__status--ok {
+	color: var(--cadence-on-surface-variant);
+}
+
+.watch-ledger {
+	margin: 0 var(--cadence-space-4);
+	padding: var(--cadence-space-2) var(--cadence-space-4);
+	display: flex;
+	flex-direction: column;
+}
+
+.watch-ledger__row {
+	display: flex;
+	justify-content: space-between;
+	padding: var(--cadence-space-2) 0;
+}
+
+.watch-ledger__row:not(:last-child) {
+	border-bottom: 1px solid var(--cadence-outline-variant);
+}
+
+.watch-ledger__label {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.watch-ledger__value {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.watch-conflict-card {
+	padding: var(--cadence-space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+}
+
+.watch-conflict-card__title {
+	margin: 0;
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.watch-conflict-card__values {
+	display: flex;
+	gap: var(--cadence-space-4);
+}
+
+.watch-conflict-card__value {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.watch-conflict-card__value-label {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.watch-conflict-card__value-amount {
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.watch-conflict-card__note {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.watch-conflict-card__actions {
+	display: flex;
+	gap: var(--cadence-space-2);
+}
+
+.watch-footer-actions {
+	flex-direction: row;
+}

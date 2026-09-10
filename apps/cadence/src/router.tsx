@@ -27,6 +27,7 @@ import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
 import { TimerSettingsScreen } from './screens/settings/TimerSettingsScreen';
 import { DataManagementScreen } from './screens/settings/DataManagementScreen';
+import { WatchSyncScreen } from './screens/settings/WatchSyncScreen';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -136,7 +137,11 @@ const settingsAccessibilityRoute = settingsStubRoute(
 	'/settings/accessibility',
 	'Motion, haptics & sound',
 );
-const settingsWatchRoute = settingsStubRoute('/settings/watch', 'Wear OS watch');
+const settingsWatchRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/watch',
+	component: WatchSyncScreen,
+});
 const settingsHealthConnectRoute = settingsStubRoute('/settings/health-connect', 'Health Connect');
 const settingsNotificationsRoute = settingsStubRoute(
 	'/settings/notifications',
