@@ -1,0 +1,47 @@
+.ui-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	border-radius: var(--cadence-shape-m);
+	padding: 10px 12px;
+	font-size: var(--cadence-type-body-m-size);
+	line-height: var(--cadence-type-body-m-line);
+}
+
+.ui-banner--attention {
+	background: var(--cadence-attention-container);
+	color: var(--cadence-on-attention-container);
+}
+
+.ui-banner--primary {
+	background: var(--cadence-primary-container);
+	color: var(--cadence-on-primary-container);
+}
+
+.ui-banner__icon {
+	font-size: 20px;
+	flex-shrink: 0;
+}
+
+.ui-banner__message {
+	flex: 1;
+	margin: 0;
+}
+
+.ui-banner__action {
+	flex-shrink: 0;
+	background: none;
+	border: none;
+	color: inherit;
+	font-size: var(--cadence-type-label-l-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+	cursor: pointer;
+	padding: 0;
+}
+
+.ui-banner .ui-icon-button--standard {
+	color: inherit;
+	flex-shrink: 0;
+}

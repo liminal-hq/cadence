@@ -1,0 +1,78 @@
+.ui-chip {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 32px;
+	border-radius: var(--cadence-shape-s);
+	border: 1px solid var(--cadence-outline-variant);
+	background: none;
+	color: var(--cadence-on-surface);
+	padding: 0 16px;
+	font-size: var(--cadence-type-label-l-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.ui-chip--size-small {
+	height: 24px;
+	border-radius: 6px;
+	padding: 0 10px;
+	font-size: var(--cadence-type-label-m-size);
+}
+
+.ui-chip:has(.ui-chip__icon) {
+	padding-left: 8px;
+}
+
+.ui-chip__icon {
+	font-size: 18px;
+}
+
+.ui-chip--filter.ui-chip--selected {
+	border: none;
+	background: var(--cadence-secondary-container);
+	color: var(--cadence-on-secondary-container);
+}
+
+/* Input variant: wrapper + two sibling buttons, not a button-in-a-button */
+.ui-chip--wrapper {
+	padding: 0;
+}
+
+.ui-chip__body {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	height: 100%;
+	padding: 0 0 0 16px;
+	background: none;
+	border: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+
+.ui-chip__body:disabled {
+	cursor: default;
+}
+
+.ui-chip--wrapper:has(.ui-chip__icon) .ui-chip__body {
+	padding-left: 8px;
+}
+
+.ui-chip__remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	padding: 0 8px 0 4px;
+	background: none;
+	border: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+.ui-chip__remove .material-symbols-rounded {
+	font-size: 18px;
+}

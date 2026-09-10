@@ -1,0 +1,48 @@
+.ui-dialog__scrim {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.32);
+	z-index: 100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--cadence-space-4);
+}
+
+.ui-dialog {
+	width: 100%;
+	max-width: 360px;
+	max-height: 85%;
+	overflow-y: auto;
+	background: var(--cadence-surface-container-high);
+	border-radius: var(--cadence-shape-xl);
+	padding: 24px;
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+}
+
+.ui-dialog:focus {
+	outline: none;
+}
+
+.ui-dialog__headline {
+	font-size: var(--cadence-type-headline-s-size);
+	line-height: var(--cadence-type-headline-s-line);
+	font-weight: var(--cadence-type-headline-s-weight);
+	color: var(--cadence-on-surface);
+	margin: 0;
+}
+
+.ui-dialog__body {
+	font-size: var(--cadence-type-body-m-size);
+	line-height: var(--cadence-type-body-m-line);
+	color: var(--cadence-on-surface-variant);
+}
+
+.ui-dialog__actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--cadence-space-2);
+	margin-top: var(--cadence-space-2);
+}

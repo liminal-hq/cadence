@@ -1,0 +1,40 @@
+.ui-surface {
+	padding: var(--cadence-space-4);
+}
+
+.ui-surface--tone-container-low {
+	background: var(--cadence-surface-container-low);
+}
+
+.ui-surface--tone-container {
+	background: var(--cadence-surface-container);
+}
+
+.ui-surface--tone-container-high {
+	background: var(--cadence-surface-container-high);
+}
+
+.ui-surface--tone-container-highest {
+	background: var(--cadence-surface-container-highest);
+}
+
+.ui-surface--radius-xs {
+	border-radius: var(--cadence-shape-xs);
+}
+
+.ui-surface--radius-s {
+	border-radius: var(--cadence-shape-s);
+}
+
+.ui-surface--radius-m {
+	border-radius: var(--cadence-shape-m);
+}
+
+.ui-surface--radius-l {
+	border-radius: var(--cadence-shape-l);
+}
+
+.ui-surface--dashed {
+	background: none;
+	border: 1.5px dashed var(--cadence-outline-variant);
+}

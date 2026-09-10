@@ -1,0 +1,16 @@
+.ui-tag {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	flex-shrink: 0;
+	border-radius: var(--cadence-shape-s);
+	padding: 2px 8px;
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-m-weight);
+	text-transform: capitalize;
+	white-space: nowrap;
+}
+
+.ui-tag__icon {
+	font-size: 14px;
+}

@@ -42,6 +42,8 @@ Examples:
 - Manual line breaks mid-paragraph don't survive Markdown rendering as intended (they either collapse into the same line anyway or break formatting), and they create noisy diffs when a later edit only changes one word but reflows the whole wrapped block.
 - This does not apply to genuinely separate list items, headings, or intentional line breaks (e.g. two-space trailing breaks, blank lines between paragraphs) — only to breaking up one continuous sentence/paragraph across multiple lines.
 
+**Em dashes:** use a real em dash (`—`) in prose, never `--` as a substitute. Same scope as the hard-wrap rule above — PR/issue descriptions, docs, README files, `SPEC.md`, `SCREENS.md`, commit messages, and code comments. Doesn't apply to an actual double-hyphen that means something else in context (a CLI flag like `--check`, a numeric range, etc.) — only to `--` standing in for the punctuation mark.
+
 ## Commit Messages
 
 **Format:** Use Conventional Commits format (e.g., `feat: ...`, `fix: ...`, `docs: ...`, `test: ...`).

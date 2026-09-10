@@ -1,0 +1,41 @@
+.ui-segmented-control {
+	display: flex;
+	height: 40px;
+	border: 1px solid var(--cadence-outline);
+	border-radius: var(--cadence-shape-full);
+	overflow: hidden;
+}
+
+.ui-segmented-control__option {
+	flex: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	background: none;
+	border: none;
+	border-left: 1px solid var(--cadence-outline);
+	color: var(--cadence-on-surface);
+	font-size: var(--cadence-type-label-l-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	cursor: pointer;
+	padding: 0 12px;
+}
+
+.ui-segmented-control__option:first-child {
+	border-left: none;
+}
+
+.ui-segmented-control__option--active {
+	background: var(--cadence-secondary-container);
+	color: var(--cadence-on-secondary-container);
+}
+
+.ui-segmented-control__option:disabled {
+	color: color-mix(in srgb, var(--cadence-on-surface) 38%, transparent);
+	cursor: default;
+}
+
+.ui-segmented-control__icon {
+	font-size: 18px;
+}
