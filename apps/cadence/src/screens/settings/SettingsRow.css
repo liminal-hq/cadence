@@ -1,0 +1,63 @@
+.settings-row {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-4);
+	width: 100%;
+	min-height: 56px;
+	padding: var(--cadence-space-3) var(--cadence-space-4);
+	background: none;
+	border: none;
+	text-align: left;
+	cursor: default;
+}
+
+button.settings-row {
+	cursor: pointer;
+}
+
+.settings-row__icon {
+	font-size: 24px;
+	color: var(--cadence-on-surface-variant);
+	flex-shrink: 0;
+}
+
+.settings-row--error .settings-row__icon,
+.settings-row--error .settings-row__label {
+	color: var(--cadence-error);
+}
+
+.settings-row__text {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	flex: 1;
+	min-width: 0;
+}
+
+.settings-row__label {
+	font-size: var(--cadence-type-body-l-size);
+	line-height: var(--cadence-type-body-l-line);
+	color: var(--cadence-on-surface);
+}
+
+.settings-row__subtext {
+	font-size: var(--cadence-type-body-m-size);
+	line-height: var(--cadence-type-body-m-line);
+	color: var(--cadence-on-surface-variant);
+}
+
+.settings-row__status {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+	flex-shrink: 0;
+}
+
+.settings-row__status--attention {
+	color: var(--cadence-attention);
+}
+
+.settings-row__chevron {
+	font-size: 20px;
+	color: var(--cadence-on-surface-variant);
+	flex-shrink: 0;
+}

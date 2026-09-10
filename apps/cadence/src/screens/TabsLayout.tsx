@@ -25,14 +25,20 @@ const SCREEN_TITLES: Record<Destination, string> = {
 	progress: 'Progress',
 };
 
-/** Per-tab top-bar actions. Most destinations have none yet — wiring real onClick behaviour
- *  (e.g. History's search/settings) lands with each destination's own screen, not here. */
-const SCREEN_ACTIONS: Record<Destination, AppBarAction[] | undefined> = {
-	today: undefined,
-	history: undefined,
-	plan: undefined,
-	progress: undefined,
-};
+/** Per-tab top-bar actions. History's settings icon is real ahead of History's own screen
+ *  (SPEC.md P-40) landing, so the Settings hub has a working entry point before then; the
+ *  others stay unwired until each destination's own screen lands. */
+function useScreenActions(): Record<Destination, AppBarAction[] | undefined> {
+	const navigate = useNavigate();
+	return {
+		today: undefined,
+		history: [
+			{ icon: 'settings', label: 'Settings', onClick: () => navigate({ to: '/settings' }) },
+		],
+		plan: undefined,
+		progress: undefined,
+	};
+}
 
 const TODAY_LABEL = new Intl.DateTimeFormat('en-CA', {
 	weekday: 'short',
@@ -44,12 +50,13 @@ export function TabsLayout() {
 	const location = useLocation();
 	const navigate = useNavigate();
 	const destination = PATH_TO_DESTINATION[location.pathname] ?? 'today';
+	const screenActions = useScreenActions();
 
 	return (
 		<AppShell
 			title={SCREEN_TITLES[destination]}
 			subtitle={destination === 'today' ? TODAY_LABEL : undefined}
-			topBarActions={SCREEN_ACTIONS[destination]}
+			topBarActions={screenActions[destination]}
 			activeDestination={destination}
 			onDestinationChange={(next) => navigate({ to: `/${next}` })}
 		>

@@ -1,6 +1,7 @@
 // Route tree: a `/today|/history|/plan|/progress` tab layout (AppShell +
-// bottom nav) and a sibling `/log/$scenario` route for Exercise logging,
-// which renders its own DetailAppBar instead of the tab shell.
+// bottom nav), a sibling `/log/$scenario` route for Exercise logging, and a
+// sibling `/settings/*` tree for the Settings hub and its sub-screens —
+// none of the three share the tab shell, so each renders its own header.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -21,6 +22,8 @@ import { HistoryScreen } from './screens/HistoryScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
+import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
+import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { resolvePlatform } from './platform';
 import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
@@ -90,10 +93,64 @@ const logRoute = createRoute({
 	component: LoggingRoute,
 });
 
+const settingsRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings',
+	component: SettingsHubScreen,
+});
+
+/** Rows the Settings hub links to that don't have a real screen yet — each still resolves to a
+ *  working destination, just not a finished one (same "wired but not built" pattern ComingSoon
+ *  already established for the Plan/Progress tabs). */
+function settingsStubRoute(path: string, screen: string) {
+	return createRoute({
+		getParentRoute: () => rootRoute,
+		path,
+		component: () => <SettingsComingSoon screen={screen} />,
+	});
+}
+
+const settingsUnitsRoute = settingsStubRoute('/settings/units', 'Units');
+const settingsTimersRoute = settingsStubRoute('/settings/timers', 'Rest & workout timers');
+const settings1rmFormulaRoute = settingsStubRoute('/settings/1rm-formula', '1RM formula');
+const settingsPlatesRoute = settingsStubRoute('/settings/plates', 'Plates & barbells');
+const settingsCategoriesRoute = settingsStubRoute('/settings/categories', 'Categories');
+const settingsGraphsRoute = settingsStubRoute('/settings/graphs', 'Week start & graphs');
+const settingsThemeRoute = settingsStubRoute('/settings/theme', 'Theme & wallpaper colours');
+const settingsAccessibilityRoute = settingsStubRoute(
+	'/settings/accessibility',
+	'Motion, haptics & sound',
+);
+const settingsWatchRoute = settingsStubRoute('/settings/watch', 'Wear OS watch');
+const settingsHealthConnectRoute = settingsStubRoute('/settings/health-connect', 'Health Connect');
+const settingsNotificationsRoute = settingsStubRoute(
+	'/settings/notifications',
+	'Notifications, widgets & shortcuts',
+);
+const settingsDataRoute = settingsStubRoute('/settings/data', 'Backup & data');
+const settingsDiagnosticsRoute = settingsStubRoute(
+	'/settings/diagnostics',
+	'Diagnostics & experiments',
+);
+
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
 	logRoute,
+	settingsRoute,
+	settingsUnitsRoute,
+	settingsTimersRoute,
+	settings1rmFormulaRoute,
+	settingsPlatesRoute,
+	settingsCategoriesRoute,
+	settingsGraphsRoute,
+	settingsThemeRoute,
+	settingsAccessibilityRoute,
+	settingsWatchRoute,
+	settingsHealthConnectRoute,
+	settingsNotificationsRoute,
+	settingsDataRoute,
+	settingsDiagnosticsRoute,
 ]);
 
 export const router = createRouter({ routeTree });
