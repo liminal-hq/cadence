@@ -1,6 +1,4 @@
-// size controls whether a leading back control renders; back supports both a routed Link
-// (`to`) and a plain dismiss button (`onClick`); actions and trailingContent render only
-// when provided
+// Covers the size, back (both Link and onClick forms), actions, tag, and trailingContent props
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

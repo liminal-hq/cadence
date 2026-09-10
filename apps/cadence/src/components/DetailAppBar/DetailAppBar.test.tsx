@@ -1,5 +1,4 @@
-// Configures AppBar as size="medium" with the category tag and a contextual backTo, without
-// re-testing AppBar's own rendering, just that this wrapper passes the right props through
+// Confirms this wrapper configures AppBar as size="medium" with the category tag and backTo
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

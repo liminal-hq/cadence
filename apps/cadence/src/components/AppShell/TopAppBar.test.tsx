@@ -1,5 +1,4 @@
-// Configures AppBar as size="large" with the given title/subtitle/actions, without
-// re-testing AppBar's own rendering, just that this wrapper passes the right props through
+// Confirms this wrapper configures AppBar as size="large" with the given title/subtitle/actions
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
