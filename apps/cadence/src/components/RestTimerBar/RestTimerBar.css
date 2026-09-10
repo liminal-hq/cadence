@@ -15,11 +15,8 @@
 .rest-timer-bar--running,
 .rest-timer-bar--paused {
 	background: var(--cadence-surface-container-high);
-	cursor: pointer;
-}
-
-.rest-timer-bar--paused {
 	box-shadow: inset 0 0 0 1px var(--cadence-outline-variant);
+	cursor: pointer;
 }
 
 .rest-timer-bar--elapsed {
