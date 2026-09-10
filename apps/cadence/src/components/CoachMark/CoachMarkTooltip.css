@@ -27,7 +27,7 @@
 }
 
 .coach-mark-tooltip__title {
-	font-size: var(--cadence-type-title-s-size, 14px);
+	font-size: var(--cadence-type-title-s-size);
 	font-weight: 600;
 }
 

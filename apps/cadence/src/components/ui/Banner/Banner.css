@@ -18,6 +18,11 @@
 	color: var(--cadence-on-primary-container);
 }
 
+.ui-banner--neutral {
+	background: var(--cadence-surface-container);
+	color: var(--cadence-on-surface-variant);
+}
+
 .ui-banner__icon {
 	font-size: 20px;
 	flex-shrink: 0;

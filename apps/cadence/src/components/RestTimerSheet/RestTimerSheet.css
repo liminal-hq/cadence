@@ -107,68 +107,14 @@
 	cursor: pointer;
 }
 
-.rest-timer-sheet__play-pause {
-	width: 64px;
-	height: 64px;
-	border-radius: 50%;
-	background: var(--cadence-primary);
-	color: var(--cadence-on-primary);
-	border: none;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	cursor: pointer;
-}
-
-.rest-timer-sheet__play-pause .material-symbols-rounded {
-	font-size: 32px;
-}
-
-.rest-timer-sheet__primary-cta {
-	height: 52px;
-	padding: 0 24px;
-	border-radius: var(--cadence-shape-full);
-	background: var(--cadence-primary);
-	color: var(--cadence-on-primary);
-	border: none;
-	display: inline-flex;
-	align-items: center;
-	gap: 8px;
-	font-size: 15px;
-	font-weight: 600;
-	cursor: pointer;
-}
-
-.rest-timer-sheet__secondary {
-	height: 44px;
-	padding: 0 16px;
-	border-radius: var(--cadence-shape-full);
-	border: 1px solid var(--cadence-outline);
-	background: none;
-	color: var(--cadence-primary);
-	font-weight: 600;
-	cursor: pointer;
-}
-
 .rest-timer-sheet__secondary-row {
 	width: 100%;
 	display: flex;
 	gap: 12px;
 }
 
-.rest-timer-sheet__outlined {
+.rest-timer-sheet__secondary-row .ui-button {
 	flex: 1;
-	height: 44px;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: 6px;
-	border-radius: var(--cadence-shape-full);
-	border: 1px solid var(--cadence-outline);
-	background: none;
-	color: var(--cadence-primary);
-	font-weight: 600;
-	cursor: pointer;
 }
 
 .rest-timer-sheet__up-next {
@@ -176,8 +122,6 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	background: var(--cadence-surface-container);
-	border-radius: var(--cadence-shape-m);
 	padding: 10px 14px;
 }
 
@@ -193,28 +137,6 @@
 	color: var(--cadence-primary);
 	font-weight: 600;
 	cursor: pointer;
-}
-
-.rest-timer-sheet__warning {
-	width: 100%;
-	display: flex;
-	align-items: flex-start;
-	gap: 10px;
-	background: var(--cadence-attention-container);
-	color: var(--cadence-on-attention-container);
-	border-radius: var(--cadence-shape-m);
-	padding: 10px 14px;
-	font-size: 13px;
-}
-
-.rest-timer-sheet__warning button {
-	margin-left: auto;
-	background: none;
-	border: none;
-	font-weight: 700;
-	color: inherit;
-	cursor: pointer;
-	white-space: nowrap;
 }
 
 .rest-timer-sheet__footer {

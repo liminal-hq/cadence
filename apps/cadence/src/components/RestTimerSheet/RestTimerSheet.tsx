@@ -1,4 +1,4 @@
-// P-17 Rest timer, expanded -- opened by tapping the docked RestTimerBar. Same repository-backed
+// P-17 Rest timer, expanded — opened by tapping the docked RestTimerBar. Same repository-backed
 // state as the bar; this just adds the full-screen ring, nudge controls, and device-ownership
 // footer
 //
@@ -7,6 +7,10 @@
 
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../BottomSheet/BottomSheet';
+import { Banner } from '../ui/Banner/Banner';
+import { Button } from '../ui/Button/Button';
+import { IconButton } from '../ui/IconButton/IconButton';
+import { Surface } from '../ui/Surface/Surface';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { RestTimerState } from '../../domain/types';
 import { formatRemaining } from '../RestTimerBar/formatRemaining';
@@ -43,7 +47,7 @@ export function RestTimerSheet({
 
 	useEffect(() => {
 		if (state?.status !== 'running') return;
-		// Resync immediately -- `now` may be stale from before this rest period started, and a
+		// Resync immediately — `now` may be stale from before this rest period started, and a
 		// fresh targetInstant computed against it would briefly show the wrong remaining time.
 		setNow(Date.now());
 		const interval = setInterval(() => setNow(Date.now()), 1000);
@@ -52,13 +56,15 @@ export function RestTimerSheet({
 
 	useEffect(() => {
 		// Only auto-close once the real state has loaded and then goes inactive
-		// (e.g. via Go/Skip) -- `state` starts null while the initial fetch is
+		// (e.g. via Go/Skip) — `state` starts null while the initial fetch is
 		// in flight, and must not be mistaken for "already inactive".
 		if (state?.status === 'inactive') onClose();
 	}, [state?.status, onClose]);
 
 	if (state === null || state.status === 'inactive') return null;
 
+	// A neutral bordered badge, not a Tag: it has no background fill and, unlike a category
+	// pill, its text shouldn't be forced to Title Case.
 	const haptics = hasWatch ? (
 		<span className="rest-timer-sheet__badge">
 			<span className="material-symbols-rounded">watch</span>
@@ -86,9 +92,11 @@ export function RestTimerSheet({
 					</div>
 
 					<div className="rest-timer-sheet__controls">
-						<button
-							type="button"
-							className="rest-timer-sheet__primary-cta"
+						<Button
+							variant="filled"
+							size="large"
+							icon="arrow_forward"
+							iconPosition="trailing"
 							onClick={() => {
 								repository.dismissRestTimer();
 								onGo?.();
@@ -96,11 +104,9 @@ export function RestTimerSheet({
 							}}
 						>
 							{state.nextSetLabel ?? 'Continue'}
-							<span className="material-symbols-rounded">arrow_forward</span>
-						</button>
-						<button
-							type="button"
-							className="rest-timer-sheet__secondary"
+						</Button>
+						<Button
+							variant="outlined"
 							onClick={() =>
 								repository.startRestTimer(30_000, {
 									forSetId: state.forSetId,
@@ -110,18 +116,16 @@ export function RestTimerSheet({
 							}
 						>
 							+30 more
-						</button>
+						</Button>
 					</div>
 
 					{notificationsDenied && (
-						<div className="rest-timer-sheet__warning">
-							<span className="material-symbols-rounded">notifications_off</span>
-							<div>
-								<strong>Notifications are off for Cadence.</strong>
-								<div>The rest timer only sounds while the app is open.</div>
-							</div>
-							<button type="button">Turn on</button>
-						</div>
+						<Banner
+							icon="notifications_off"
+							message="Notifications are off for Cadence — the rest timer only sounds while the app is open."
+							tone="attention"
+							action={{ label: 'Turn on', onClick: () => {} }}
+						/>
 					)}
 
 					<div className="rest-timer-sheet__footer">
@@ -191,16 +195,14 @@ export function RestTimerSheet({
 					>
 						−15
 					</button>
-					<button
-						type="button"
-						className="rest-timer-sheet__play-pause"
-						aria-label={isPaused ? 'Resume' : 'Pause'}
+					<IconButton
+						icon={isPaused ? 'play_arrow' : 'pause'}
+						label={isPaused ? 'Resume' : 'Pause'}
+						variant="filled"
+						size="xl"
+						iconFilled
 						onClick={() => (isPaused ? repository.resumeRestTimer() : repository.pauseRestTimer())}
-					>
-						<span className="material-symbols-rounded is-filled">
-							{isPaused ? 'play_arrow' : 'pause'}
-						</span>
-					</button>
+					/>
 					<button
 						type="button"
 						className="rest-timer-sheet__nudge"
@@ -211,9 +213,9 @@ export function RestTimerSheet({
 				</div>
 
 				<div className="rest-timer-sheet__secondary-row">
-					<button
-						type="button"
-						className="rest-timer-sheet__outlined"
+					<Button
+						variant="outlined"
+						icon="restart_alt"
 						onClick={() =>
 							repository.startRestTimer(totalMs, {
 								forSetId: state.forSetId,
@@ -222,21 +224,15 @@ export function RestTimerSheet({
 							})
 						}
 					>
-						<span className="material-symbols-rounded">restart_alt</span>
 						Reset {formatRemaining(totalMs)}
-					</button>
-					<button
-						type="button"
-						className="rest-timer-sheet__outlined"
-						onClick={() => repository.dismissRestTimer()}
-					>
-						<span className="material-symbols-rounded">skip_next</span>
+					</Button>
+					<Button variant="outlined" icon="skip_next" onClick={() => repository.dismissRestTimer()}>
 						Skip rest
-					</button>
+					</Button>
 				</div>
 
 				{state.nextSetLabel && (
-					<div className="rest-timer-sheet__up-next">
+					<Surface tone="container" radius="m" className="rest-timer-sheet__up-next">
 						<div>
 							<span className="rest-timer-sheet__up-next-label">Up next</span>
 							<div>{state.nextSetLabel}</div>
@@ -244,7 +240,7 @@ export function RestTimerSheet({
 						<button type="button" onClick={onClose}>
 							Open
 						</button>
-					</div>
+					</Surface>
 				)}
 
 				<div className="rest-timer-sheet__footer">

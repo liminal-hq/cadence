@@ -4,6 +4,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { Button } from '../ui/Button/Button';
+import { IconButton } from '../ui/IconButton/IconButton';
 import './StepperCluster.css';
 
 export interface StepperField {
@@ -34,26 +36,24 @@ function Stepper({ field }: { field: StepperField }) {
 
 	return (
 		<div className="stepper-cluster__field">
-			<button
-				type="button"
-				className="stepper-cluster__step-button"
-				aria-label={`Decrease ${field.label}`}
+			<IconButton
+				icon="remove"
+				label={`Decrease ${field.label}`}
+				variant="tonal"
+				size="medium"
 				onClick={() => field.onChange(Math.max(0, (field.value ?? 0) - field.increment))}
-			>
-				<span className="material-symbols-rounded">remove</span>
-			</button>
+			/>
 			<div className="stepper-cluster__value">
 				<span>{display}</span>
 				<span className="stepper-cluster__unit">{field.label}</span>
 			</div>
-			<button
-				type="button"
-				className="stepper-cluster__step-button"
-				aria-label={`Increase ${field.label}`}
+			<IconButton
+				icon="add"
+				label={`Increase ${field.label}`}
+				variant="tonal"
+				size="medium"
 				onClick={() => field.onChange((field.value ?? 0) + field.increment)}
-			>
-				<span className="material-symbols-rounded">add</span>
-			</button>
+			/>
 		</div>
 	);
 }
@@ -75,25 +75,21 @@ export function StepperCluster({
 	return (
 		<div className="stepper-cluster">
 			<div className="stepper-cluster__header">
-				<button
-					type="button"
-					className="stepper-cluster__nav"
-					aria-label="Previous set"
+				<IconButton
+					icon="chevron_left"
+					label="Previous set"
+					size="small"
 					disabled={!canPrev}
 					onClick={onPrev}
-				>
-					<span className="material-symbols-rounded">chevron_left</span>
-				</button>
+				/>
 				<span className="stepper-cluster__set-position">{setPositionLabel}</span>
-				<button
-					type="button"
-					className="stepper-cluster__nav"
-					aria-label="Next set"
+				<IconButton
+					icon="chevron_right"
+					label="Next set"
+					size="small"
 					disabled={!canNext}
 					onClick={onNext}
-				>
-					<span className="material-symbols-rounded">chevron_right</span>
-				</button>
+				/>
 				{lastTimeCaption && <span className="stepper-cluster__last-time">{lastTimeCaption}</span>}
 			</div>
 
@@ -110,18 +106,9 @@ export function StepperCluster({
 				</div>
 			)}
 
-			<button
-				type="button"
-				className="stepper-cluster__log"
-				onClick={onLog}
-				disabled={logDisabled}
-				aria-label={logLabel}
-			>
-				<span className="material-symbols-rounded" aria-hidden="true">
-					check
-				</span>
+			<Button variant="filled" fullWidth icon="check" onClick={onLog} disabled={logDisabled}>
 				{logLabel}
-			</button>
+			</Button>
 		</div>
 	);
 }

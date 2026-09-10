@@ -1,9 +1,9 @@
-// One row of the read-only set list under the StepperCluster (the "Preferred direction" fixed
-// stepper-cluster pattern) -- purely presentational
+// One row of the read-only set list under the StepperCluster, purely presentational
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { IconButton } from '../ui/IconButton/IconButton';
 import './SetRow.css';
 
 export type SetRowState = 'completed' | 'loaded' | 'planned';
@@ -80,14 +80,12 @@ export function SetRow({
 				</span>
 			</button>
 			{onOpenEditor && (
-				<button
-					type="button"
-					className="set-row__overflow"
-					aria-label={`Open the full editor for set ${order}`}
+				<IconButton
+					icon="more_vert"
+					label={`Open the full editor for set ${order}`}
+					size="small"
 					onClick={onOpenEditor}
-				>
-					<span className="material-symbols-rounded">more_vert</span>
-				</button>
+				/>
 			)}
 		</div>
 	);

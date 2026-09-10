@@ -20,12 +20,18 @@ export interface AppBarAction {
 	active?: boolean;
 }
 
+export type AppBarBack = { label?: string; icon?: string } & (
+	{ to: string } | { onClick: () => void }
+);
+
 export interface AppBarProps {
 	title: string;
 	subtitle?: string;
 	/** 'large' = tab-root scale, no leading element (TopAppBar). 'medium' = detail scale, expects `back` (DetailAppBar). */
 	size?: 'large' | 'medium';
-	back?: { to: string; label?: string };
+	/** `{ to }` navigates via the router (routed screens); `{ onClick }` just dismisses (an
+	 *  overlay with nowhere to navigate to, e.g. SetNoteScreen). */
+	back?: AppBarBack;
 	tag?: TagProps;
 	actions?: AppBarAction[];
 	trailingContent?: ReactNode;
@@ -42,13 +48,25 @@ export function AppBar({
 }: AppBarProps) {
 	return (
 		<header className={`ui-app-bar ui-app-bar--${size}`}>
-			{back && (
-				<Link to={back.to} className="ui-app-bar__back" aria-label={back.label ?? 'Back'}>
-					<span className="material-symbols-rounded" aria-hidden="true">
-						arrow_back
-					</span>
-				</Link>
-			)}
+			{back &&
+				('to' in back ? (
+					<Link to={back.to} className="ui-app-bar__back" aria-label={back.label ?? 'Back'}>
+						<span className="material-symbols-rounded" aria-hidden="true">
+							{back.icon ?? 'arrow_back'}
+						</span>
+					</Link>
+				) : (
+					<button
+						type="button"
+						className="ui-app-bar__back"
+						aria-label={back.label ?? 'Back'}
+						onClick={back.onClick}
+					>
+						<span className="material-symbols-rounded" aria-hidden="true">
+							{back.icon ?? 'arrow_back'}
+						</span>
+					</button>
+				))}
 			{size === 'large' ? (
 				<div className="ui-app-bar__title">
 					{title}

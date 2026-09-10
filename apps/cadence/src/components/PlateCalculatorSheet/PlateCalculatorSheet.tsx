@@ -1,4 +1,4 @@
-// Plate calculator -- opened from the Set editor's "Plates" chip. Loadable-exactly and
+// Plate calculator, opened from the Set editor's "Plates" chip. Loadable-exactly and
 // not-loadable-with-two-resolutions states share one component, driven by the repository's
 // calculatePlates
 //
@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../BottomSheet/BottomSheet';
+import { Button } from '../ui/Button/Button';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { formatNumber, kgToLb, lbToKg } from '../../domain/format';
 import type { BarbellConfig, PlateCalculationResult } from '../../domain/types';
@@ -161,14 +162,14 @@ export function PlateCalculatorSheet({
 					<>
 						<div className="plate-calculator-sheet__resolutions">
 							{result.nearestLower !== undefined && (
-								<button type="button" onClick={() => useTotal(result.nearestLower!)}>
+								<Button variant="tonal" onClick={() => useTotal(result.nearestLower!)}>
 									Use {formatNumber(result.nearestLower)}
-								</button>
+								</Button>
 							)}
 							{result.nearestHigher !== undefined && (
-								<button type="button" onClick={() => useTotal(result.nearestHigher!)}>
+								<Button variant="tonal" onClick={() => useTotal(result.nearestHigher!)}>
 									Use {formatNumber(result.nearestHigher)}
-								</button>
+								</Button>
 							)}
 						</div>
 						<p className="plate-calculator-sheet__escape-hatch">
@@ -181,9 +182,11 @@ export function PlateCalculatorSheet({
 					From your plate inventory. <strong>Change in Settings</strong>
 				</p>
 
-				<button type="button" className="plate-calculator-sheet__close" onClick={onClose}>
-					Close
-				</button>
+				<div className="plate-calculator-sheet__close">
+					<Button variant="text" onClick={onClose}>
+						Close
+					</Button>
+				</div>
 			</div>
 		</BottomSheet>
 	);
