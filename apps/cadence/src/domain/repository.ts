@@ -23,7 +23,11 @@ export interface LoggingRepository {
 	getWorkoutExercise(id: string): Promise<WorkoutExercise>;
 	/** Sibling exercises in the same workout, ordered — drives P-14's previous/next-exercise navigation. */
 	listWorkoutExercisesByWorkout(workoutId: string): Promise<WorkoutExercise[]>;
+	/** Every occurrence of this exercise across every workout — Exercise detail's (P-44) durable
+	 *  history, graph, records, and stats are all derived from this one query. */
+	listWorkoutExercisesByExercise(exerciseId: string): Promise<WorkoutExercise[]>;
 	getExercise(id: string): Promise<Exercise>;
+	updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;
 	completeSet(setId: string): Promise<SetEntry>;

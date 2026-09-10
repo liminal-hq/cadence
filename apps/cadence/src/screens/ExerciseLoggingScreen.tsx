@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { DetailAppBar } from '../components/DetailAppBar/DetailAppBar';
 import { SetRow, type SetRowState } from '../components/SetRow/SetRow';
 import { StepperCluster, type StepperField } from '../components/StepperCluster/StepperCluster';
@@ -65,6 +66,7 @@ function setRowState(set: SetEntry, loadedSetId: string | null): SetRowState {
 
 export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) {
 	const repository = useLoggingRepository();
+	const navigate = useNavigate();
 	const [currentWorkoutExerciseId, setCurrentWorkoutExerciseId] = useState(
 		SCENARIO_TO_WORKOUT_EXERCISE_ID[scenario],
 	);
@@ -337,7 +339,16 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				subtitle={workoutExercise.workoutLabel}
 				backTo="/today"
 				actions={[
-					{ icon: 'monitoring', label: 'History' },
+					{
+						icon: 'monitoring',
+						label: 'History',
+						onClick: () =>
+							navigate({
+								to: '/exercise/$exerciseId',
+								params: { exerciseId: exercise.id },
+								search: { backTo: `/log/${scenario}` },
+							}),
+					},
 					{ icon: 'more_vert', label: 'More' },
 				]}
 			/>

@@ -18,6 +18,8 @@ export interface AppBarAction {
 	label: string;
 	onClick?: () => void;
 	active?: boolean;
+	/** Renders the glyph filled (FILL 1) when `active` — e.g. a solid star for a favourited item. */
+	iconFilled?: boolean;
 }
 
 export type AppBarBack = { label?: string; icon?: string } & (
@@ -87,6 +89,7 @@ export function AppBar({
 					icon={action.icon}
 					label={action.label}
 					variant={action.active ? 'tonal' : 'standard'}
+					iconFilled={Boolean(action.active && action.iconFilled)}
 					size="large"
 					onClick={action.onClick}
 				/>

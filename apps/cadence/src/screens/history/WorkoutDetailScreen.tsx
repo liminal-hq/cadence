@@ -15,6 +15,8 @@ import { formatWorkoutDuration, formatNumber } from '../../domain/format';
 import { TODAY_DATE } from '../../domain/seedData';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { formatCalendarDateLabel } from './historyDates';
+import { StatTile } from './StatTile';
+import { SetChipRow } from './SetChipRow';
 import '../screens.css';
 import './WorkoutDetailScreen.css';
 
@@ -96,30 +98,15 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 				<p className="workout-detail__date">{formatCalendarDateLabel(workout.date)}</p>
 
 				<Surface tone="container" radius="l" className="workout-detail__stats">
-					<div className="workout-detail__stat">
-						<span className="workout-detail__stat-value">
-							{formatWorkoutDuration(workout.startedAt, workout.completedAt)}
-						</span>
-						<span className="workout-detail__stat-label">Duration</span>
-					</div>
-					<div className="workout-detail__stat">
-						<span className="workout-detail__stat-value">{totalCompletedSets(summary)}</span>
-						<span className="workout-detail__stat-label">Sets</span>
-					</div>
+					<StatTile
+						value={formatWorkoutDuration(workout.startedAt, workout.completedAt)}
+						label="Duration"
+					/>
+					<StatTile value={String(totalCompletedSets(summary))} label="Sets" />
 					{totalDistanceKm(summary) > 0 ? (
-						<div className="workout-detail__stat">
-							<span className="workout-detail__stat-value">
-								{formatNumber(totalDistanceKm(summary))} km
-							</span>
-							<span className="workout-detail__stat-label">Distance</span>
-						</div>
+						<StatTile value={`${formatNumber(totalDistanceKm(summary))} km`} label="Distance" />
 					) : (
-						<div className="workout-detail__stat">
-							<span className="workout-detail__stat-value">
-								{formatNumber(totalVolumeKg(summary))} kg
-							</span>
-							<span className="workout-detail__stat-label">Volume</span>
-						</div>
+						<StatTile value={`${formatNumber(totalVolumeKg(summary))} kg`} label="Volume" />
 					)}
 				</Surface>
 
@@ -155,44 +142,27 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 				)}
 
 				<div className="workout-detail__exercises">
-					{exercises.map((exercise) => {
-						const completed = exercise.sets.filter((s) => s.status === 'completed');
-						return (
-							<div key={exercise.name} className="workout-detail__exercise">
-								<span
-									className={
-										exercise.archived
-											? 'workout-detail__exercise-name workout-detail__exercise-name--archived'
-											: 'workout-detail__exercise-name'
-									}
-								>
-									{exercise.name}
-								</span>
-								<div className="workout-detail__set-chips">
-									{completed.map((set) => (
-										<span key={set.id} className="workout-detail__set-chip">
-											{exercise.metricProfile === 'weight-reps'
-												? `${formatNumber(set.weightKg ?? 0)} × ${set.reps ?? 0}`
-												: `${formatNumber(set.distanceKm ?? 0)} km`}
-											{set.isRecord && (
-												<span
-													className="material-symbols-rounded is-filled workout-detail__set-chip-trophy"
-													aria-label="Personal record"
-												>
-													trophy
-												</span>
-											)}
-										</span>
-									))}
-									{completed.length === 0 && (
-										<span className="workout-detail__set-chip workout-detail__set-chip--planned">
-											Planned, not yet logged
-										</span>
-									)}
-								</div>
-							</div>
-						);
-					})}
+					{exercises.map((exercise) => (
+						<button
+							key={exercise.name}
+							type="button"
+							className="workout-detail__exercise-link"
+							onClick={() =>
+								exercise.exerciseId &&
+								navigate({
+									to: '/exercise/$exerciseId',
+									params: { exerciseId: exercise.exerciseId },
+								})
+							}
+						>
+							<SetChipRow
+								exerciseName={exercise.name}
+								metricProfile={exercise.metricProfile}
+								archived={exercise.archived}
+								sets={exercise.sets}
+							/>
+						</button>
+					))}
 				</div>
 
 				<div className="workout-detail__note">

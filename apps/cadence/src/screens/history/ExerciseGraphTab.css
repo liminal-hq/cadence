@@ -1,0 +1,56 @@
+.exercise-graph-tab {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-4);
+}
+
+.exercise-graph-tab__detail {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-3);
+	background: var(--cadence-surface-container);
+	border-radius: var(--cadence-shape-m);
+}
+
+.exercise-graph-tab__detail-line {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-graph-tab__formula {
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-graph-tab__caption {
+	margin: 0;
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-graph-tab__footer {
+	display: flex;
+	justify-content: space-between;
+}
+
+.exercise-graph-tab__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--cadence-type-body-m-size);
+}
+
+.exercise-graph-tab__table th,
+.exercise-graph-tab__table td {
+	text-align: left;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--cadence-outline-variant);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-graph-tab__table th {
+	color: var(--cadence-on-surface-variant);
+	font-weight: var(--cadence-type-label-l-weight);
+}

@@ -16,25 +16,6 @@
 	padding: var(--cadence-space-4);
 }
 
-.workout-detail__stat {
-	flex: 1;
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 2px;
-}
-
-.workout-detail__stat-value {
-	font-size: var(--cadence-type-title-l-size);
-	font-weight: var(--cadence-type-title-l-weight);
-	color: var(--cadence-on-surface);
-}
-
-.workout-detail__stat-label {
-	font-size: var(--cadence-type-label-m-size);
-	color: var(--cadence-on-surface-variant);
-}
-
 .workout-detail__hc-card {
 	padding: var(--cadence-space-4);
 	display: flex;
@@ -76,48 +57,12 @@
 	gap: var(--cadence-space-3);
 }
 
-.workout-detail__exercise {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-}
-
-.workout-detail__exercise-name {
-	font-size: var(--cadence-type-title-m-size);
-	font-weight: var(--cadence-type-title-m-weight);
-	color: var(--cadence-on-surface);
-}
-
-.workout-detail__exercise-name--archived {
-	font-style: italic;
-	color: var(--cadence-on-surface-variant);
-}
-
-.workout-detail__set-chips {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--cadence-space-2);
-}
-
-.workout-detail__set-chip {
-	display: inline-flex;
-	align-items: center;
-	gap: 2px;
-	padding: 6px 12px;
-	border-radius: var(--cadence-shape-s);
-	background: var(--cadence-surface-container);
-	font-size: var(--cadence-type-body-m-size);
-	color: var(--cadence-on-surface);
-}
-
-.workout-detail__set-chip--planned {
-	color: var(--cadence-on-surface-variant);
-	font-style: italic;
-}
-
-.workout-detail__set-chip-trophy {
-	font-size: 14px;
-	color: var(--cadence-attention);
+.workout-detail__exercise-link {
+	background: none;
+	border: none;
+	padding: 0;
+	text-align: left;
+	cursor: pointer;
 }
 
 .workout-detail__note {

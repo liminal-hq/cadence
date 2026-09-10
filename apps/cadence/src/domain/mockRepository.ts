@@ -116,6 +116,13 @@ export class MockLoggingRepository implements LoggingRepository {
 		return exercise;
 	}
 
+	async updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise> {
+		const existing = await this.getExercise(exerciseId);
+		const updated = { ...existing, favourite };
+		this.exercises.set(exerciseId, updated);
+		return updated;
+	}
+
 	async getWorkoutExercise(id: string): Promise<WorkoutExercise> {
 		const workoutExercise = this.workoutExercises.get(id);
 		if (!workoutExercise) throw new Error(`Unknown workout exercise: ${id}`);
@@ -126,6 +133,10 @@ export class MockLoggingRepository implements LoggingRepository {
 		return [...this.workoutExercises.values()]
 			.filter((we) => we.workoutId === workoutId)
 			.sort((a, b) => a.order - b.order);
+	}
+
+	async listWorkoutExercisesByExercise(exerciseId: string): Promise<WorkoutExercise[]> {
+		return [...this.workoutExercises.values()].filter((we) => we.exerciseId === exerciseId);
 	}
 
 	async listSets(workoutExerciseId: string): Promise<SetEntry[]> {

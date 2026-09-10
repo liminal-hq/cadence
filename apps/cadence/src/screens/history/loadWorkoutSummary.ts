@@ -37,6 +37,7 @@ export async function loadWorkoutSummary(
 
 	const exercises = exerciseDetails.map(({ exercise, sets }) => ({
 		name: exercise.name,
+		exerciseId: exercise.id,
 		metricProfile: exercise.metricProfile,
 		archived: exercise.archived,
 		sets,

@@ -25,6 +25,8 @@ export interface Exercise {
 	durationIncrementSec?: number;
 	/** Archived exercises keep their history but render italicised and can't be logged fresh. */
 	archived?: boolean;
+	/** P-44's star toggle in the exercise detail header. */
+	favourite?: boolean;
 }
 
 export interface WorkoutExercise {

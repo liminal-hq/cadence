@@ -10,6 +10,9 @@ import { formatDurationSec, formatNumber } from '../../domain/format';
 
 export interface SetSummaryExerciseInput {
 	name: string;
+	/** Not used by formatSetSummary itself — carried through so a caller like
+	 *  WorkoutDetailScreen can link the row to /exercise/$exerciseId. */
+	exerciseId?: string;
 	metricProfile: MetricProfile;
 	archived?: boolean;
 	sets: SetEntry[];

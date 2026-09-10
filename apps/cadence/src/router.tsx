@@ -20,6 +20,7 @@ import { TabsLayout } from './screens/TabsLayout';
 import { TodayScreen } from './screens/TodayScreen';
 import { HistoryHubScreen } from './screens/history/HistoryHubScreen';
 import { WorkoutDetailScreen } from './screens/history/WorkoutDetailScreen';
+import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
@@ -112,6 +113,23 @@ const workoutDetailRoute = createRoute({
 	component: WorkoutDetailRoute,
 });
 
+function ExerciseDetailRoute() {
+	const { exerciseId } = exerciseDetailRoute.useParams();
+	const { backTo } = exerciseDetailRoute.useSearch();
+	return <ExerciseDetailScreen exerciseId={exerciseId} backTo={backTo} />;
+}
+
+const exerciseDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/exercise/$exerciseId',
+	// `backTo` lets a caller with a more specific origin (Logging's own exercise screen) send
+	// the user back there instead of the default History hub.
+	validateSearch: (search: Record<string, unknown>): { backTo?: string } => ({
+		backTo: typeof search.backTo === 'string' ? search.backTo : undefined,
+	}),
+	component: ExerciseDetailRoute,
+});
+
 const settingsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/settings',
@@ -193,6 +211,7 @@ const routeTree = rootRoute.addChildren([
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
 	logRoute,
 	workoutDetailRoute,
+	exerciseDetailRoute,
 	settingsRoute,
 	settingsUnitsRoute,
 	settingsTimersRoute,

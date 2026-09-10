@@ -1,0 +1,71 @@
+.exercise-history-tab {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-4);
+	padding: var(--cadence-space-4);
+}
+
+.exercise-history-tab__about {
+	padding: var(--cadence-space-4);
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+}
+
+.exercise-history-tab__about-title {
+	margin: 0;
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-history-tab__about-list {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-4);
+}
+
+.exercise-history-tab__about-list dt {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-history-tab__about-list dd {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-history-tab__category {
+	text-transform: capitalize;
+}
+
+.exercise-history-tab__technical-note {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+	font-style: italic;
+}
+
+.exercise-history-tab__workouts {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+}
+
+.exercise-history-tab__workout {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	background: none;
+	border: none;
+	text-align: left;
+	cursor: pointer;
+	padding: 0;
+}
+
+.exercise-history-tab__workout-date {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}

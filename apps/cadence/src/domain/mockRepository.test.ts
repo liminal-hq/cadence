@@ -194,7 +194,24 @@ describe('MockLoggingRepository', () => {
 		});
 	});
 
+	describe('exercises', () => {
+		it('toggles an exercise favourite flag', async () => {
+			const updated = await repo.updateExerciseFavourite('ex-bench-press', true);
+			expect(updated.favourite).toBe(true);
+			expect((await repo.getExercise('ex-bench-press')).favourite).toBe(true);
+
+			const reverted = await repo.updateExerciseFavourite('ex-bench-press', false);
+			expect(reverted.favourite).toBe(false);
+		});
+	});
+
 	describe('workouts', () => {
+		it('lists every occurrence of an exercise across all workouts', async () => {
+			const occurrences = await repo.listWorkoutExercisesByExercise('ex-bench-press');
+			expect(occurrences).toHaveLength(9);
+			expect(occurrences.every((we) => we.exerciseId === 'ex-bench-press')).toBe(true);
+		});
+
 		it('lists workouts within an inclusive date range, ordered by date', async () => {
 			const workouts = await repo.listWorkoutsInRange('2026-08-01', '2026-08-31');
 			expect(workouts.map((w) => w.id)).toEqual([

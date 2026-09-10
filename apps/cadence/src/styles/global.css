@@ -47,6 +47,20 @@ textarea {
 	font-variant-numeric: tabular-nums;
 }
 
+/** Present to assistive tech, invisible on screen — for content like a chart's <table>
+ *  caption that a sighted user already gets from surrounding context. */
+.ui-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
 button {
 	font-family: inherit;
 	font-size: inherit;
