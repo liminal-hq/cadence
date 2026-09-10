@@ -34,6 +34,16 @@ describe('MockLoggingRepository', () => {
 		expect(created.reps).toBe(8);
 	});
 
+	it('logs a new set as already completed with the given values', async () => {
+		const created = await repo.logNewSet('we-bench-press', { weightKg: 82.5, reps: 6 });
+
+		expect(created.order).toBe(5);
+		expect(created.status).toBe('completed');
+		expect(created.completedAt).toBeDefined();
+		expect(created.weightKg).toBe(82.5);
+		expect(created.reps).toBe(6);
+	});
+
 	it('duplicates a set into a new planned set, clearing completion/record state', async () => {
 		const duplicated = await repo.duplicateSet('set-bp-2');
 

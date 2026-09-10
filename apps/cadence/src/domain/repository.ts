@@ -26,6 +26,12 @@ export interface LoggingRepository {
 	saveSet(set: SetEntry): Promise<SetEntry>;
 	completeSet(setId: string): Promise<SetEntry>;
 	addSet(workoutExerciseId: string): Promise<SetEntry>;
+	/** Creates a set that's already completed with the given values -- used to log a fresh set
+	 *  directly from the cluster's "next" draft, rather than creating a planned set first. */
+	logNewSet(
+		workoutExerciseId: string,
+		values: Partial<Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>>,
+	): Promise<SetEntry>;
 	duplicateSet(setId: string): Promise<SetEntry>;
 	updateSetNote(setId: string, note: string | undefined): Promise<SetEntry>;
 	updateTodayNote(workoutExerciseId: string, note: string | undefined): Promise<WorkoutExercise>;

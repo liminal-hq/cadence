@@ -74,6 +74,13 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	const [siblingExerciseNames, setSiblingExerciseNames] = useState<Record<string, string>>({});
 	const [sets, setSets] = useState<SetEntry[]>([]);
 	const [loadedSetId, setLoadedSetId] = useState<string | null>(null);
+	// Non-null exactly when loadedSetId is null and there's no next planned set to advance to --
+	// the cluster's "draft" mode: values for a set that doesn't exist yet, created on Log rather
+	// than sitting in the list beforehand as an unchecked, pre-filled row (which read as
+	// confusing -- values that looked recorded but weren't).
+	const [draftValues, setDraftValues] = useState<Partial<
+		Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>
+	> | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
 
 	// Sam has a paired watch (SPEC's persona); Priya doesn't -- drives the rest timer
@@ -104,7 +111,23 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 			);
 
 			const firstPlanned = workoutSets.find((s) => s.status === 'planned');
-			setLoadedSetId((firstPlanned ?? workoutSets[workoutSets.length - 1])?.id ?? null);
+			if (firstPlanned) {
+				setLoadedSetId(firstPlanned.id);
+				setDraftValues(null);
+			} else {
+				const last = workoutSets[workoutSets.length - 1];
+				setLoadedSetId(null);
+				setDraftValues(
+					last
+						? {
+								weightKg: last.weightKg,
+								reps: last.reps,
+								distanceKm: last.distanceKm,
+								durationSec: last.durationSec,
+							}
+						: {},
+				);
+			}
 		},
 		[repository],
 	);
@@ -121,6 +144,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 
 	const loadedSet = sets.find((s) => s.id === loadedSetId) ?? null;
 	const loadedIndex = sets.findIndex((s) => s.id === loadedSetId);
+	const isDraftMode = loadedSetId === null && draftValues !== null;
 	const editorSet =
 		overlay && overlay.type !== 'restTimer'
 			? (sets.find((s) => s.id === overlay.setId) ?? null)
@@ -131,63 +155,112 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		await repository.saveSet(updated);
 	};
 
+	const setDraftField = <K extends keyof NonNullable<typeof draftValues>>(key: K, value: number) =>
+		setDraftValues((prev) => ({ ...prev, [key]: value }));
+
 	const primaryField: StepperField =
 		exercise.metricProfile === 'weight-reps'
 			? {
 					label: 'kg',
-					value: loadedSet?.weightKg,
+					value: isDraftMode ? draftValues?.weightKg : loadedSet?.weightKg,
 					increment: exercise.weightIncrementKg ?? 2.5,
 					formatValue: formatNumber,
-					onChange: (value) => loadedSet && persistSet({ ...loadedSet, weightKg: value }),
+					onChange: (value) =>
+						isDraftMode
+							? setDraftField('weightKg', value)
+							: loadedSet && persistSet({ ...loadedSet, weightKg: value }),
 				}
 			: {
 					label: 'km',
-					value: loadedSet?.distanceKm,
+					value: isDraftMode ? draftValues?.distanceKm : loadedSet?.distanceKm,
 					increment: exercise.distanceIncrementKm ?? 0.1,
 					formatValue: (v) => v.toFixed(1),
-					onChange: (value) => loadedSet && persistSet({ ...loadedSet, distanceKm: value }),
+					onChange: (value) =>
+						isDraftMode
+							? setDraftField('distanceKm', value)
+							: loadedSet && persistSet({ ...loadedSet, distanceKm: value }),
 				};
 
 	const secondaryField: StepperField =
 		exercise.metricProfile === 'weight-reps'
 			? {
 					label: 'reps',
-					value: loadedSet?.reps,
+					value: isDraftMode ? draftValues?.reps : loadedSet?.reps,
 					increment: exercise.repsIncrement ?? 1,
 					formatValue: formatNumber,
-					onChange: (value) => loadedSet && persistSet({ ...loadedSet, reps: value }),
+					onChange: (value) =>
+						isDraftMode
+							? setDraftField('reps', value)
+							: loadedSet && persistSet({ ...loadedSet, reps: value }),
 				}
 			: {
 					label: 'min:sec',
-					value: loadedSet?.durationSec,
+					value: isDraftMode ? draftValues?.durationSec : loadedSet?.durationSec,
 					increment: exercise.durationIncrementSec ?? 10,
 					formatValue: formatDurationSec,
-					onChange: (value) => loadedSet && persistSet({ ...loadedSet, durationSec: value }),
+					onChange: (value) =>
+						isDraftMode
+							? setDraftField('durationSec', value)
+							: loadedSet && persistSet({ ...loadedSet, durationSec: value }),
 				};
 
 	// Re-visiting an already-completed set via the cluster's prev/next stepper is editing, not
 	// logging -- its fields already save live on every +/- press (see persistSet below), so the
-	// button just confirms rather than completing-and-advancing again.
-	const isEditingCompletedSet = loadedSet?.status === 'completed';
+	// button returns to logging mode rather than completing-and-advancing again.
+	const isEditingCompletedSet = !isDraftMode && loadedSet?.status === 'completed';
+
+	const enterDraftMode = (seed: SetEntry) => {
+		setLoadedSetId(null);
+		setDraftValues({
+			weightKg: seed.weightKg,
+			reps: seed.reps,
+			distanceKm: seed.distanceKm,
+			durationSec: seed.durationSec,
+		});
+	};
 
 	const handleLog = async () => {
-		if (!loadedSet || isEditingCompletedSet) return;
+		if (isDraftMode) {
+			if (!draftValues) return;
+			const created = await repository.logNewSet(workoutExercise.id, draftValues);
+			setSets((prev) => [...prev, created]);
+			// Stay in draft mode with the same values -- repeating the same weight/reps for a
+			// straight set is then just another tap of Log, no re-entry needed.
+			const label =
+				exercise.metricProfile === 'weight-reps'
+					? `${exercise.name} set ${created.order} · ${formatNumber(created.weightKg ?? 0)} × ${created.reps ?? 0}`
+					: `${exercise.name} set ${created.order}`;
+			await repository.startRestTimer(120_000, {
+				forSetId: created.id,
+				nextSetLabel: label,
+				ownerDevice: hasWatch ? 'watch' : 'phone',
+			});
+			return;
+		}
+
+		if (!loadedSet) return;
+
+		if (loadedSet.status === 'completed') {
+			// "Save": edits already persisted live on every +/- press -- just return to logging.
+			enterDraftMode(loadedSet);
+			return;
+		}
+
 		const completed = await repository.completeSet(loadedSet.id);
 		setSets((prev) => prev.map((s) => (s.id === completed.id ? completed : s)));
 
-		// Logging the last planned set behaves like tapping "Add set" first, so logging stays a
-		// single repeatable action instead of requiring a manual add between every set.
-		let nextSet = sets.find((s, i) => i > loadedIndex && s.status === 'planned');
-		if (!nextSet) {
-			nextSet = await repository.addSet(workoutExercise.id);
-			setSets((prev) => [...prev, nextSet!]);
+		const nextPlanned = sets.find((s, i) => i > loadedIndex && s.status === 'planned');
+		if (nextPlanned) {
+			setLoadedSetId(nextPlanned.id);
+		} else {
+			enterDraftMode(completed);
 		}
 
-		setLoadedSetId(nextSet.id);
+		const upcoming = nextPlanned ?? completed;
 		const label =
 			exercise.metricProfile === 'weight-reps'
-				? `${exercise.name} set ${nextSet.order} · ${formatNumber(nextSet.weightKg ?? 0)} × ${nextSet.reps ?? 0}`
-				: `${exercise.name} set ${nextSet.order}`;
+				? `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)} · ${formatNumber(upcoming.weightKg ?? 0)} × ${upcoming.reps ?? 0}`
+				: `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)}`;
 		await repository.startRestTimer(120_000, {
 			forSetId: completed.id,
 			nextSetLabel: label,
@@ -199,6 +272,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		const created = await repository.addSet(workoutExercise.id);
 		setSets((prev) => [...prev, created]);
 		setLoadedSetId(created.id);
+		setDraftValues(null);
 	};
 
 	const handleDeleteSet = (setId: string) => {
@@ -206,7 +280,23 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 		setSets(remaining);
 		if (loadedSetId === setId) {
 			const firstPlanned = remaining.find((s) => s.status === 'planned');
-			setLoadedSetId((firstPlanned ?? remaining[remaining.length - 1])?.id ?? null);
+			if (firstPlanned) {
+				setLoadedSetId(firstPlanned.id);
+				setDraftValues(null);
+			} else {
+				const last = remaining[remaining.length - 1];
+				setLoadedSetId(null);
+				setDraftValues(
+					last
+						? {
+								weightKg: last.weightKg,
+								reps: last.reps,
+								distanceKm: last.distanceKm,
+								durationSec: last.durationSec,
+							}
+						: {},
+				);
+			}
 		}
 	};
 
@@ -332,24 +422,50 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 					/>
 				)}
 
-				{loadedSet && (
+				{(loadedSet || isDraftMode) && (
 					<div className="coach-mark-anchor">
 						<StepperCluster
-							setPositionLabel={`Set ${loadedIndex + 1} of ${sets.length}`}
-							canPrev={loadedIndex > 0}
-							canNext={loadedIndex < sets.length - 1}
-							onPrev={() => setLoadedSetId(sets[loadedIndex - 1]?.id ?? null)}
-							onNext={() => setLoadedSetId(sets[loadedIndex + 1]?.id ?? null)}
+							setPositionLabel={
+								isDraftMode
+									? `Set ${sets.length + 1} of ${sets.length + 1}`
+									: `Set ${loadedIndex + 1} of ${sets.length}`
+							}
+							canPrev={isDraftMode ? sets.length > 0 : loadedIndex > 0}
+							canNext={!isDraftMode}
+							onPrev={() => {
+								if (isDraftMode) {
+									if (sets.length > 0) setLoadedSetId(sets[sets.length - 1].id);
+									return;
+								}
+								if (loadedIndex > 0) setLoadedSetId(sets[loadedIndex - 1].id);
+							}}
+							onNext={() => {
+								if (isDraftMode) return;
+								if (loadedIndex < sets.length - 1) {
+									setLoadedSetId(sets[loadedIndex + 1].id);
+								} else if (loadedSet) {
+									enterDraftMode(loadedSet);
+								}
+							}}
 							primary={primaryField}
 							secondary={secondaryField}
 							onLog={handleLog}
 							logLabel={
-								isEditingCompletedSet ? `Save set ${loadedSet.order}` : `Log set ${loadedSet.order}`
+								isDraftMode
+									? `Log set ${sets.length + 1}`
+									: isEditingCompletedSet
+										? `Save set ${loadedSet!.order}`
+										: `Log set ${loadedSet!.order}`
 							}
 							logDisabled={
-								exercise.metricProfile === 'weight-reps'
-									? loadedSet.weightKg === undefined || loadedSet.reps === undefined
-									: loadedSet.distanceKm === undefined || loadedSet.durationSec === undefined
+								isDraftMode
+									? exercise.metricProfile === 'weight-reps'
+										? draftValues?.weightKg === undefined || draftValues?.reps === undefined
+										: draftValues?.distanceKm === undefined ||
+											draftValues?.durationSec === undefined
+									: exercise.metricProfile === 'weight-reps'
+										? loadedSet!.weightKg === undefined || loadedSet!.reps === undefined
+										: loadedSet!.distanceKm === undefined || loadedSet!.durationSec === undefined
 							}
 						/>
 						{coachMarks.active && coachMarks.step < 1 && <CoachMarkBadge step={2} />}

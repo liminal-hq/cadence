@@ -157,6 +157,23 @@ export class MockLoggingRepository implements LoggingRepository {
 		return created;
 	}
 
+	async logNewSet(
+		workoutExerciseId: string,
+		values: Partial<Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>>,
+	): Promise<SetEntry> {
+		const siblings = await this.listSets(workoutExerciseId);
+		const created: SetEntry = {
+			id: newId('set'),
+			workoutExerciseId,
+			order: siblings.length + 1,
+			status: 'completed',
+			completedAt: new Date().toISOString(),
+			...values,
+		};
+		this.sets.set(created.id, created);
+		return created;
+	}
+
 	async duplicateSet(setId: string): Promise<SetEntry> {
 		const existing = this.sets.get(setId);
 		if (!existing) throw new Error(`Unknown set: ${setId}`);
