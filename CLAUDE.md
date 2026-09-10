@@ -37,6 +37,7 @@ The UI design work itself is done: a Claude Design handoff (Foundations canvas +
 - **Docs sync**: user-facing behaviour or screen/state changes update `SPEC.md` and `SCREENS.md` respectively, in the same change.
 - **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is. Commit message bodies are the exception — hard-wrap those.
 - **Em dashes**: use a real `—`, never `--` as a substitute — same scope as the no-hard-wrap rule (docs, PR/issue text, commit messages, code comments); doesn't apply to an actual double-hyphen like a CLI flag.
+- **No barrel files**: import directly from the file that defines the thing, not from an `index.ts` that only re-exports sibling files.
 - **Git**: never push (especially force-push) unless explicitly asked; prefer the `gh` CLI for GitHub work.
 
 Keep this file and `AGENTS.md` in sync: when a convention changes there, update the summary here in the same PR.
