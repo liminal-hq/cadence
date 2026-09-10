@@ -366,7 +366,7 @@ Watch
 
 **Entry:** Calendar; History list; graph/stat/record drill-down.
 
-**Content and actions:** all Workout detail operations, clearly dated; edit sets; copy to another date; open exercise detail; inspect notes/timing/supersets.
+**Content and actions:** all Workout detail operations, clearly dated; copy to today; open exercise detail; inspect notes/timing/supersets.
 
 **States:** completed; imported (FitNotes or Health Connect — see P-03, P-65); archived exercise/category; source for a personal record; read-only only while an explicit conflict/restore operation is in progress.
 

@@ -1,0 +1,50 @@
+.empty-graph {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-6) var(--cadence-space-4);
+	text-align: center;
+}
+
+.empty-graph__svg {
+	width: 200px;
+	height: 100px;
+}
+
+.empty-graph__trend {
+	stroke: var(--cadence-outline-variant);
+	stroke-width: 2;
+	fill: none;
+}
+
+.empty-graph__cross {
+	stroke: var(--cadence-error);
+	stroke-width: 1.5;
+	opacity: 0.6;
+}
+
+.empty-graph__point {
+	fill: var(--cadence-primary);
+}
+
+.empty-graph__ghost {
+	fill: none;
+	stroke: var(--cadence-outline-variant);
+	stroke-width: 1.5;
+	stroke-dasharray: 3 3;
+}
+
+.empty-graph__headline {
+	margin: var(--cadence-space-2) 0 0;
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.empty-graph__body {
+	margin: 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+	max-width: 240px;
+}

@@ -171,22 +171,100 @@ describe('MockLoggingRepository', () => {
 	});
 
 	describe('history management', () => {
-		it('summarizes the seeded workouts and sets', async () => {
+		it('summarizes the seeded completed workouts and sets', async () => {
 			const summary = await repo.getHistorySummary();
-			expect(summary.workoutCount).toBe(3);
-			expect(summary.setCount).toBe(10);
+			expect(summary.workoutCount).toBe(12);
+			// Sets belonging to today's still-in-progress workouts aren't history yet, so they're
+			// excluded from this count too — it must match exactly what deleteAllHistory removes.
+			expect(summary.setCount).toBe(49);
 		});
 
-		it('clears sets but keeps workout exercises, exercises, and settings intact', async () => {
+		it('clears sets and completed workouts, keeping in-progress workouts, workout exercises, exercises, and settings intact', async () => {
 			await repo.deleteAllHistory();
 
 			const summary = await repo.getHistorySummary();
 			expect(summary).toEqual({ workoutCount: 0, setCount: 0 });
-			// The routine scaffold survives — Today and Logging still resolve these by id.
+			// The routine scaffold survives, sets included — Today and Logging still resolve
+			// these by id, and today's already-logged sets aren't history yet either.
 			await expect(repo.getWorkoutExercise('we-bench-press')).resolves.toBeDefined();
-			await expect(repo.listSets('we-bench-press')).resolves.toEqual([]);
+			await expect(repo.listSets('we-bench-press')).resolves.not.toEqual([]);
 			await expect(repo.getExercise('ex-bench-press')).resolves.toBeDefined();
+			// Today's in-progress workouts aren't history yet, so they survive.
+			await expect(repo.getWorkout('workout-push-a')).resolves.toBeDefined();
+			// A completed workout is gone, and so is the workoutExercise occurrence that
+			// belonged to it — otherwise loadExerciseHistory would try to resolve a deleted
+			// workout and reject.
+			await expect(repo.getWorkout('workout-2026-09-04')).rejects.toThrow();
+			await expect(repo.getWorkoutExercise('we-2026-09-04-bench')).rejects.toThrow();
 			expect(await repo.getSettings()).toEqual(await new MockLoggingRepository().getSettings());
+		});
+	});
+
+	describe('exercises', () => {
+		it('toggles an exercise favourite flag', async () => {
+			const updated = await repo.updateExerciseFavourite('ex-bench-press', true);
+			expect(updated.favourite).toBe(true);
+			expect((await repo.getExercise('ex-bench-press')).favourite).toBe(true);
+
+			const reverted = await repo.updateExerciseFavourite('ex-bench-press', false);
+			expect(reverted.favourite).toBe(false);
+		});
+	});
+
+	describe('workouts', () => {
+		it('lists every occurrence of an exercise across all workouts', async () => {
+			const occurrences = await repo.listWorkoutExercisesByExercise('ex-bench-press');
+			expect(occurrences).toHaveLength(9);
+			expect(occurrences.every((we) => we.exerciseId === 'ex-bench-press')).toBe(true);
+		});
+
+		it('lists workouts within an inclusive date range, ordered by date', async () => {
+			const workouts = await repo.listWorkoutsInRange('2026-08-01', '2026-08-31');
+			expect(workouts.map((w) => w.id)).toEqual([
+				'workout-2026-08-07',
+				'workout-2026-08-14',
+				'workout-2026-08-19',
+				'workout-2026-08-27-hc',
+				'workout-2026-08-27-strength',
+				'workout-2026-08-29',
+			]);
+		});
+
+		it('rejects a lookup for an unknown workout', async () => {
+			await expect(repo.getWorkout('no-such-workout')).rejects.toThrow(
+				'Unknown workout: no-such-workout',
+			);
+		});
+
+		it('duplicates a workout into a new planned workout on the target date', async () => {
+			const duplicated = await repo.duplicateWorkout('workout-2026-09-04', '2026-09-20');
+
+			expect(duplicated.id).not.toBe('workout-2026-09-04');
+			expect(duplicated.date).toBe('2026-09-20');
+			expect(duplicated.title).toBe('Push A');
+			expect(duplicated.status).toBe('in-progress');
+
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(duplicated.id);
+			expect(workoutExercises).toHaveLength(2);
+			for (const we of workoutExercises) {
+				const sets = await repo.listSets(we.id);
+				expect(sets.length).toBeGreaterThan(0);
+				for (const set of sets) {
+					expect(set.status).toBe('planned');
+					expect(set.completedAt).toBeUndefined();
+					expect(set.isRecord).toBe(false);
+				}
+			}
+
+			// The source workout is untouched.
+			const sourceExercise = await repo.getWorkoutExercise('we-2026-09-04-bench');
+			expect((await repo.listSets(sourceExercise.id))[0].status).toBe('completed');
+		});
+
+		it('updates a workout note', async () => {
+			const updated = await repo.updateWorkoutNote('workout-2026-09-04', 'Felt strong today');
+			expect(updated.note).toBe('Felt strong today');
+			expect(await repo.getWorkout('workout-2026-09-04')).toEqual(updated);
 		});
 	});
 

@@ -1,0 +1,16 @@
+.exercise-stats-tab {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-4);
+	padding: var(--cadence-space-4);
+}
+
+.exercise-stats-tab__grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-4);
+}
+
+.exercise-stats-tab__grid > * {
+	flex: 1 1 40%;
+}

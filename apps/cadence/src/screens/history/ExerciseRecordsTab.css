@@ -1,0 +1,80 @@
+.exercise-records-tab {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-4);
+	padding: var(--cadence-space-4);
+}
+
+.exercise-records-tab__title {
+	margin: 0 0 var(--cadence-space-2);
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-records-tab__estimated-caption {
+	margin: 0 0 var(--cadence-space-2);
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-records-tab__cards {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-3);
+}
+
+.exercise-records-tab__card {
+	flex: 1;
+	min-width: 140px;
+	padding: var(--cadence-space-4);
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 4px;
+}
+
+.exercise-records-tab__icon {
+	font-size: 24px;
+	color: var(--cadence-attention);
+}
+
+.exercise-records-tab__value {
+	font-size: var(--cadence-type-title-l-size);
+	font-weight: var(--cadence-type-title-l-weight);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-records-tab__meta {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-records-tab__grid {
+	display: flex;
+	flex-direction: column;
+}
+
+.exercise-records-tab__grid-row {
+	display: flex;
+	justify-content: space-between;
+	padding: var(--cadence-space-2) 0;
+	border-bottom: 1px solid var(--cadence-outline-variant);
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-records-tab__grid-date {
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-records-tab__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.exercise-records-tab__recomputed {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}

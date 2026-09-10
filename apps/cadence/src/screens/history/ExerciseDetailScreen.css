@@ -1,0 +1,4 @@
+.exercise-detail__tabs {
+	padding: 0 var(--cadence-space-2);
+	border-bottom: 1px solid var(--cadence-outline-variant);
+}

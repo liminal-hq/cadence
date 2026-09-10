@@ -1,0 +1,51 @@
+.workout-history-row {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	width: 100%;
+	padding: var(--cadence-space-3) var(--cadence-space-4);
+	background: none;
+	border: none;
+	text-align: left;
+	cursor: pointer;
+}
+
+.workout-history-row__header {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.workout-history-row__title {
+	font-size: var(--cadence-type-title-m-size);
+	font-weight: var(--cadence-type-title-m-weight);
+	color: var(--cadence-on-surface);
+}
+
+.workout-history-row__meta {
+	display: flex;
+	gap: var(--cadence-space-2);
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.workout-history-row__summary {
+	margin: 4px 0 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.workout-history-row__archived {
+	font-style: italic;
+}
+
+.workout-history-row__trophy {
+	font-size: 14px;
+	color: var(--cadence-attention);
+	vertical-align: -2px;
+	margin-left: 2px;
+}
+
+.workout-history-row__overflow {
+	color: var(--cadence-on-surface-variant);
+}

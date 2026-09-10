@@ -1,0 +1,32 @@
+.line-chart {
+	width: 100%;
+	height: auto;
+}
+
+.line-chart__gridline {
+	stroke: var(--cadence-outline-variant);
+	stroke-width: 1;
+}
+
+.line-chart__axis-label {
+	font-size: 8px;
+	fill: var(--cadence-on-surface-variant);
+}
+
+.line-chart__line {
+	stroke: var(--cadence-primary);
+	stroke-width: 2;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+.line-chart__dot {
+	fill: var(--cadence-primary);
+	cursor: pointer;
+}
+
+.line-chart__dot--emphasis {
+	fill: var(--cadence-primary);
+	stroke: var(--cadence-surface);
+	stroke-width: 2;
+}
