@@ -4,18 +4,19 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { StatTile } from './StatTile';
 import { computeStats } from './computeStats';
 import { addDays } from './historyDates';
 import { formatNumber } from '../../domain/format';
 import { TODAY_DATE } from '../../domain/seedData';
-import type { MetricProfile, SetEntry } from '../../domain/types';
+import type { MetricProfile } from '../../domain/types';
+import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
 import './ExerciseStatsTab.css';
 
 interface ExerciseStatsTabProps {
-	allSets: SetEntry[];
+	history: ExerciseHistoryEntry[];
 	metricProfile: MetricProfile;
 }
 
@@ -28,10 +29,15 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 	{ value: 'all', label: 'All time' },
 ];
 
-export function ExerciseStatsTab({ allSets, metricProfile }: ExerciseStatsTabProps) {
+export function ExerciseStatsTab({ history, metricProfile }: ExerciseStatsTabProps) {
 	const [period, setPeriod] = useState<Period>('all');
-	const range = period === 'all' ? undefined : { startDate: addDays(TODAY_DATE, -Number(period)) };
-	const stats = computeStats(allSets, range);
+	const datedSets = useMemo(() => flattenDatedSets(history), [history]);
+	// Inclusive N-day window ending today — "Week" (7) means today and the 6 days before it.
+	const range =
+		period === 'all'
+			? undefined
+			: { startDate: addDays(TODAY_DATE, -Number(period) + 1), endDate: TODAY_DATE };
+	const stats = computeStats(datedSets, range);
 
 	return (
 		<div className="exercise-stats-tab">

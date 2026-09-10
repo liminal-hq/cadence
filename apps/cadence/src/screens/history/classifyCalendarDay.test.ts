@@ -1,3 +1,5 @@
+// Covers the four calendar day states and their priority when a day has more than one workout
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

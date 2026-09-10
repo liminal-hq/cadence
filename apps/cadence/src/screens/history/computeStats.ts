@@ -4,8 +4,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { SetEntry } from '../../domain/types';
 import { estimateOneRepMax } from './oneRepMax';
+import type { DatedSet } from './loadExerciseHistory';
 
 export interface ExerciseStats {
 	setCount: number;
@@ -17,16 +17,17 @@ export interface ExerciseStats {
 }
 
 export function computeStats(
-	sets: SetEntry[],
+	datedSets: DatedSet[],
 	range?: { startDate?: string; endDate?: string },
 ): ExerciseStats {
-	const completed = sets.filter((s) => {
-		if (s.status !== 'completed' || !s.completedAt) return false;
-		const date = s.completedAt.slice(0, 10);
-		if (range?.startDate && date < range.startDate) return false;
-		if (range?.endDate && date > range.endDate) return false;
-		return true;
-	});
+	const completed = datedSets
+		.filter(({ set, date }) => {
+			if (set.status !== 'completed') return false;
+			if (range?.startDate && date < range.startDate) return false;
+			if (range?.endDate && date > range.endDate) return false;
+			return true;
+		})
+		.map(({ set }) => set);
 
 	const weightReps = completed.filter((s) => s.weightKg !== undefined && s.reps !== undefined);
 	const distanceSets = completed.filter((s) => s.distanceKm !== undefined);

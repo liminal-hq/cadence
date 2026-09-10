@@ -13,17 +13,19 @@ import { computeRecords } from './computeRecords';
 import { ONE_REP_MAX_FORMULA_NAME } from './oneRepMax';
 import { formatCalendarDateLabel } from './historyDates';
 import { formatNumber } from '../../domain/format';
-import type { MetricProfile, SetEntry } from '../../domain/types';
+import type { MetricProfile } from '../../domain/types';
+import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
 import './ExerciseRecordsTab.css';
 
 interface ExerciseRecordsTabProps {
-	allSets: SetEntry[];
+	history: ExerciseHistoryEntry[];
 	metricProfile: MetricProfile;
 }
 
-export function ExerciseRecordsTab({ allSets, metricProfile }: ExerciseRecordsTabProps) {
+export function ExerciseRecordsTab({ history, metricProfile }: ExerciseRecordsTabProps) {
 	const [lastRecomputed, setLastRecomputed] = useState<string | null>(null);
-	const records = useMemo(() => computeRecords(allSets), [allSets]);
+	const datedSets = useMemo(() => flattenDatedSets(history), [history]);
+	const records = useMemo(() => computeRecords(datedSets), [datedSets]);
 
 	if (metricProfile !== 'weight-reps') {
 		return (

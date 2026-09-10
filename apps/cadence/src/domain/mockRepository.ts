@@ -393,19 +393,42 @@ export class MockLoggingRepository implements LoggingRepository {
 		return this.settings;
 	}
 
+	/** The workoutExercise ids that belong to a completed workout — exactly what
+	 *  `deleteAllHistory` removes, and what `getHistorySummary`'s counts must agree with. */
+	private completedWorkoutExerciseIds(): Set<string> {
+		const completedWorkoutIds = new Set(
+			[...this.workouts.values()].filter((w) => w.status === 'completed').map((w) => w.id),
+		);
+		return new Set(
+			[...this.workoutExercises.values()]
+				.filter((we) => completedWorkoutIds.has(we.workoutId))
+				.map((we) => we.id),
+		);
+	}
+
 	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
 		const completedWorkouts = [...this.workouts.values()].filter((w) => w.status === 'completed');
-		return { workoutCount: completedWorkouts.length, setCount: this.sets.size };
+		const workoutExerciseIds = this.completedWorkoutExerciseIds();
+		const setCount = [...this.sets.values()].filter((s) =>
+			workoutExerciseIds.has(s.workoutExerciseId),
+		).length;
+		return { workoutCount: completedWorkouts.length, setCount };
 	}
 
 	async deleteAllHistory(): Promise<void> {
-		// Clears logged sets and completed workouts only — workoutExercises (the routine
-		// scaffold Today and Logging navigate against) and in-progress workouts survive, since
-		// they're not "history" yet.
+		// Clears logged sets, completed workouts, and the workoutExercise occurrences that
+		// belonged to them — the in-progress routine scaffold Today and Logging navigate
+		// against survives, since none of its workouts (or their sets) are ever touched here.
+		const workoutExerciseIds = this.completedWorkoutExerciseIds();
+		for (const id of workoutExerciseIds) {
+			this.workoutExercises.delete(id);
+		}
+		for (const [id, set] of this.sets) {
+			if (workoutExerciseIds.has(set.workoutExerciseId)) this.sets.delete(id);
+		}
 		for (const [id, workout] of this.workouts) {
 			if (workout.status === 'completed') this.workouts.delete(id);
 		}
-		this.sets.clear();
 		this.clearScheduledElapse();
 		this.setRestTimer({ status: 'inactive' });
 	}
@@ -442,6 +465,10 @@ export class MockLoggingRepository implements LoggingRepository {
 				...sourceWe,
 				id: newId('we'),
 				workoutId: duplicated.id,
+				// Day-specific to the source session — a fresh copy starts without them.
+				todayNote: undefined,
+				offlineSince: undefined,
+				lastTimeReference: undefined,
 			};
 			this.workoutExercises.set(newWe.id, newWe);
 

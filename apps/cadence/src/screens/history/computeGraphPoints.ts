@@ -7,6 +7,7 @@
 
 import type { SetEntry } from '../../domain/types';
 import { estimateOneRepMax } from './oneRepMax';
+import type { DatedSet } from './loadExerciseHistory';
 
 export type GraphMetric = 'weight' | 'estimated-1rm' | 'volume' | 'distance' | 'pace';
 
@@ -40,17 +41,19 @@ function metricValue(set: SetEntry, metric: GraphMetric): number | undefined {
 	}
 }
 
-export function computeGraphPoints(sets: SetEntry[], metric: GraphMetric): GraphPoint[] {
+export function computeGraphPoints(datedSets: DatedSet[], metric: GraphMetric): GraphPoint[] {
 	const bestByDate = new Map<string, { set: SetEntry; value: number }>();
+	// Lower is better for pace (seconds per km); every other metric is bigger-is-better.
+	const isBetter = (value: number, existing: number) =>
+		metric === 'pace' ? value < existing : value > existing;
 
-	for (const set of sets) {
-		if (set.status !== 'completed' || !set.completedAt) continue;
+	for (const { set, date } of datedSets) {
+		if (set.status !== 'completed') continue;
 		const value = metricValue(set, metric);
 		if (value === undefined) continue;
 
-		const date = set.completedAt.slice(0, 10);
 		const existing = bestByDate.get(date);
-		if (!existing || value > existing.value) bestByDate.set(date, { set, value });
+		if (!existing || isBetter(value, existing.value)) bestByDate.set(date, { set, value });
 	}
 
 	return [...bestByDate.entries()]

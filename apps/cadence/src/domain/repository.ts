@@ -72,9 +72,10 @@ export interface LoggingRepository {
 	updateSettings(patch: Partial<Settings>): Promise<Settings>;
 	/** Counts of what P-62's delete-all confirmation is about to remove. */
 	getHistorySummary(): Promise<{ workoutCount: number; setCount: number }>;
-	/** Clears logged sets only — the workoutExercise scaffold, exercises, barbells, and settings
-	 *  all survive, since Today and Logging resolve workout exercises by id independently of
-	 *  whether they have any recorded history. */
+	/** Clears completed workouts, the workoutExercise occurrences and sets that belonged to them,
+	 *  and nothing else — an in-progress workout's own workoutExercises/sets, plus exercises,
+	 *  barbells, and settings, all survive, since Today and Logging resolve workout exercises by
+	 *  id independently of whether they have any recorded history. */
 	deleteAllHistory(): Promise<void>;
 
 	getWorkout(id: string): Promise<Workout>;

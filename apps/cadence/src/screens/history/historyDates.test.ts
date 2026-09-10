@@ -1,3 +1,5 @@
+// Covers the day-difference, relative-label, grouping, and month-boundary helpers
+//
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 

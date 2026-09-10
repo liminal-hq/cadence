@@ -17,7 +17,7 @@ import { ONE_REP_MAX_FORMULA_NAME } from './oneRepMax';
 import { formatCalendarDateLabel } from './historyDates';
 import { formatNumber } from '../../domain/format';
 import type { Exercise } from '../../domain/types';
-import type { ExerciseHistoryEntry } from './loadExerciseHistory';
+import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
 import './ExerciseGraphTab.css';
 
 interface ExerciseGraphTabProps {
@@ -67,8 +67,8 @@ export function ExerciseGraphTab({ exercise, history }: ExerciseGraphTabProps) {
 	const [showTable, setShowTable] = useState(false);
 	const [saved, setSaved] = useState(false);
 
-	const allSets = useMemo(() => history.flatMap((h) => h.sets), [history]);
-	const points = useMemo(() => computeGraphPoints(allSets, metric), [allSets, metric]);
+	const datedSets = useMemo(() => flattenDatedSets(history), [history]);
+	const points = useMemo(() => computeGraphPoints(datedSets, metric), [datedSets, metric]);
 
 	if (points.length === 0) {
 		return (

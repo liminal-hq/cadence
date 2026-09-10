@@ -13,6 +13,19 @@ export interface ExerciseHistoryEntry {
 	sets: SetEntry[];
 }
 
+/** A set paired with its workout's local training date — `Workout.date`, not `SetEntry.
+ *  completedAt`, which `completeSet()` stores as a real UTC instant and can fall on a different
+ *  calendar date near midnight outside UTC. Every date-bucketing derivation (graph points,
+ *  records, stats) must group by this, not by slicing `completedAt`. */
+export interface DatedSet {
+	set: SetEntry;
+	date: string;
+}
+
+export function flattenDatedSets(history: ExerciseHistoryEntry[]): DatedSet[] {
+	return history.flatMap((entry) => entry.sets.map((set) => ({ set, date: entry.workout.date })));
+}
+
 export async function loadExerciseHistory(
 	repository: LoggingRepository,
 	exerciseId: string,
@@ -29,5 +42,13 @@ export async function loadExerciseHistory(
 		}),
 	);
 
-	return entries.sort((a, b) => b.workout.date.localeCompare(a.workout.date));
+	// A workout that's still all-planned hasn't happened yet — e.g. a future scheduled session —
+	// so it isn't history. A workout with at least one completed set (or itself marked completed)
+	// counts, even if it's today's still-in-progress session.
+	const happened = entries.filter(
+		(entry) =>
+			entry.workout.status === 'completed' || entry.sets.some((s) => s.status === 'completed'),
+	);
+
+	return happened.sort((a, b) => b.workout.date.localeCompare(a.workout.date));
 }

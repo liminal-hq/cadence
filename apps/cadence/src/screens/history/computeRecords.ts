@@ -5,8 +5,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { SetEntry } from '../../domain/types';
 import { estimateOneRepMax } from './oneRepMax';
+import type { DatedSet } from './loadExerciseHistory';
 
 const TIE_EPSILON = 0.001;
 
@@ -30,11 +30,11 @@ export interface RecordsResult {
 	repRecordsByWeight: RecordEntry[];
 }
 
-function toEntry(set: SetEntry): RecordEntry {
+function toEntry({ set, date }: DatedSet): RecordEntry {
 	return {
 		weightKg: set.weightKg ?? 0,
 		reps: set.reps ?? 0,
-		date: set.completedAt!.slice(0, 10),
+		date,
 		setId: set.id,
 	};
 }
@@ -50,10 +50,9 @@ function dedupeByDate<T extends RecordEntry>(entries: T[]): T[] {
 	return [...bestByDate.values()];
 }
 
-export function computeRecords(sets: SetEntry[]): RecordsResult {
-	const completed = sets.filter(
-		(s) =>
-			s.status === 'completed' && s.completedAt && s.weightKg !== undefined && s.reps !== undefined,
+export function computeRecords(datedSets: DatedSet[]): RecordsResult {
+	const completed = datedSets.filter(
+		({ set }) => set.status === 'completed' && set.weightKg !== undefined && set.reps !== undefined,
 	);
 
 	if (completed.length === 0) {
@@ -67,7 +66,7 @@ export function computeRecords(sets: SetEntry[]): RecordsResult {
 		entries.filter((e) => Math.abs(e.weightKg - maxWeight) < TIE_EPSILON),
 	);
 
-	const estimated = completed.map((set, i) => ({
+	const estimated = completed.map(({ set }, i) => ({
 		...entries[i],
 		value: estimateOneRepMax(set.weightKg!, set.reps!),
 	}));

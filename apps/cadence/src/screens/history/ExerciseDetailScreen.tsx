@@ -67,7 +67,6 @@ export function ExerciseDetailScreen({
 		setExercise(updated);
 	}
 
-	const allSets = history.flatMap((h) => h.sets);
 	const earliestDate = history.length ? history[history.length - 1].workout.date : undefined;
 	const subtitle = [
 		`${history.length} workout${history.length === 1 ? '' : 's'}`,
@@ -102,10 +101,10 @@ export function ExerciseDetailScreen({
 				{tab === 'history' && <ExerciseHistoryTab exercise={exercise} history={history} />}
 				{tab === 'graph' && <ExerciseGraphTab exercise={exercise} history={history} />}
 				{tab === 'records' && (
-					<ExerciseRecordsTab allSets={allSets} metricProfile={exercise.metricProfile} />
+					<ExerciseRecordsTab history={history} metricProfile={exercise.metricProfile} />
 				)}
 				{tab === 'stats' && (
-					<ExerciseStatsTab allSets={allSets} metricProfile={exercise.metricProfile} />
+					<ExerciseStatsTab history={history} metricProfile={exercise.metricProfile} />
 				)}
 				{tab === 'goals' && <ExerciseGoalsTab />}
 			</div>

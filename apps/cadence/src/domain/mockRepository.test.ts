@@ -174,7 +174,9 @@ describe('MockLoggingRepository', () => {
 		it('summarizes the seeded completed workouts and sets', async () => {
 			const summary = await repo.getHistorySummary();
 			expect(summary.workoutCount).toBe(12);
-			expect(summary.setCount).toBe(62);
+			// Sets belonging to today's still-in-progress workouts aren't history yet, so they're
+			// excluded from this count too — it must match exactly what deleteAllHistory removes.
+			expect(summary.setCount).toBe(49);
 		});
 
 		it('clears sets and completed workouts, keeping in-progress workouts, workout exercises, exercises, and settings intact', async () => {
@@ -182,14 +184,18 @@ describe('MockLoggingRepository', () => {
 
 			const summary = await repo.getHistorySummary();
 			expect(summary).toEqual({ workoutCount: 0, setCount: 0 });
-			// The routine scaffold survives — Today and Logging still resolve these by id.
+			// The routine scaffold survives, sets included — Today and Logging still resolve
+			// these by id, and today's already-logged sets aren't history yet either.
 			await expect(repo.getWorkoutExercise('we-bench-press')).resolves.toBeDefined();
-			await expect(repo.listSets('we-bench-press')).resolves.toEqual([]);
+			await expect(repo.listSets('we-bench-press')).resolves.not.toEqual([]);
 			await expect(repo.getExercise('ex-bench-press')).resolves.toBeDefined();
 			// Today's in-progress workouts aren't history yet, so they survive.
 			await expect(repo.getWorkout('workout-push-a')).resolves.toBeDefined();
-			// A completed workout is gone.
+			// A completed workout is gone, and so is the workoutExercise occurrence that
+			// belonged to it — otherwise loadExerciseHistory would try to resolve a deleted
+			// workout and reject.
 			await expect(repo.getWorkout('workout-2026-09-04')).rejects.toThrow();
+			await expect(repo.getWorkoutExercise('we-2026-09-04-bench')).rejects.toThrow();
 			expect(await repo.getSettings()).toEqual(await new MockLoggingRepository().getSettings());
 		});
 	});

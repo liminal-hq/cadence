@@ -152,6 +152,7 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 								navigate({
 									to: '/exercise/$exerciseId',
 									params: { exerciseId: exercise.exerciseId },
+									search: { backTo: `/history/workout/${workout.id}` },
 								})
 							}
 						>

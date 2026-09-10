@@ -79,13 +79,16 @@ export function HistoryHubScreen() {
 			const summaries = await Promise.all(
 				workouts.map((w) => loadWorkoutSummary(repository, w.id)),
 			);
-			if (!cancelled) setSelectedDayWorkouts(summaries);
+			const filtered = categoryFilter
+				? summaries.filter((s) => s.primaryCategory === categoryFilter)
+				: summaries;
+			if (!cancelled) setSelectedDayWorkouts(filtered);
 		}
 		load();
 		return () => {
 			cancelled = true;
 		};
-	}, [repository, selectedDate]);
+	}, [repository, selectedDate, categoryFilter]);
 
 	const categories = Object.keys(CATEGORY_COLOURS);
 
