@@ -37,7 +37,7 @@ Examples:
 
 ## Markdown Formatting
 
-**REQUIREMENT:** Do not hard-wrap markdown prose. Write each paragraph or bullet as a single unwrapped line in the source, no matter how long — let the renderer (GitHub, a browser, an editor's soft-wrap) reflow it for display. This applies everywhere: commit bodies, PR descriptions, docs under `docs/`, README files, `SPEC.md`, `SCREENS.md`, code comments written in Markdown.
+**REQUIREMENT:** Do not hard-wrap markdown prose. Write each paragraph or bullet as a single unwrapped line in the source, no matter how long — let the renderer (GitHub, a browser, an editor's soft-wrap) reflow it for display. This applies everywhere: PR descriptions, docs under `docs/`, README files, `SPEC.md`, `SCREENS.md`, code comments written in Markdown. Commit message bodies are the one exception — hard-wrap those (see [Commit Messages](#commit-messages)); `git log`/`git show` in a terminal don't reflow long lines the way GitHub's PR view does.
 
 - Manual line breaks mid-paragraph don't survive Markdown rendering as intended (they either collapse into the same line anyway or break formatting), and they create noisy diffs when a later edit only changes one word but reflows the whole wrapped block.
 - This does not apply to genuinely separate list items, headings, or intentional line breaks (e.g. two-space trailing breaks, blank lines between paragraphs) — only to breaking up one continuous sentence/paragraph across multiple lines.
@@ -52,7 +52,9 @@ Examples:
 
 - Explain what and why (not how)
 - Use markdown: **bold**, _italics_, `code`, bullet lists
+- **Backtick every code-level reference** — component/function/class/variable names, file and directory paths, CSS selectors/properties/values, npm and crate package names, route paths, HTML tag names, config keys, and CLI flags (e.g. `RestTimerBar`, `apps/cadence/src/domain`, `:hover`, `overflow-x: hidden`, `@tanstack/react-router`, `/log/$scenario`, `<button>`, `--flag`). This applies inline in prose, not just in fenced code blocks. Plain-English descriptions and user-facing UI strings (button labels, screen names, dialog copy) use quotes instead, not backticks — they aren't code.
 - **NO markdown headings** - use **bold labels** for sections (not always required)
+- Hard-wrap paragraphs (~72-100 chars), unlike other markdown in this repo — see [Markdown Formatting](#markdown-formatting)
 
 **Specific Updates**: Each commit message should reflect the specific changes made in that commit. Do not just recap the entire project history or scope. Focus on the now.
 

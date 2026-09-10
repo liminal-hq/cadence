@@ -32,10 +32,10 @@ The UI design work itself is done: a Claude Design handoff (Foundations canvas +
 ## Conventions (from AGENTS.md)
 
 - **PR titles**: human-readable, imperative, sentence case, ~70 chars, **no Conventional Commit prefix**. Descriptions use `## Summary` + `## Test plan` (checklists, concrete commands). Every PR gets a category label (`enhancement`, `bug`, `documentation`, …) plus scope labels (`android`, `wear-os`, `frontend`, `backend`, `rust`, `plugin`, `data-model`, `sync`). PRs open ready for review, not as drafts.
-- **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); write bodies to a file and `git commit -F` when they contain backticks.
+- **Commits**: Conventional Commits with markdown bodies (what/why, `test:` for test-only changes); backtick every code-level reference (identifiers, paths, CSS, package names, tags — not UI strings, which use quotes); write bodies to a file and `git commit -F` when they contain backticks.
 - **Licence headers** on new source files, once they exist: one-line summary + `(c) Copyright 2026 Liminal HQ, Scott Morris` + `SPDX-License-Identifier: Apache-2.0 OR MIT`.
 - **Docs sync**: user-facing behaviour or screen/state changes update `SPEC.md` and `SCREENS.md` respectively, in the same change.
-- **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is.
+- **No hard wrapping**: write each markdown paragraph or list item as a single line and let viewers soft-wrap; deliberate short lines, one-liners, and bullets stay as-is. Commit message bodies are the exception — hard-wrap those.
 - **Git**: never push (especially force-push) unless explicitly asked; prefer the `gh` CLI for GitHub work.
 
 Keep this file and `AGENTS.md` in sync: when a convention changes there, update the summary here in the same PR.
