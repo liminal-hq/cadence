@@ -278,6 +278,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	const handleDeleteSet = (setId: string) => {
 		const remaining = sets.filter((s) => s.id !== setId);
 		setSets(remaining);
+		void repository.deleteSet(setId);
 		if (loadedSetId === setId) {
 			const firstPlanned = remaining.find((s) => s.status === 'planned');
 			if (firstPlanned) {

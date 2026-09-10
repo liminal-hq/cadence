@@ -33,6 +33,7 @@ export interface LoggingRepository {
 		values: Partial<Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>>,
 	): Promise<SetEntry>;
 	duplicateSet(setId: string): Promise<SetEntry>;
+	deleteSet(setId: string): Promise<void>;
 	updateSetNote(setId: string, note: string | undefined): Promise<SetEntry>;
 	updateTodayNote(workoutExerciseId: string, note: string | undefined): Promise<WorkoutExercise>;
 

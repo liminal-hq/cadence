@@ -191,6 +191,10 @@ export class MockLoggingRepository implements LoggingRepository {
 		return duplicated;
 	}
 
+	async deleteSet(setId: string): Promise<void> {
+		this.sets.delete(setId);
+	}
+
 	async updateSetNote(setId: string, note: string | undefined): Promise<SetEntry> {
 		const existing = this.sets.get(setId);
 		if (!existing) throw new Error(`Unknown set: ${setId}`);

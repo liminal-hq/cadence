@@ -48,7 +48,7 @@ function MetricCard({
 				<button
 					type="button"
 					aria-label={`Decrease ${label}`}
-					onClick={() => onChange((value ?? 0) - increment)}
+					onClick={() => onChange(Math.max(0, (value ?? 0) - increment))}
 				>
 					<span className="material-symbols-rounded">remove</span>
 				</button>
@@ -88,13 +88,22 @@ export function SetEditorSheet({
 	const [showDraftBanner, setShowDraftBanner] = useState(
 		!isWeightReps && set.durationSec === undefined,
 	);
+	// Staged locally and only committed via onSave from Update/Save planned/Complete now --
+	// Cancel, the X close button, and the scrim/Escape (BottomSheet) all just discard this
+	// draft, matching what those actions imply rather than having already persisted every
+	// keystroke.
+	const [draft, setDraft] = useState<SetEntry>(set);
 
 	const durationInvalid =
-		!isWeightReps && set.distanceKm !== undefined && set.durationSec === undefined;
+		!isWeightReps && draft.distanceKm !== undefined && draft.durationSec === undefined;
 
 	const setCompleted = () =>
-		onSave({ ...set, status: 'completed', completedAt: new Date().toISOString() });
-	const setPlanned = () => onSave({ ...set, status: 'planned', completedAt: undefined });
+		setDraft((d) => ({ ...d, status: 'completed', completedAt: new Date().toISOString() }));
+	const setPlanned = () => setDraft((d) => ({ ...d, status: 'planned', completedAt: undefined }));
+	const commitAndClose = () => {
+		onSave(draft);
+		onClose();
+	};
 
 	return (
 		<BottomSheet onClose={onClose} ariaLabel={`Edit set ${set.order}`}>
@@ -115,9 +124,9 @@ export function SetEditorSheet({
 					</div>
 					<div className="set-editor-sheet__subtitle">
 						{workoutLabel}
-						{set.status === 'completed' &&
-							set.completedAt &&
-							` · completed ${formatClockTime(set.completedAt)}`}
+						{draft.status === 'completed' &&
+							draft.completedAt &&
+							` · completed ${formatClockTime(draft.completedAt)}`}
 					</div>
 				</div>
 				<button
@@ -135,19 +144,21 @@ export function SetEditorSheet({
 					<>
 						<MetricCard
 							label="Weight · kg"
-							value={set.weightKg}
+							value={draft.weightKg}
 							increment={exercise.weightIncrementKg ?? 2.5}
 							format={formatNumber}
-							onChange={(weightKg) => onSave({ ...set, weightKg })}
+							onChange={(weightKg) => setDraft((d) => ({ ...d, weightKg }))}
 						/>
 						<MetricCard
 							label="Reps"
-							value={set.reps}
+							value={draft.reps}
 							increment={exercise.repsIncrement ?? 1}
 							format={formatNumber}
-							onChange={(reps) => onSave({ ...set, reps })}
+							onChange={(reps) => setDraft((d) => ({ ...d, reps }))}
 							helper={
-								set.isRecord ? `🏆 Rep record at ${formatNumber(set.weightKg ?? 0)} kg` : undefined
+								draft.isRecord
+									? `🏆 Rep record at ${formatNumber(draft.weightKg ?? 0)} kg`
+									: undefined
 							}
 						/>
 					</>
@@ -155,17 +166,17 @@ export function SetEditorSheet({
 					<>
 						<MetricCard
 							label="Distance · km"
-							value={set.distanceKm}
+							value={draft.distanceKm}
 							increment={exercise.distanceIncrementKm ?? 0.1}
 							format={(v) => v.toFixed(1)}
-							onChange={(distanceKm) => onSave({ ...set, distanceKm })}
+							onChange={(distanceKm) => setDraft((d) => ({ ...d, distanceKm }))}
 						/>
 						<MetricCard
 							label="Duration · mm:ss"
-							value={set.durationSec}
+							value={draft.durationSec}
 							increment={exercise.durationIncrementSec ?? 10}
 							format={formatDurationSec}
-							onChange={(durationSec) => onSave({ ...set, durationSec })}
+							onChange={(durationSec) => setDraft((d) => ({ ...d, durationSec }))}
 							invalid={durationInvalid}
 						/>
 					</>
@@ -185,7 +196,7 @@ export function SetEditorSheet({
 					<button
 						type="button"
 						className="set-editor-sheet__chip"
-						onClick={() => onOpenPlateCalculator?.(set.weightKg ?? 0)}
+						onClick={() => onOpenPlateCalculator?.(draft.weightKg ?? 0)}
 					>
 						<span className="material-symbols-rounded">calculate</span>
 						Plates
@@ -196,7 +207,7 @@ export function SetEditorSheet({
 			<div className="set-editor-sheet__segmented">
 				<button
 					type="button"
-					className={set.status === 'planned' ? 'is-active' : ''}
+					className={draft.status === 'planned' ? 'is-active' : ''}
 					onClick={setPlanned}
 				>
 					<span className="material-symbols-rounded">circle</span>
@@ -204,13 +215,13 @@ export function SetEditorSheet({
 				</button>
 				<button
 					type="button"
-					className={set.status === 'completed' ? 'is-active' : ''}
+					className={draft.status === 'completed' ? 'is-active' : ''}
 					onClick={setCompleted}
 					disabled={durationInvalid}
 				>
 					<span className="material-symbols-rounded is-filled">check_circle</span>
-					{set.status === 'completed' && set.completedAt
-						? `Completed ${formatClockTime(set.completedAt)}`
+					{draft.status === 'completed' && draft.completedAt
+						? `Completed ${formatClockTime(draft.completedAt)}`
 						: 'Complete now'}
 				</button>
 			</div>
@@ -243,10 +254,10 @@ export function SetEditorSheet({
 					<button
 						type="button"
 						className="set-editor-sheet__update"
-						onClick={onClose}
+						onClick={commitAndClose}
 						disabled={durationInvalid}
 					>
-						{set.status === 'completed' ? 'Update' : 'Save planned'}
+						{draft.status === 'completed' ? 'Update' : 'Save planned'}
 					</button>
 				</div>
 			</div>

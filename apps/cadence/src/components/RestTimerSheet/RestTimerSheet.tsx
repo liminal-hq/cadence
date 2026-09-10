@@ -102,7 +102,11 @@ export function RestTimerSheet({
 							type="button"
 							className="rest-timer-sheet__secondary"
 							onClick={() =>
-								repository.startRestTimer(30_000, { nextSetLabel: state.nextSetLabel })
+								repository.startRestTimer(30_000, {
+									forSetId: state.forSetId,
+									nextSetLabel: state.nextSetLabel,
+									ownerDevice: state.ownerDevice,
+								})
 							}
 						>
 							+30 more
@@ -210,7 +214,13 @@ export function RestTimerSheet({
 					<button
 						type="button"
 						className="rest-timer-sheet__outlined"
-						onClick={() => repository.startRestTimer(totalMs)}
+						onClick={() =>
+							repository.startRestTimer(totalMs, {
+								forSetId: state.forSetId,
+								nextSetLabel: state.nextSetLabel,
+								ownerDevice: state.ownerDevice,
+							})
+						}
 					>
 						<span className="material-symbols-rounded">restart_alt</span>
 						Reset {formatRemaining(totalMs)}

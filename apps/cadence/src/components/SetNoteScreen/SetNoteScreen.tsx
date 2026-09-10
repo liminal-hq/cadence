@@ -40,6 +40,15 @@ export function SetNoteScreen({
 		onClose();
 	};
 
+	const handleRemove = () => {
+		// Clear the local draft and return immediately, the same as Delete set elsewhere --
+		// otherwise the stale draft still holds the old text after `initialNote` becomes empty,
+		// which both trips the unsaved-changes dialog and lets Save resurrect the removed note.
+		setDraft('');
+		onRemove();
+		onClose();
+	};
+
 	const insertTag = (tag: string) => {
 		if (draft.startsWith(tag)) return;
 		setDraft((prev) => (prev ? `${tag} — ${prev}` : tag));
@@ -89,7 +98,7 @@ export function SetNoteScreen({
 				))}
 			</div>
 
-			<button type="button" className="set-note-screen__remove" onClick={onRemove}>
+			<button type="button" className="set-note-screen__remove" onClick={handleRemove}>
 				<span className="material-symbols-rounded">delete</span>
 				Remove note
 			</button>

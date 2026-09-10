@@ -38,7 +38,7 @@ function Stepper({ field }: { field: StepperField }) {
 				type="button"
 				className="stepper-cluster__step-button"
 				aria-label={`Decrease ${field.label}`}
-				onClick={() => field.onChange((field.value ?? 0) - field.increment)}
+				onClick={() => field.onChange(Math.max(0, (field.value ?? 0) - field.increment))}
 			>
 				<span className="material-symbols-rounded">remove</span>
 			</button>
