@@ -11,6 +11,8 @@ export interface IconButtonProps {
 	label: string;
 	variant?: 'standard' | 'tonal' | 'filled';
 	size?: 'small' | 'medium' | 'default' | 'large' | 'xl';
+	/** Renders the Material Symbol in its filled (FILL 1) style, e.g. a solid play/pause glyph. */
+	iconFilled?: boolean;
 	disabled?: boolean;
 	onClick?: MouseEventHandler<HTMLButtonElement>;
 }
@@ -20,6 +22,7 @@ export function IconButton({
 	label,
 	variant = 'standard',
 	size = 'default',
+	iconFilled = false,
 	disabled = false,
 	onClick,
 }: IconButtonProps) {
@@ -31,7 +34,10 @@ export function IconButton({
 			disabled={disabled}
 			onClick={onClick}
 		>
-			<span className="material-symbols-rounded ui-icon-button__glyph" aria-hidden="true">
+			<span
+				className={`material-symbols-rounded ui-icon-button__glyph${iconFilled ? ' is-filled' : ''}`}
+				aria-hidden="true"
+			>
 				{icon}
 			</span>
 		</button>
