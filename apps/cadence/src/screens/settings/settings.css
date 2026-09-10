@@ -1,0 +1,43 @@
+.settings-screen {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-height: 0;
+}
+
+.settings-screen__content {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+	padding-bottom: var(--cadence-space-6);
+}
+
+.settings-section__title {
+	margin: var(--cadence-space-4) var(--cadence-space-4) 0;
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-m-weight);
+	color: var(--cadence-on-surface-variant);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.settings-section__body {
+	display: flex;
+	flex-direction: column;
+}
+
+/* For section bodies holding something other than SettingsRow (which pads itself) — a
+   SegmentedControl, a Surface card, free text. */
+.settings-section__body--padded {
+	padding: 0 var(--cadence-space-4);
+	gap: var(--cadence-space-3);
+}
+
+.settings-rest-picker {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-2);
+}

@@ -12,6 +12,7 @@ import type {
 	PlateCalculationResult,
 	RestTimerState,
 	SetEntry,
+	Settings,
 	WorkoutExercise,
 } from './types';
 
@@ -19,14 +20,14 @@ export type Unsubscribe = () => void;
 
 export interface LoggingRepository {
 	getWorkoutExercise(id: string): Promise<WorkoutExercise>;
-	/** Sibling exercises in the same workout, ordered -- drives P-14's previous/next-exercise navigation. */
+	/** Sibling exercises in the same workout, ordered — drives P-14's previous/next-exercise navigation. */
 	listWorkoutExercisesByWorkout(workoutId: string): Promise<WorkoutExercise[]>;
 	getExercise(id: string): Promise<Exercise>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;
 	completeSet(setId: string): Promise<SetEntry>;
 	addSet(workoutExerciseId: string): Promise<SetEntry>;
-	/** Creates a set that's already completed with the given values -- used to log a fresh set
+	/** Creates a set that's already completed with the given values — used to log a fresh set
 	 *  directly from the cluster's "next" draft, rather than creating a planned set first. */
 	logNewSet(
 		workoutExerciseId: string,
@@ -50,10 +51,22 @@ export interface LoggingRepository {
 	extendRestTimer(deltaMs: number): Promise<RestTimerState>;
 	dismissRestTimer(): Promise<RestTimerState>;
 	getRestTimerState(): Promise<RestTimerState>;
-	/** Pushed on every transition -- mirrors how the real backend will notify over a Tauri event, not a poll. */
+	/** Pushed on every transition — mirrors how the real backend will notify over a Tauri event, not a poll. */
 	subscribeRestTimer(onChange: (state: RestTimerState) => void): Unsubscribe;
 
 	listBarbellConfigs(): Promise<BarbellConfig[]>;
-	/** `targetWeight` is in `barbell.displayUnit` -- see the note on BarbellConfig. */
+	/** `targetWeight` is in `barbell.displayUnit` — see the note on BarbellConfig. */
 	calculatePlates(targetWeight: number, barbell: BarbellConfig): Promise<PlateCalculationResult>;
+	/** Setting `isDefault: true` clears it on every other config — at most one default at a time. */
+	addBarbellConfig(config: Omit<BarbellConfig, 'id'>): Promise<BarbellConfig>;
+	updateBarbellConfig(config: BarbellConfig): Promise<BarbellConfig>;
+	/** A no-op when this is the last remaining config — the plate calculator has no empty state. */
+	deleteBarbellConfig(id: string): Promise<void>;
+
+	getSettings(): Promise<Settings>;
+	updateSettings(patch: Partial<Settings>): Promise<Settings>;
+	/** Counts of what P-62's delete-all confirmation is about to remove. */
+	getHistorySummary(): Promise<{ workoutCount: number; setCount: number }>;
+	/** Clears logged sets and workout exercises only — exercises, barbells, and settings survive. */
+	deleteAllHistory(): Promise<void>;
 }

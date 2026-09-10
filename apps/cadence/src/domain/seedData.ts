@@ -1,13 +1,13 @@
 // Reference fixture data for the logging flow's three demo scenarios,
 // written with stable ids and realistic values a future migration can
-// crib from -- not a literal claim that this file becomes SQL seed data
+// crib from — not a literal claim that this file becomes SQL seed data
 // (fields like `pendingSync`/`isRecord` are derived/sync state, not real
 // columns), but shaped the way real seed rows would be.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { BarbellConfig, Exercise, SetEntry, WorkoutExercise } from './types';
+import type { BarbellConfig, Exercise, SetEntry, Settings, WorkoutExercise } from './types';
 
 export type Scenario = 'sam-default' | 'sam-superset-dark' | 'priya-first-run';
 
@@ -130,7 +130,7 @@ export const WORKOUT_EXERCISES: WorkoutExercise[] = [
 ];
 
 export const SETS: SetEntry[] = [
-	// Sam default -- Bench Press: 2 completed (one a PR), 2 planned.
+	// Sam default — Bench Press: 2 completed (one a PR), 2 planned.
 	{
 		id: 'set-bp-1',
 		workoutExerciseId: 'we-bench-press',
@@ -168,7 +168,7 @@ export const SETS: SetEntry[] = [
 		reps: 8,
 	},
 
-	// Sam default -- Running (distance+duration), reached via next-exercise nav; the
+	// Sam default — Running (distance+duration), reached via next-exercise nav; the
 	// invalid/draft-restored Set editor demo just opens this seeded set directly.
 	{
 		id: 'set-run-1',
@@ -178,7 +178,7 @@ export const SETS: SetEntry[] = [
 		distanceKm: 5.2,
 	},
 
-	// Superset scenario -- Lateral Raise: one watch-logged set pending sync, one open, one planned.
+	// Superset scenario — Lateral Raise: one watch-logged set pending sync, one open, one planned.
 	{
 		id: 'set-lr-1',
 		workoutExerciseId: 'we-lateral-raise',
@@ -214,7 +214,7 @@ export const SETS: SetEntry[] = [
 		reps: 12,
 	},
 
-	// Priya first-run -- Goblet Squat: a single empty set, nothing logged yet.
+	// Priya first-run — Goblet Squat: a single empty set, nothing logged yet.
 	{
 		id: 'set-gs-1',
 		workoutExerciseId: 'we-goblet-squat',
@@ -230,6 +230,7 @@ export const BARBELL_CONFIGS: BarbellConfig[] = [
 		barWeight: 20,
 		displayUnit: 'kg',
 		availablePlates: [25, 20, 15, 10, 5, 2.5, 1.25],
+		isDefault: true,
 	},
 	{
 		id: 'barbell-standard',
@@ -239,3 +240,21 @@ export const BARBELL_CONFIGS: BarbellConfig[] = [
 		availablePlates: [45, 35, 25, 10, 5, 2.5],
 	},
 ];
+
+export const DEFAULT_SETTINGS: Settings = {
+	weightUnit: 'kg',
+	defaultRestMs: 120_000,
+	restAutoStart: true,
+	restReplacesRunning: true,
+	vibrateEnabled: true,
+	soundEnabled: true,
+	restFeedbackDevice: 'phone',
+	workoutTimerAutoStart: true,
+	keepScreenOnDuringWorkout: true,
+	hapticOnSetComplete: true,
+	hapticOnRestEnd: true,
+	reducedMotion: false,
+	// Seeded denied so P-61's notifications banner has something real to demonstrate.
+	notificationsDenied: true,
+	automaticBackupEnabled: true,
+};

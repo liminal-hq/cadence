@@ -112,6 +112,84 @@ describe('MockLoggingRepository', () => {
 		});
 	});
 
+	describe('settings', () => {
+		it('round-trips a partial update against the seeded defaults', async () => {
+			const initial = await repo.getSettings();
+			expect(initial.soundEnabled).toBe(true);
+
+			const updated = await repo.updateSettings({ soundEnabled: false, vibrateEnabled: false });
+
+			expect(updated.soundEnabled).toBe(false);
+			expect(updated.vibrateEnabled).toBe(false);
+			// Untouched fields survive a partial update.
+			expect(updated.weightUnit).toBe(initial.weightUnit);
+			expect(await repo.getSettings()).toEqual(updated);
+		});
+	});
+
+	describe('barbell configs', () => {
+		it('adds a config and clears the default off every other one', async () => {
+			const created = await repo.addBarbellConfig({
+				name: 'Trap bar',
+				barWeight: 25,
+				displayUnit: 'kg',
+				availablePlates: [20, 10, 5],
+				isDefault: true,
+			});
+
+			const all = await repo.listBarbellConfigs();
+			expect(all.find((b) => b.id === created.id)?.isDefault).toBe(true);
+			expect(all.find((b) => b.id === 'barbell-olympic')?.isDefault).toBe(false);
+		});
+
+		it('updates and deletes an existing config', async () => {
+			const updated = await repo.updateBarbellConfig({
+				id: 'barbell-standard',
+				name: 'Standard (renamed)',
+				barWeight: 45,
+				displayUnit: 'lb',
+				availablePlates: [45, 35, 25, 10, 5, 2.5],
+			});
+			expect(updated.name).toBe('Standard (renamed)');
+
+			await repo.deleteBarbellConfig('barbell-standard');
+			const all = await repo.listBarbellConfigs();
+			expect(all.find((b) => b.id === 'barbell-standard')).toBeUndefined();
+		});
+
+		it('rejects updating a config that was never added', async () => {
+			await expect(
+				repo.updateBarbellConfig({
+					id: 'no-such-barbell',
+					name: 'Ghost',
+					barWeight: 20,
+					displayUnit: 'kg',
+					availablePlates: [],
+				}),
+			).rejects.toThrow('Unknown barbell config: no-such-barbell');
+		});
+	});
+
+	describe('history management', () => {
+		it('summarizes the seeded workouts and sets', async () => {
+			const summary = await repo.getHistorySummary();
+			expect(summary.workoutCount).toBe(3);
+			expect(summary.setCount).toBe(10);
+		});
+
+		it('clears sets but keeps workout exercises, exercises, and settings intact', async () => {
+			await repo.deleteAllHistory();
+
+			const summary = await repo.getHistorySummary();
+			expect(summary).toEqual({ workoutCount: 0, setCount: 0 });
+			// The routine scaffold survives — Today and Logging still resolve these by id.
+			await expect(repo.getWorkoutExercise('we-bench-press')).resolves.toBeDefined();
+			await expect(repo.listSets('we-bench-press')).resolves.toEqual([]);
+			await expect(repo.getExercise('ex-bench-press')).resolves.toBeDefined();
+			expect(await repo.getSettings()).toEqual(await new MockLoggingRepository().getSettings());
+		});
+	});
+
 	describe('calculatePlates', () => {
 		it('finds an exact loadable combination', async () => {
 			const olympic = BARBELL_CONFIGS.find((b) => b.id === 'barbell-olympic')!;

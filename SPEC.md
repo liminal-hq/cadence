@@ -307,11 +307,11 @@ The workout flow should show a clear next action: next set in the current exerci
 
 ### 8.6 Timers and workout tools
 
-**Initial release:** configurable rest timer with start, pause/resume, reset, add/subtract time, vibration/sound, automatic start, per-exercise defaults, and reliable foreground behaviour. The workout timer records elapsed and paused time separately, survives backgrounding, and may be corrected from workout details.
+**Initial release:** configurable rest timer with start, pause/resume, reset, add/subtract time, vibration/sound, automatic start, per-exercise defaults, and reliable foreground behaviour. The workout timer records elapsed and paused time separately, survives backgrounding, and may be corrected from workout details. Barbell and plate configuration (name, bar weight, unit, default flag, per-side available plates) is managed in Settings (§8.10) and feeds the plate calculator; each configuration can be added, edited, or deleted, with at least one configuration always retained.
 
 The timer is represented by a target instant plus state, not by persisted UI ticks. Starting a new rest interval replaces or explicitly extends the current interval according to preference. Completion can surface through the active app, a notification, and the watch, with a single logical timer and deduplicated feedback. Notification actions include pause/resume, add time, and dismiss when platform constraints permit.
 
-**Planned expansion:** 1RM estimator with selectable documented formula, percentage/set calculator, and plate calculator with configurable barbells and plates. Calculators should insert a result into a draft set when invoked from logging and otherwise remain stateless utilities unless the user saves equipment configuration.
+**Planned expansion:** 1RM estimator with selectable documented formula and a percentage/set calculator. Calculators should insert a result into a draft set when invoked from logging and otherwise remain stateless utilities unless the user saves equipment configuration.
 
 ### 8.7 History and progress
 
