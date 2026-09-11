@@ -40,6 +40,17 @@ pub fn m_to_km(m: i64) -> f64 {
     m as f64 / 1000.0
 }
 
+/// Scales an arbitrary display-unit value into its own milli-units — for values that aren't
+/// canonically kg/km, like barbell/plate weights, which are always expressed in the config's own
+/// display unit (kg or lb) rather than canonical kg (SPEC.md 10.4).
+pub fn unit_to_milli(value: f64) -> i64 {
+    (value * 1000.0).round() as i64
+}
+
+pub fn milli_to_unit(milli: i64) -> f64 {
+    milli as f64 / 1000.0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -55,6 +66,12 @@ mod tests {
     fn round_trips_common_distance_values() {
         assert_eq!(km_to_m(5.2), 5_200);
         assert_eq!(m_to_km(5_200), 5.2);
+    }
+
+    #[test]
+    fn round_trips_arbitrary_unit_milli_values() {
+        assert_eq!(unit_to_milli(1.25), 1_250);
+        assert_eq!(milli_to_unit(1_250), 1.25);
     }
 
     #[test]

@@ -1,4 +1,4 @@
-// Row mapping and persistence for barbell/plate configs.
+// Row mapping and persistence for barbell/plate configs
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -7,6 +7,7 @@ use sqlx::{FromRow, SqliteConnection};
 
 use super::models::{BarbellConfig, NewBarbellConfig};
 use crate::domain::error::{Error, Result};
+use crate::domain::units::{milli_to_unit, unit_to_milli};
 
 #[derive(FromRow)]
 struct BarbellRow {
@@ -24,12 +25,9 @@ impl From<BarbellRow> for BarbellConfig {
         BarbellConfig {
             id: row.id,
             name: row.name,
-            bar_weight: row.bar_weight_milli as f64 / 1000.0,
+            bar_weight: milli_to_unit(row.bar_weight_milli),
             display_unit: row.display_unit,
-            available_plates: plates_milli
-                .into_iter()
-                .map(|m| m as f64 / 1000.0)
-                .collect(),
+            available_plates: plates_milli.into_iter().map(milli_to_unit).collect(),
             is_default: row.is_default != 0,
         }
     }
@@ -59,16 +57,32 @@ async fn get(conn: &mut SqliteConnection, id: &str) -> Result<BarbellConfig> {
 }
 
 /// Setting `is_default: true` clears it on every other config — at most one default at a time.
+/// Bumps `revision`/`updated_at_ms` on whatever row this flips, same as any other mutation.
 async fn clear_other_defaults(conn: &mut SqliteConnection, except_id: &str) -> Result<()> {
-    sqlx::query("UPDATE barbell_configs SET is_default = 0 WHERE id != ? AND is_default = 1")
-        .bind(except_id)
-        .execute(conn)
-        .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    sqlx::query(
+        "UPDATE barbell_configs SET is_default = 0, updated_at_ms = ?, revision = ? \
+         WHERE id != ? AND is_default = 1",
+    )
+    .bind(now)
+    .bind(revision)
+    .bind(except_id)
+    .execute(conn)
+    .await?;
     Ok(())
 }
 
+async fn exists(conn: &mut SqliteConnection, id: &str) -> Result<bool> {
+    let row: Option<(i64,)> = sqlx::query_as("SELECT 1 FROM barbell_configs WHERE id = ?")
+        .bind(id)
+        .fetch_optional(conn)
+        .await?;
+    Ok(row.is_some())
+}
+
 fn to_plates_json(plates: &[f64]) -> String {
-    let milli: Vec<i64> = plates.iter().map(|p| (p * 1000.0).round() as i64).collect();
+    let milli: Vec<i64> = plates.iter().map(|&p| unit_to_milli(p)).collect();
     serde_json::to_string(&milli).expect("plate list serializes")
 }
 
@@ -88,7 +102,7 @@ pub async fn add(conn: &mut SqliteConnection, config: &NewBarbellConfig) -> Resu
     .bind(&id)
     .bind(&config.name)
     .bind(&config.display_unit)
-    .bind((config.bar_weight * 1000.0).round() as i64)
+    .bind(unit_to_milli(config.bar_weight))
     .bind(to_plates_json(&config.available_plates))
     .bind(config.is_default)
     .bind(now)
@@ -100,6 +114,15 @@ pub async fn add(conn: &mut SqliteConnection, config: &NewBarbellConfig) -> Resu
 }
 
 pub async fn update(conn: &mut SqliteConnection, config: &BarbellConfig) -> Result<BarbellConfig> {
+    // Verify the target exists *before* clearing anyone else's default — otherwise a stale/
+    // unknown id would clear the real default, then fail the UPDATE below, leaving every config
+    // non-default even though nothing was actually changed.
+    if !exists(conn, &config.id).await? {
+        return Err(Error::NotFound {
+            entity: "barbell config",
+            id: config.id.clone(),
+        });
+    }
     let now = chrono::Utc::now().timestamp_millis();
     // Same ordering constraint as `add`: clear the old default before this row claims it.
     if config.is_default {
@@ -112,7 +135,7 @@ pub async fn update(conn: &mut SqliteConnection, config: &BarbellConfig) -> Resu
     )
     .bind(&config.name)
     .bind(&config.display_unit)
-    .bind((config.bar_weight * 1000.0).round() as i64)
+    .bind(unit_to_milli(config.bar_weight))
     .bind(to_plates_json(&config.available_plates))
     .bind(config.is_default)
     .bind(now)
@@ -204,6 +227,57 @@ mod tests {
         };
         let err = update(&mut conn, &phantom).await.unwrap_err();
         assert!(matches!(err, Error::NotFound { .. }));
+    }
+
+    #[tokio::test]
+    async fn an_unknown_target_default_never_clears_the_real_default() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let phantom = BarbellConfig {
+            id: "no-such-barbell".to_string(),
+            name: "Ghost".to_string(),
+            bar_weight: 20.0,
+            display_unit: "kg".to_string(),
+            available_plates: vec![],
+            is_default: true,
+        };
+        let err = update(&mut conn, &phantom).await.unwrap_err();
+        assert!(matches!(err, Error::NotFound { .. }));
+        // The real default survives the failed update — not left with zero defaults.
+        let configs = list(&mut conn).await.unwrap();
+        assert_eq!(configs.iter().filter(|c| c.is_default).count(), 1);
+        assert!(
+            configs
+                .iter()
+                .find(|c| c.name == "Olympic")
+                .unwrap()
+                .is_default
+        );
+    }
+
+    #[tokio::test]
+    async fn clearing_the_previous_default_bumps_its_revision() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let (revision_before,): (i64,) =
+            sqlx::query_as("SELECT revision FROM barbell_configs WHERE id = 'barbell-olympic'")
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        let new_config = NewBarbellConfig {
+            name: "Trap bar".to_string(),
+            bar_weight: 25.0,
+            display_unit: "kg".to_string(),
+            available_plates: vec![20.0, 10.0],
+            is_default: true,
+        };
+        add(&mut conn, &new_config).await.unwrap();
+        let (revision_after,): (i64,) =
+            sqlx::query_as("SELECT revision FROM barbell_configs WHERE id = 'barbell-olympic'")
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        assert!(revision_after > revision_before);
     }
 
     #[tokio::test]

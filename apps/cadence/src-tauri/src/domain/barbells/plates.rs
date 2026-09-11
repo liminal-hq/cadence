@@ -1,9 +1,10 @@
-// The plate-loading calculator — a direct port of the mock's calculatePlatesPure, but operating
-// on exact integer milli-units (matching barbell_configs' storage) instead of floats, so no
-// epsilon comparisons are needed for combo equality.
+// The plate-loading calculator, a direct port of the mock's calculatePlatesPure
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// Operates on exact integer milli-units (matching barbell_configs' storage) instead of floats, so
+// no epsilon comparisons are needed for combo equality.
 
 use std::cmp::Ordering;
 
@@ -88,18 +89,15 @@ pub fn calculate_plates(
     bar_weight_milli: i64,
     plates_milli: &[i64],
 ) -> PlateCalculationResult {
-    let per_side_target = (target_weight_milli - bar_weight_milli) / 2;
+    // Compared as `combo.total * 2` against `diff` rather than `diff / 2` against `combo.total` --
+    // an odd `diff` (e.g. any lb-configured barbell reached via an unrounded kg->lb conversion)
+    // would otherwise lose half a milli-unit to integer-division truncation before comparison.
+    let diff = target_weight_milli - bar_weight_milli;
     let totals = achievable_totals(plates_milli);
 
-    let exact = totals.iter().find(|t| t.total == per_side_target);
-    let below: Vec<&Combo> = totals
-        .iter()
-        .filter(|t| t.total < per_side_target)
-        .collect();
-    let above: Vec<&Combo> = totals
-        .iter()
-        .filter(|t| t.total > per_side_target)
-        .collect();
+    let exact = totals.iter().find(|t| t.total * 2 == diff);
+    let below: Vec<&Combo> = totals.iter().filter(|t| t.total * 2 < diff).collect();
+    let above: Vec<&Combo> = totals.iter().filter(|t| t.total * 2 > diff).collect();
     let nearest_lower_combo = below.first().copied();
     let nearest_higher_combo = above.last().copied();
 
@@ -124,9 +122,10 @@ pub fn calculate_plates(
         shortfall: if exact.is_some() {
             None
         } else {
-            Some(to_display(
-                per_side_target - nearest_lower_combo.map(|c| c.total).unwrap_or(0),
-            ))
+            // Halved once more than `to_display` alone accounts for, since `diff` and the combo
+            // total-times-2 are both whole-bar quantities, not yet per-side.
+            let shortfall_x2 = diff - nearest_lower_combo.map(|c| c.total * 2).unwrap_or(0);
+            Some(shortfall_x2 as f64 / 2000.0)
         },
         smallest_plate: if exact.is_some() {
             None
@@ -176,5 +175,17 @@ mod tests {
         let result = calculate_plates(15_000, 20_000, &OLYMPIC_PLATES);
         assert_eq!(result.per_side_plates, Vec::<f64>::new());
         assert_eq!(result.achieved_total, 20.0);
+    }
+
+    #[test]
+    fn odd_milli_diffs_keep_exact_precision_instead_of_truncating_half_a_unit() {
+        // 45 lb bar, target 48.001 lb -> diff = 3001 milli, odd — old `diff / 2` integer
+        // division would truncate the per-side target to 1500, losing the trailing 0.5 milli and
+        // reporting a shortfall of 1.5 instead of the exact 1.5005.
+        let plates: [i64; 6] = [45_000, 35_000, 25_000, 10_000, 5_000, 2_500];
+        let result = calculate_plates(48_001, 45_000, &plates);
+        assert!(!result.loadable);
+        assert_eq!(result.nearest_lower, Some(45.0)); // no plate is small enough to add any per side
+        assert_eq!(result.shortfall, Some(1.5005));
     }
 }
