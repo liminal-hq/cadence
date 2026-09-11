@@ -1,6 +1,6 @@
 # Building a Real Workout: The Frontend Flow
 
-_Companion reading for PR [#14](https://github.com/liminal-hq/cadence/pull/14). Want the animated walkthrough instead? → **[Open the interactive version](#)**._
+_Companion reading for PR [#14](https://github.com/liminal-hq/cadence/pull/14). Want the animated walkthrough instead? → **[Open the interactive version](https://claude.ai/code/artifact/e48d3c64-6f22-4ad5-97f8-c31bff8fa2c5)**._
 
 ---
 

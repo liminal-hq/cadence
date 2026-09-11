@@ -1,6 +1,6 @@
 # The Bridge: How Rust Talks to React
 
-_Companion reading for PR [#11](https://github.com/liminal-hq/cadence/pull/11). Want the animated walkthrough instead? → **[Open the interactive version](#)**._
+_Companion reading for PR [#11](https://github.com/liminal-hq/cadence/pull/11). Want the animated walkthrough instead? → **[Open the interactive version](https://claude.ai/code/artifact/286bb30c-2933-4b63-a73f-5f9f0db74206)**._
 
 ---
 

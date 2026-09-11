@@ -1,6 +1,6 @@
 # The Backend: SQLite, Migrations, and the Coordinator Pattern
 
-_Companion reading for PRs [#8](https://github.com/liminal-hq/cadence/pull/8) and [#9](https://github.com/liminal-hq/cadence/pull/9). Want the animated walkthrough instead? → **[Open the interactive version](#)**._
+_Companion reading for PRs [#8](https://github.com/liminal-hq/cadence/pull/8) and [#9](https://github.com/liminal-hq/cadence/pull/9). Want the animated walkthrough instead? → **[Open the interactive version](https://claude.ai/code/artifact/19a5c3dd-c2a6-4100-8e3a-b0f9399ad2ac)**._
 
 ---
 
