@@ -85,10 +85,7 @@ jobs:
 
       - name: Run Rust tests
         id: rust_tests
-        # --no-tests=pass: there are no Rust unit tests yet (no domain logic to
-        # test), so treat an empty test run as a pass rather than a failure.
-        # Drop this flag once the first real Rust test exists.
-        run: cargo nextest run --workspace --config-file nextest.toml --profile ci --no-tests=pass
+        run: cargo nextest run --workspace --config-file nextest.toml --profile ci
 
       - name: Upload Rust test artefacts
         if: always()
@@ -112,6 +109,38 @@ jobs:
           echo "- Result: \`${{ steps.rust_tests.outcome }}\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Command: \`cargo nextest run --workspace --config-file nextest.toml --profile ci\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Test artefact: \`target/nextest/ci/junit.xml\`" >> "${GITHUB_STEP_SUMMARY}"
+
+  ts-bindings-drift:
+    name: TS bindings drift
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/liminal-hq/tauri-ci-desktop:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Snapshot committed bindings
+        run: cp -r apps/cadence/src/domain/generated /tmp/generated-before
+
+      - name: Regenerate ts-rs bindings
+        run: cargo test -p cadence --lib
+
+      - name: Check for uncommitted bindings drift
+        id: ts_bindings_drift
+        run: diff -rq /tmp/generated-before apps/cadence/src/domain/generated
+
+      - name: Publish results
+        if: always()
+        run: |
+          echo "## TS bindings drift" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Result: \`${{ steps.ts_bindings_drift.outcome }}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Command: \`cargo test -p cadence --lib\` then diff against the committed apps/cadence/src/domain/generated" >> "${GITHUB_STEP_SUMMARY}"
 
   js-build:
     name: JS build

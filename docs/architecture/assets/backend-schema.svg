@@ -1,0 +1,55 @@
+<svg viewBox="0 0 680 252" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated diagram: workouts flowing into workout_exercises, which links to exercises and logs sets">
+  <title>Cadence's schema: workouts, workout_exercises, exercises, and sets, with a composite-key relationship pulsing between them</title>
+  <style>
+    :root { color-scheme: light dark; }
+    .card { fill: #8f8aa8; fill-opacity: 0.07; stroke: #8f8aa8; stroke-opacity: 0.35; }
+    .node { fill: #8f8aa8; fill-opacity: 0.14; stroke: #7c5cff; stroke-width: 1.5; }
+    .label { font: 600 12px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #8b86a0; }
+    .cap { font: 500 11px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #7c5cff; }
+    .flow {
+      fill: none;
+      stroke: #7c5cff;
+      stroke-width: 2;
+      stroke-dasharray: 6 6;
+      animation: dash 1.6s linear infinite;
+    }
+    .pulse { fill: #7c5cff; animation: pulse 2.2s ease-in-out infinite; }
+    .p2 { animation-delay: 0.7s; }
+    .p3 { animation-delay: 1.3s; }
+    @keyframes dash { to { stroke-dashoffset: -24; } }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; r: 3; }
+      50% { opacity: 1; r: 5.5; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .flow, .pulse { animation: none; }
+      .pulse { opacity: 0.9; }
+    }
+  </style>
+
+  <rect class="card" x="1" y="1" width="678" height="250" rx="20"/>
+
+  <rect class="node" x="24" y="50" width="140" height="46" rx="8"/>
+  <text class="label" x="40" y="78">workouts</text>
+
+  <rect class="node" x="278" y="50" width="164" height="46" rx="8"/>
+  <text class="label" x="294" y="78">workout_exercises</text>
+
+  <rect class="node" x="536" y="50" width="120" height="46" rx="8"/>
+  <text class="label" x="558" y="78">exercises</text>
+
+  <rect class="node" x="278" y="160" width="164" height="46" rx="8"/>
+  <text class="label" x="332" y="188">sets</text>
+
+  <path class="flow" d="M164 73 H278"/>
+  <path class="flow" d="M442 73 H536"/>
+  <path class="flow" d="M360 96 V160"/>
+  <path class="flow" d="M442 73 Q500 130 360 183"/>
+
+  <circle class="pulse" cx="220" cy="73" r="4"/>
+  <circle class="pulse p2" cx="490" cy="73" r="4"/>
+  <circle class="pulse p3" cx="360" cy="125" r="4"/>
+
+  <text class="cap" x="24" y="222">composite FK: sets(workout_exercise_id, workout_id, exercise_id) →</text>
+  <text class="cap" x="24" y="236">workout_exercises(id, workout_id, exercise_id)</text>
+</svg>

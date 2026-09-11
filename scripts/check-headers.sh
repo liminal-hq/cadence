@@ -14,8 +14,9 @@ cd "$(git rev-parse --show-toplevel)"
 # scratch (adding a header would just create drift against the
 # generator), and tool-scaffolded boilerplate nobody hand-writes.
 EXEMPT_FILES=(
-  "apps/cadence/vite.config.ts"     # build-tool config
-  "apps/cadence/src/vite-env.d.ts"  # Vite-scaffolded ambient types
+  "apps/cadence/vite.config.ts"                 # build-tool config
+  "apps/cadence/src/vite-env.d.ts"               # Vite-scaffolded ambient types
+  "apps/cadence/src/domain/generated/*.ts"       # ts-rs output, regenerated from Rust structs
 )
 
 is_exempt() {
@@ -40,6 +41,10 @@ while IFS= read -r -d '' f; do
   is_exempt "$f" && continue
   if ! head -8 "$f" | grep -q "SPDX-License-Identifier"; then
     missing+=("$f")
+  # The header format is a one-line (or wrapped) purpose summary, a blank comment line, then the
+  # copyright block — a file starting directly on "(c) Copyright" skipped the summary.
+  elif head -1 "$f" | grep -q "(c) Copyright"; then
+    missing+=("$f (missing its purpose summary before the copyright line)")
   fi
 done < <(find "${SCAN_DIRS[@]}" \
   \( -name node_modules -o -name dist -o -name target -o -name gen \) -prune -o \

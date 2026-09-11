@@ -244,7 +244,7 @@ Each exercise definition includes:
 - default progress metric;
 - optional equipment/barbell association (planned expansion).
 
-Categories include name, colour, order, and archived state. Cadence ships a useful editable starter library, but built-in exercises and categories are not privileged immutable records. Users can create, rename, move, archive, merge, and safely delete unreferenced definitions. Referenced exercises are archived by default so history stays intelligible.
+Categories include name, colour, order, and archived state. Cadence ships a useful editable starter library, but built-in exercises and categories are not privileged immutable records. Users can create, rename, move, archive, merge, and safely delete unreferenced definitions. Referenced exercises are archived by default so history stays intelligible. Until the equipment/barbell association above is built, equipment is named directly in the exercise ("Cable Lateral Raise", "Smith Machine Shoulder Press") rather than tracked as a separate field — the starter library follows this convention throughout, and user-created exercises are free to as well.
 
 Exercise selection supports favourites, recent use, routines, category browsing, and search in the same reusable picker. Selection can be single or multi-select depending on entry point. Creating an exercise from a no-results query carries the query into the name field.
 

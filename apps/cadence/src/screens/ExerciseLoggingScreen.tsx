@@ -21,12 +21,28 @@ import { useCoachMarkTour } from '../components/CoachMark/useCoachMarkTour';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import { formatClockTime, formatDurationSec, formatNumber } from '../domain/format';
 import type { Exercise, SetEntry, WorkoutExercise } from '../domain/types';
-import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from '../domain/seedData';
 import './screens.css';
 import './ExerciseLoggingScreen.css';
 
 interface ExerciseLoggingScreenProps {
-	scenario: Scenario;
+	workoutExerciseId: string;
+	/** Where the main back button points before the workout-exercise has loaded, and always for
+	 *  callers that don't set `backToOwnWorkout`. */
+	backTo: string;
+	/** Once the workout-exercise loads, upgrade the back target to its own workout's
+	 *  ActiveWorkoutScreen — the workout's id isn't known until then, so this can't be a plain
+	 *  `backTo` string the way the demo `/log/$scenario` adapter's always-`/today` target can. */
+	backToOwnWorkout?: boolean;
+	/** This screen's own URL, under whichever route scheme mounted it (the real
+	 *  `/workout-exercise/$workoutExerciseId` route, or the demo `/log/$scenario` adapter) — lets
+	 *  the History action round-trip back here, distinct from `backTo`'s own back target. */
+	selfPath: string;
+	/** Real watch-pairing state isn't tracked yet (Settings' Wear OS watch row is still a stub) —
+	 *  defaults to false, matching a real workout with nothing paired. */
+	hasWatch?: boolean;
+	/** "First workout ever" isn't tracked yet — defaults to false; only the demo Priya scenario
+	 *  opts in explicitly. */
+	showCoachMarks?: boolean;
 }
 
 type Overlay =
@@ -64,12 +80,17 @@ function setRowState(set: SetEntry, loadedSetId: string | null): SetRowState {
 	return 'planned';
 }
 
-export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) {
+export function ExerciseLoggingScreen({
+	workoutExerciseId,
+	backTo,
+	backToOwnWorkout = false,
+	selfPath,
+	hasWatch = false,
+	showCoachMarks = false,
+}: ExerciseLoggingScreenProps) {
 	const repository = useLoggingRepository();
 	const navigate = useNavigate();
-	const [currentWorkoutExerciseId, setCurrentWorkoutExerciseId] = useState(
-		SCENARIO_TO_WORKOUT_EXERCISE_ID[scenario],
-	);
+	const [currentWorkoutExerciseId, setCurrentWorkoutExerciseId] = useState(workoutExerciseId);
 	const [workoutExercise, setWorkoutExercise] = useState<WorkoutExercise | null>(null);
 	const [exercise, setExercise] = useState<Exercise | null>(null);
 	const [siblings, setSiblings] = useState<WorkoutExercise[]>([]);
@@ -88,12 +109,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	// react live to a change made in a different screen mid-workout.
 	const [restSettings, setRestSettings] = useState({ restAutoStart: true, defaultRestMs: 120_000 });
 
-	// Sam has a paired watch (SPEC's persona); Priya doesn't — drives the rest timer
-	// sheet's haptics-ownership copy and notifications-denied demo.
-	const hasWatch = scenario !== 'priya-first-run';
-	// The coach mark tour is Priya's first-workout-only onboarding moment (SPEC's persona) —
-	// it doesn't run for Sam, who's already used the app.
-	const coachMarks = useCoachMarkTour(scenario === 'priya-first-run');
+	const coachMarks = useCoachMarkTour(showCoachMarks);
 
 	const loadWorkoutExercise = useCallback(
 		async (workoutExerciseId: string) => {
@@ -138,8 +154,8 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	);
 
 	useEffect(() => {
-		setCurrentWorkoutExerciseId(SCENARIO_TO_WORKOUT_EXERCISE_ID[scenario]);
-	}, [scenario]);
+		setCurrentWorkoutExerciseId(workoutExerciseId);
+	}, [workoutExerciseId]);
 
 	useEffect(() => {
 		loadWorkoutExercise(currentWorkoutExerciseId);
@@ -155,6 +171,8 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 	}, [repository]);
 
 	if (!workoutExercise || !exercise) return null;
+
+	const effectiveBackTo = backToOwnWorkout ? `/workout/${workoutExercise.workoutId}` : backTo;
 
 	const loadedSet = sets.find((s) => s.id === loadedSetId) ?? null;
 	const loadedIndex = sets.findIndex((s) => s.id === loadedSetId);
@@ -337,7 +355,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 				title={exercise.name}
 				category={exercise.category}
 				subtitle={workoutExercise.workoutLabel}
-				backTo="/today"
+				backTo={effectiveBackTo}
 				actions={[
 					{
 						icon: 'monitoring',
@@ -346,7 +364,7 @@ export function ExerciseLoggingScreen({ scenario }: ExerciseLoggingScreenProps) 
 							navigate({
 								to: '/exercise/$exerciseId',
 								params: { exerciseId: exercise.id },
-								search: { backTo: `/log/${scenario}` },
+								search: { backTo: selfPath },
 							}),
 					},
 					{ icon: 'more_vert', label: 'More' },

@@ -1,8 +1,6 @@
-// Reference fixture data for the logging flow's three demo scenarios,
-// written with stable ids and realistic values a future migration can
-// crib from — not a literal claim that this file becomes SQL seed data
-// (fields like `pendingSync`/`isRecord` are derived/sync state, not real
-// columns), but shaped the way real seed rows would be.
+// Reference fixture data for mockRepository.ts, used only by the JS unit test suite now that the
+// real Tauri-backed repository is the app's live default — written with stable ids and realistic
+// values (fields like `pendingSync`/`isRecord` are derived/sync state, not real columns).
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -15,19 +13,6 @@ import type {
 	Workout,
 	WorkoutExercise,
 } from './types';
-
-export type Scenario = 'sam-default' | 'sam-superset-dark' | 'priya-first-run';
-
-/** The narrative "today" every seeded timestamp is anchored to — not `new Date()`, since this
- *  fixture data doesn't move with the real clock and History needs a fixed reference point to
- *  highlight on the calendar and label "Today"/"Yesterday" against. */
-export const TODAY_DATE = '2026-09-09';
-
-export const SCENARIO_TO_WORKOUT_EXERCISE_ID: Record<Scenario, string> = {
-	'sam-default': 'we-bench-press',
-	'sam-superset-dark': 'we-lateral-raise',
-	'priya-first-run': 'we-goblet-squat',
-};
 
 export const EXERCISES: Exercise[] = [
 	{

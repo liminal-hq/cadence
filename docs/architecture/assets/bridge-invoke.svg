@@ -1,0 +1,59 @@
+<svg viewBox="0 0 500 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated diagram: React invoking a Rust command, and Rust pushing a rest-timer event back">
+  <title>The bridge: invoke() travelling from React to Rust, and an event travelling back</title>
+  <style>
+    :root { color-scheme: light dark; }
+    .card { fill: #a86e88; fill-opacity: 0.07; stroke: #a86e88; stroke-opacity: 0.35; }
+    .shape { fill: none; stroke: #d6558a; stroke-width: 2; }
+    .label { font: 600 12px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #9c7688; }
+    .cap { font: 500 11px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #9c7688; }
+    .span { fill: none; stroke: #a86e88; stroke-opacity: 0.5; stroke-width: 2; stroke-dasharray: 5 7; }
+    .traveler { fill: #d6558a; }
+    .invoke { animation: right 2.6s ease-in-out infinite; }
+    .event { animation: left 2.6s ease-in-out infinite; animation-delay: 1.3s; }
+    @keyframes right {
+      0% { transform: translateX(0); opacity: 0; }
+      8% { opacity: 1; }
+      48% { transform: translateX(300px); opacity: 1; }
+      56%, 100% { opacity: 0; }
+    }
+    @keyframes left {
+      0% { transform: translateX(300px); opacity: 0; }
+      8% { opacity: 1; }
+      48% { transform: translateX(0); opacity: 1; }
+      56%, 100% { opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .invoke, .event { animation: none; opacity: 0; }
+    }
+  </style>
+
+  <rect class="card" x="1" y="1" width="498" height="238" rx="20"/>
+
+  <text class="label" x="34" y="54">REACT</text>
+  <path class="shape" d="M50 90 a30 18 0 1 0 60 0 a30 18 0 1 0 -60 0" transform="rotate(20 80 90)"/>
+  <path class="shape" d="M50 90 a30 18 0 1 0 60 0 a30 18 0 1 0 -60 0" transform="rotate(80 80 90)"/>
+  <path class="shape" d="M50 90 a30 18 0 1 0 60 0 a30 18 0 1 0 -60 0" transform="rotate(140 80 90)"/>
+  <circle cx="80" cy="90" r="5" fill="#d6558a"/>
+
+  <text class="label" x="392" y="54">RUST</text>
+  <circle class="shape" cx="420" cy="90" r="26"/>
+  <g stroke="#d6558a" stroke-width="2">
+    <line x1="420" y1="58" x2="420" y2="68"/>
+    <line x1="420" y1="112" x2="420" y2="122"/>
+    <line x1="388" y1="90" x2="398" y2="90"/>
+    <line x1="442" y1="90" x2="452" y2="90"/>
+    <line x1="397" y1="67" x2="404" y2="74"/>
+    <line x1="436" y1="106" x2="443" y2="113"/>
+    <line x1="443" y1="67" x2="436" y2="74"/>
+    <line x1="404" y1="106" x2="397" y2="113"/>
+  </g>
+
+  <path class="span" d="M100 155 H400"/>
+  <text class="label" x="120" y="140">invoke('add_workout_exercise')</text>
+  <text class="label" x="120" y="205">emit('rest-timer:changed')</text>
+
+  <circle class="traveler invoke" cx="100" cy="155" r="5"/>
+  <circle class="traveler event" cx="100" cy="190" r="5"/>
+
+  <text class="cap" x="34" y="228">commands travel right; the rest timer pushes events back on its own</text>
+</svg>

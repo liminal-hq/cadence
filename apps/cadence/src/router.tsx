@@ -1,7 +1,6 @@
-// Route tree: a `/today|/history|/plan|/progress` tab layout (AppShell +
-// bottom nav), a sibling `/log/$scenario` route for Exercise logging, and a
-// sibling `/settings/*` tree for the Settings hub and its sub-screens —
-// none of the three share the tab shell, so each renders its own header.
+// Route tree: the `/today|/history|/plan|/progress` tab layout, the real workout/logging routes
+// (`/workout/$workoutId`, `/workout-exercise/$workoutExerciseId`), and the `/settings/*` tree —
+// none of the latter share the tab shell.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -24,6 +23,7 @@ import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
+import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
 import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
@@ -34,7 +34,6 @@ import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
 import { resolvePlatform } from './platform';
-import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
 
 function RootLayout() {
@@ -50,13 +49,16 @@ function RootLayout() {
 	);
 }
 
-function isScenario(value: string): value is Scenario {
-	return value in SCENARIO_TO_WORKOUT_EXERCISE_ID;
-}
-
-function LoggingRoute() {
-	const { scenario } = logRoute.useParams();
-	return <ExerciseLoggingScreen scenario={isScenario(scenario) ? scenario : 'sam-default'} />;
+function WorkoutExerciseRoute() {
+	const { workoutExerciseId } = workoutExerciseRoute.useParams();
+	return (
+		<ExerciseLoggingScreen
+			workoutExerciseId={workoutExerciseId}
+			backTo="/today"
+			backToOwnWorkout
+			selfPath={`/workout-exercise/${workoutExerciseId}`}
+		/>
+	);
 }
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -96,10 +98,21 @@ const progressRoute = createRoute({
 	component: ProgressScreen,
 });
 
-const logRoute = createRoute({
+const workoutExerciseRoute = createRoute({
 	getParentRoute: () => rootRoute,
-	path: '/log/$scenario',
-	component: LoggingRoute,
+	path: '/workout-exercise/$workoutExerciseId',
+	component: WorkoutExerciseRoute,
+});
+
+function ActiveWorkoutRoute() {
+	const { workoutId } = activeWorkoutRoute.useParams();
+	return <ActiveWorkoutScreen workoutId={workoutId} />;
+}
+
+const activeWorkoutRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/workout/$workoutId',
+	component: ActiveWorkoutRoute,
 });
 
 function WorkoutDetailRoute() {
@@ -209,7 +222,8 @@ const settingsDiagnosticsRoute = settingsStubRoute(
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
-	logRoute,
+	workoutExerciseRoute,
+	activeWorkoutRoute,
 	workoutDetailRoute,
 	exerciseDetailRoute,
 	settingsRoute,

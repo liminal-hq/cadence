@@ -1,0 +1,8 @@
+// Workout domain module: workouts, workout-exercises, and the supersets that group them.
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+pub mod models;
+pub mod repo;
+pub mod workout_exercises;

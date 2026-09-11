@@ -1,7 +1,5 @@
-// Supplies the active LoggingRepository to the component tree. Swapping in
-// a real backend later means constructing a different implementation and
-// changing the `repository` prop passed at the app root -- no component
-// changes.
+// Supplies the active LoggingRepository to the component tree. `main.tsx` passes the real
+// `tauriRepository`; tests pass `mockRepository` instead — no component changes either way.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

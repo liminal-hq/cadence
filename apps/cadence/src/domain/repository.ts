@@ -1,7 +1,6 @@
-// The logging flow's data-access boundary. Every method is async, even
-// though the mock implementation resolves immediately, so a future
-// Tauri `invoke()`-backed implementation is a drop-in swap with no
-// call-site changes.
+// The logging flow's data-access boundary. Every method is async, even though the mock
+// implementation resolves immediately, so a real Tauri `invoke()`-backed implementation
+// (tauriRepository.ts) is a drop-in swap with no call-site changes.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -27,6 +26,8 @@ export interface LoggingRepository {
 	 *  history, graph, records, and stats are all derived from this one query. */
 	listWorkoutExercisesByExercise(exerciseId: string): Promise<WorkoutExercise[]>;
 	getExercise(id: string): Promise<Exercise>;
+	/** The full library, name-ordered — backs the Add-exercise picker's browse/search/category views. */
+	listExercises(): Promise<Exercise[]>;
 	updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;
@@ -82,8 +83,15 @@ export interface LoggingRepository {
 	/** Inclusive of both bounds, ordered by date — drives both Calendar's month queries and
 	 *  List's pagination. */
 	listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]>;
+	/** Creates a fresh in-progress workout with no exercises yet — "Start workout" with minimal
+	 *  ceremony (SPEC.md 8.1). An empty `title` means unnamed. */
+	createWorkout(localDate: string, title: string): Promise<Workout>;
 	/** Creates a new planned-status copy of every set in `workoutId`, dated `targetDate` — the
 	 *  "Copy to today" action, one level up from duplicateSet's already-established pattern. */
 	duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout>;
 	updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout>;
+	/** Appends an exercise at the end of the workout's order. */
+	addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise>;
+	/** A no-op when the workout-exercise doesn't exist. */
+	deleteWorkoutExercise(id: string): Promise<void>;
 }

@@ -20,7 +20,7 @@ import { WorkoutHistoryList } from './WorkoutHistoryList';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { formatCalendarDateLabel, monthEndOf, monthStartOf } from './historyDates';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { TODAY_DATE } from '../../domain/seedData';
+import { todayLocalDate } from '../../domain/format';
 import { CATEGORY_COLOURS, DEFAULT_CATEGORY_COLOUR } from '../../data/categoryColours';
 import './history.css';
 
@@ -29,9 +29,10 @@ type HistoryView = 'calendar' | 'list';
 export function HistoryHubScreen() {
 	const navigate = useNavigate();
 	const repository = useLoggingRepository();
+	const today = todayLocalDate();
 	const [view, setView] = useState<HistoryView>('calendar');
-	const [monthStart, setMonthStart] = useState(() => monthStartOf(TODAY_DATE));
-	const [selectedDate, setSelectedDate] = useState<string | null>(TODAY_DATE);
+	const [monthStart, setMonthStart] = useState(() => monthStartOf(today));
+	const [selectedDate, setSelectedDate] = useState<string | null>(today);
 	const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 	const [filterPickerOpen, setFilterPickerOpen] = useState(false);
 	const [dotsByDate, setDotsByDate] = useState<Record<string, CalendarDayDot[]>>({});
@@ -155,7 +156,7 @@ export function HistoryHubScreen() {
 				<>
 					<CalendarView
 						monthStart={monthStart}
-						todayDate={TODAY_DATE}
+						todayDate={today}
 						selectedDate={selectedDate}
 						dotsByDate={dotsByDate}
 						onSelectDate={setSelectedDate}

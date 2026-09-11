@@ -29,6 +29,16 @@ export function formatWorkoutDuration(startedAt?: string, completedAt?: string):
 	return `${minutes} min`;
 }
 
+/** The real local date, as 'YYYY-MM-DD' — the one place in the app allowed to read the clock
+ *  directly for "today"; everything else takes a date string as an explicit parameter so it stays
+ *  deterministic to test (see historyDates.ts's own header). */
+export function todayLocalDate(): string {
+	const now = new Date();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${now.getFullYear()}-${month}-${day}`;
+}
+
 const KG_PER_LB = 0.45359237;
 
 export function kgToLb(kg: number): number {
