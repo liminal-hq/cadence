@@ -125,19 +125,22 @@ jobs:
       - name: Restore Rust cache
         uses: Swatinem/rust-cache@v2
 
+      - name: Snapshot committed bindings
+        run: cp -r apps/cadence/src/domain/generated /tmp/generated-before
+
       - name: Regenerate ts-rs bindings
         run: cargo test -p cadence --lib
 
       - name: Check for uncommitted bindings drift
         id: ts_bindings_drift
-        run: git diff --exit-code -- apps/cadence/src/domain/generated
+        run: diff -rq /tmp/generated-before apps/cadence/src/domain/generated
 
       - name: Publish results
         if: always()
         run: |
           echo "## TS bindings drift" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Result: \`${{ steps.ts_bindings_drift.outcome }}\`" >> "${GITHUB_STEP_SUMMARY}"
-          echo "- Command: \`cargo test -p cadence --lib\` then \`git diff --exit-code -- apps/cadence/src/domain/generated\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Command: \`cargo test -p cadence --lib\` then diff against the committed apps/cadence/src/domain/generated" >> "${GITHUB_STEP_SUMMARY}"
 
   js-build:
     name: JS build
