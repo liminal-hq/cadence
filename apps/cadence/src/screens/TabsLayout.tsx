@@ -6,7 +6,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { Outlet, useLocation, useNavigate } from '@tanstack/react-router';
 import { AppShell } from '../components/AppShell/AppShell';
 import type { Destination } from '../components/AppShell/BottomNav';
@@ -50,10 +50,18 @@ const TODAY_LABEL = new Intl.DateTimeFormat('en-CA', {
 	month: 'short',
 }).format(new Date());
 
-export function TabsLayout() {
-	const location = useLocation();
+interface TabsChromeProps {
+	pathname: string;
+	children: ReactNode;
+}
+
+/** The tab shell (top bar + bottom nav) around a given tab's content, taking `pathname` as a
+ *  prop rather than reading `useLocation()` — this is what lets the predictive-back underlay
+ *  (`buildUnderlayNode`) wrap a *previous* tab screen in its real chrome using that screen's own
+ *  historical path, without the wrapper silently re-deriving the *current* live route instead. */
+export function TabsChrome({ pathname, children }: TabsChromeProps) {
 	const navigate = useNavigate();
-	const destination = PATH_TO_DESTINATION[location.pathname] ?? 'today';
+	const destination = PATH_TO_DESTINATION[pathname] ?? 'today';
 	const screenActions = useScreenActions();
 
 	return (
@@ -64,7 +72,17 @@ export function TabsLayout() {
 			activeDestination={destination}
 			onDestinationChange={(next) => navigate({ to: `/${next}` })}
 		>
-			<Outlet />
+			{children}
 		</AppShell>
+	);
+}
+
+export function TabsLayout() {
+	const location = useLocation();
+
+	return (
+		<TabsChrome pathname={location.pathname}>
+			<Outlet />
+		</TabsChrome>
 	);
 }

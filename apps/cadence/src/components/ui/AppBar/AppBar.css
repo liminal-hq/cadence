@@ -1,5 +1,8 @@
 .ui-app-bar {
-	height: var(--cadence-top-bar-height);
+	/* On Android the WebView draws edge-to-edge behind the status bar, so the bar's own
+	 * tap-target height sits below env(safe-area-inset-top) rather than being squeezed by it. */
+	height: calc(var(--cadence-top-bar-height) + env(safe-area-inset-top, 0px));
+	padding-top: env(safe-area-inset-top, 0px);
 	display: flex;
 	align-items: center;
 	background: var(--cadence-surface);

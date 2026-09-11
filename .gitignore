@@ -3,8 +3,5 @@ target/
 dist/
 test-results/
 
-# Tauri generated artefacts
-apps/*/src-tauri/gen/
-
 .vscode/*
 !.vscode/extensions.json

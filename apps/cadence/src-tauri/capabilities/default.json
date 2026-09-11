@@ -15,6 +15,7 @@
 		"core:window:allow-start-dragging",
 		"core:webview:default",
 		"os:default",
-		"mcp-bridge:default"
+		"mcp-bridge:default",
+		"predictive-back:default"
 	]
 }

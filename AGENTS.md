@@ -144,6 +144,7 @@ Enter or paste your release notes for en-CA here
 ## Local Tooling
 
 - **Rust fallback:** If Rust tooling such as `cargo` is not available on the host, prefer using the locally available `ghcr.io/liminal-hq/tauri-dev-desktop:latest` image to run Rust and Tauri commands against the checked-out workspace, once this repository has Rust code to build.
+- **Android builds:** No local Android SDK/NDK setup is required. `bun run build:android:dev` (`scripts/build-android-dev.sh`) builds a debug "Cadence Dev" APK (separate identifier, installable side-by-side with a real build) via the shared `ghcr.io/liminal-hq/tauri-dev-mobile:latest` image and installs it to a connected device automatically if `adb` sees one. `bun run dev:android` / `bun run build:android` run the equivalent `tauri android dev`/`build` directly against the real identifier. CI builds a debug APK per PR using `ghcr.io/liminal-hq/tauri-ci-mobile:latest` (see `.github/workflows/ci.yml`'s `android-build` job) — both images are defined in `liminal-hq/.github`.
 
 ## Frontend Code Conventions
 
@@ -201,7 +202,7 @@ The dual licence is provided as `LICENSE-MIT` and `LICENSE-APACHE` in the reposi
 
 ## Tauri v2
 
-Cadence uses **Tauri v2**; native mobile support (Android and Wear OS) is not built yet. These are the house patterns and pitfalls carried over from Threshold and Spindle:
+Cadence uses **Tauri v2**; an Android build exists and runs on a physical device (`apps/cadence/src-tauri/gen/android`, tracked in git per Threshold's own convention — only `gen/schemas` stays ignored). Wear OS is not built yet. These are the house patterns and pitfalls carried over from Threshold and Spindle:
 
 ### Platform Detection
 
