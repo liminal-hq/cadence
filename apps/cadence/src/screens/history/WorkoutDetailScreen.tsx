@@ -11,8 +11,7 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { Button } from '../../components/ui/Button/Button';
 import { Tag } from '../../components/ui/Tag/Tag';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatWorkoutDuration, formatNumber } from '../../domain/format';
-import { TODAY_DATE } from '../../domain/seedData';
+import { formatWorkoutDuration, formatNumber, todayLocalDate } from '../../domain/format';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { formatCalendarDateLabel } from './historyDates';
 import { StatTile } from './StatTile';
@@ -87,7 +86,7 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	}
 
 	async function handleCopyToToday() {
-		const duplicated = await repository.duplicateWorkout(workoutId, TODAY_DATE);
+		const duplicated = await repository.duplicateWorkout(workoutId, todayLocalDate());
 		navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
 	}
 

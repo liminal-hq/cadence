@@ -9,8 +9,7 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl/Segmented
 import { StatTile } from './StatTile';
 import { computeStats } from './computeStats';
 import { addDays } from './historyDates';
-import { formatNumber } from '../../domain/format';
-import { TODAY_DATE } from '../../domain/seedData';
+import { formatNumber, todayLocalDate } from '../../domain/format';
 import type { MetricProfile } from '../../domain/types';
 import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
 import './ExerciseStatsTab.css';
@@ -32,11 +31,12 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 export function ExerciseStatsTab({ history, metricProfile }: ExerciseStatsTabProps) {
 	const [period, setPeriod] = useState<Period>('all');
 	const datedSets = useMemo(() => flattenDatedSets(history), [history]);
+	const today = todayLocalDate();
 	// Inclusive N-day window ending today — "Week" (7) means today and the 6 days before it.
 	const range =
 		period === 'all'
 			? undefined
-			: { startDate: addDays(TODAY_DATE, -Number(period) + 1), endDate: TODAY_DATE };
+			: { startDate: addDays(today, -Number(period) + 1), endDate: today };
 	const stats = computeStats(datedSets, range);
 
 	return (

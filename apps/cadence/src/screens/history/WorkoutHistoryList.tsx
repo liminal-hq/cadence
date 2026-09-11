@@ -11,7 +11,7 @@ import { WorkoutHistoryRow } from './WorkoutHistoryRow';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { addDays, daysBefore, formatHistoryGroupLabel, formatRowDateLabel } from './historyDates';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { TODAY_DATE } from '../../domain/seedData';
+import { todayLocalDate } from '../../domain/format';
 import './history.css';
 
 const CHUNK_DAYS = 30;
@@ -29,13 +29,14 @@ export function WorkoutHistoryList({
 	onOpenWorkout,
 }: WorkoutHistoryListProps) {
 	const repository = useLoggingRepository();
-	const [rangeStart, setRangeStart] = useState(() => addDays(TODAY_DATE, -(CHUNK_DAYS - 1)));
+	const today = todayLocalDate();
+	const [rangeStart, setRangeStart] = useState(() => addDays(today, -(CHUNK_DAYS - 1)));
 	const [summaries, setSummaries] = useState<WorkoutSummary[] | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
 		async function load() {
-			const workouts = await repository.listWorkoutsInRange(rangeStart, TODAY_DATE);
+			const workouts = await repository.listWorkoutsInRange(rangeStart, today);
 			const loaded = await Promise.all(workouts.map((w) => loadWorkoutSummary(repository, w.id)));
 			if (!cancelled) setSummaries(loaded);
 		}
@@ -43,7 +44,7 @@ export function WorkoutHistoryList({
 		return () => {
 			cancelled = true;
 		};
-	}, [repository, rangeStart]);
+	}, [repository, rangeStart, today]);
 
 	if (summaries === null) return null;
 
@@ -62,14 +63,14 @@ export function WorkoutHistoryList({
 
 	const groups: { label: string; items: WorkoutSummary[] }[] = [];
 	for (const summary of sorted) {
-		const label = formatHistoryGroupLabel(summary.workout.date, TODAY_DATE);
+		const label = formatHistoryGroupLabel(summary.workout.date, today);
 		const lastGroup = groups[groups.length - 1];
 		if (lastGroup?.label === label) lastGroup.items.push(summary);
 		else groups.push({ label, items: [summary] });
 	}
 
 	const isFiltered = Boolean(categoryFilter || query);
-	const canLoadEarlier = daysBefore(TODAY_DATE, rangeStart) < MAX_RANGE_DAYS;
+	const canLoadEarlier = daysBefore(today, rangeStart) < MAX_RANGE_DAYS;
 
 	if (sorted.length === 0) {
 		return (
@@ -93,7 +94,7 @@ export function WorkoutHistoryList({
 								key={summary.workout.id}
 								workout={summary.workout}
 								exercises={summary.exercises}
-								dateLabel={formatRowDateLabel(summary.workout.date, TODAY_DATE)}
+								dateLabel={formatRowDateLabel(summary.workout.date, today)}
 								onClick={() => onOpenWorkout(summary.workout.id)}
 							/>
 						))}

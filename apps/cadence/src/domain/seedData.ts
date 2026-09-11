@@ -18,11 +18,6 @@ import type {
 
 export type Scenario = 'sam-default' | 'sam-superset-dark' | 'priya-first-run';
 
-/** The narrative "today" every seeded timestamp is anchored to — not `new Date()`, since this
- *  fixture data doesn't move with the real clock and History needs a fixed reference point to
- *  highlight on the calendar and label "Today"/"Yesterday" against. */
-export const TODAY_DATE = '2026-09-09';
-
 export const SCENARIO_TO_WORKOUT_EXERCISE_ID: Record<Scenario, string> = {
 	'sam-default': 'we-bench-press',
 	'sam-superset-dark': 'we-lateral-raise',
