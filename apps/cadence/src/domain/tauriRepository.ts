@@ -63,6 +63,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('get_exercise', { id });
 	}
 
+	async listExercises(): Promise<Exercise[]> {
+		return call('list_exercises');
+	}
+
 	async updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise> {
 		return call('update_exercise_favourite', { id: exerciseId, favourite });
 	}
@@ -204,12 +208,24 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('list_workouts_in_range', { startDate, endDate });
 	}
 
+	async createWorkout(localDate: string, title: string): Promise<Workout> {
+		return call('create_workout', { localDate, title });
+	}
+
 	async duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout> {
 		return call('duplicate_workout', { workoutId, targetDate });
 	}
 
 	async updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout> {
 		return call('update_workout_note', { workoutId, note });
+	}
+
+	async addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise> {
+		return call('add_workout_exercise', { workoutId, exerciseId });
+	}
+
+	async deleteWorkoutExercise(id: string): Promise<void> {
+		return call('delete_workout_exercise', { id });
 	}
 }
 

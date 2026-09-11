@@ -116,6 +116,10 @@ export class MockLoggingRepository implements LoggingRepository {
 		return exercise;
 	}
 
+	async listExercises(): Promise<Exercise[]> {
+		return [...this.exercises.values()].sort((a, b) => a.name.localeCompare(b.name));
+	}
+
 	async updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise> {
 		const existing = await this.getExercise(exerciseId);
 		const updated = { ...existing, favourite };
@@ -443,6 +447,37 @@ export class MockLoggingRepository implements LoggingRepository {
 		return [...this.workouts.values()]
 			.filter((w) => w.date >= startDate && w.date <= endDate)
 			.sort((a, b) => a.date.localeCompare(b.date));
+	}
+
+	async createWorkout(localDate: string, title: string): Promise<Workout> {
+		const created: Workout = {
+			id: newId('workout'),
+			date: localDate,
+			title,
+			status: 'in-progress',
+			source: 'manual',
+		};
+		this.workouts.set(created.id, created);
+		return created;
+	}
+
+	async addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise> {
+		const workout = await this.getWorkout(workoutId);
+		const siblings = [...this.workoutExercises.values()].filter((we) => we.workoutId === workoutId);
+		const nextOrder = siblings.reduce((max, we) => Math.max(max, we.order), 0) + 1;
+		const created: WorkoutExercise = {
+			id: newId('we'),
+			exerciseId,
+			workoutId,
+			workoutLabel: `${workout.title} · ${nextOrder} of ${siblings.length + 1}`,
+			order: nextOrder,
+		};
+		this.workoutExercises.set(created.id, created);
+		return created;
+	}
+
+	async deleteWorkoutExercise(id: string): Promise<void> {
+		this.workoutExercises.delete(id);
 	}
 
 	async duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout> {

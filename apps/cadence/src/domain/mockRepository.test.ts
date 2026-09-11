@@ -209,6 +209,13 @@ describe('MockLoggingRepository', () => {
 			const reverted = await repo.updateExerciseFavourite('ex-bench-press', false);
 			expect(reverted.favourite).toBe(false);
 		});
+
+		it('lists every exercise in the library, name-ordered', async () => {
+			const exercises = await repo.listExercises();
+			expect(exercises.length).toBeGreaterThan(0);
+			const names = exercises.map((e) => e.name);
+			expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+		});
 	});
 
 	describe('workouts', () => {
@@ -265,6 +272,34 @@ describe('MockLoggingRepository', () => {
 			const updated = await repo.updateWorkoutNote('workout-2026-09-04', 'Felt strong today');
 			expect(updated.note).toBe('Felt strong today');
 			expect(await repo.getWorkout('workout-2026-09-04')).toEqual(updated);
+		});
+
+		it('creates a fresh in-progress workout with no exercises', async () => {
+			const created = await repo.createWorkout('2026-09-10', 'Push day');
+			expect(created.date).toBe('2026-09-10');
+			expect(created.title).toBe('Push day');
+			expect(created.status).toBe('in-progress');
+			expect(await repo.listWorkoutExercisesByWorkout(created.id)).toEqual([]);
+		});
+
+		it('adds an exercise to a workout, appending at the end of its order', async () => {
+			const workout = await repo.createWorkout('2026-09-10', 'Push day');
+			const first = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+			expect(first.order).toBe(1);
+			expect(first.workoutId).toBe(workout.id);
+			const second = await repo.addWorkoutExercise(workout.id, 'ex-goblet-squat');
+			expect(second.order).toBe(2);
+		});
+
+		it('removes a workout exercise', async () => {
+			const workout = await repo.createWorkout('2026-09-10', 'Push day');
+			const added = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+			await repo.deleteWorkoutExercise(added.id);
+			expect(await repo.listWorkoutExercisesByWorkout(workout.id)).toEqual([]);
+		});
+
+		it('is a no-op removing an unknown workout exercise', async () => {
+			await expect(repo.deleteWorkoutExercise('no-such-we')).resolves.toBeUndefined();
 		});
 	});
 
