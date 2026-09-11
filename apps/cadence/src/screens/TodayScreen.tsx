@@ -1,14 +1,13 @@
 // Today — the operational home of Cadence (SPEC.md section 8.1). "It opens to the active
 // workout when one exists" — this screen redirects there the moment it finds one, rather than
 // rendering its own summary card, since SPEC.md 8.1 explicitly allows a lightweight "Start
-// workout" action in place of a fuller Quick-start surface. The two demo "Preview" links are
-// temporary scaffolding, retired alongside the demo seed data itself.
+// workout" action in place of a fuller Quick-start surface.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from '@tanstack/react-router';
+import { useNavigate } from '@tanstack/react-router';
 import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
@@ -55,18 +54,6 @@ export function TodayScreen() {
 					Start workout
 				</Button>
 			}
-		>
-			<div className="screen-empty-state__preview-links">
-				<Link to="/log/$scenario" params={{ scenario: 'sam-default' }}>
-					Preview: default set
-				</Link>
-				<Link to="/log/$scenario" params={{ scenario: 'sam-superset-dark' }}>
-					Preview: offline superset
-				</Link>
-				<Link to="/log/$scenario" params={{ scenario: 'priya-first-run' }}>
-					Preview: first workout
-				</Link>
-			</div>
-		</EmptyState>
+		/>
 	);
 }

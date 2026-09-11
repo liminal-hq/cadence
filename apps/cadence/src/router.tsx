@@ -1,12 +1,9 @@
-// Route tree: the `/today|/history|/plan|/progress` tab layout, the real workout/logging routes,
-// the `/log/$scenario` demo adapter, and the `/settings/*` tree — none of the latter share the tab shell
+// Route tree: the `/today|/history|/plan|/progress` tab layout, the real workout/logging routes
+// (`/workout/$workoutId`, `/workout-exercise/$workoutExerciseId`), and the `/settings/*` tree —
+// none of the latter share the tab shell.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
-
-// `/workout/$workoutId` (ActiveWorkoutScreen) and `/workout-exercise/$workoutExerciseId`
-// (ExerciseLoggingScreen) are the real Quick-start/Workout-detail/Exercise-logging flow;
-// `/log/$scenario` still resolves the three demo scenarios onto that same logging screen.
 
 import { useState } from 'react';
 import {
@@ -37,7 +34,6 @@ import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
 import { resolvePlatform } from './platform';
-import { SCENARIO_TO_WORKOUT_EXERCISE_ID, type Scenario } from './domain/seedData';
 import './App.css';
 
 function RootLayout() {
@@ -50,26 +46,6 @@ function RootLayout() {
 				<Outlet />
 			</RouteStage>
 		</div>
-	);
-}
-
-function isScenario(value: string): value is Scenario {
-	return value in SCENARIO_TO_WORKOUT_EXERCISE_ID;
-}
-
-function LoggingRoute() {
-	const { scenario: rawScenario } = logRoute.useParams();
-	const scenario = isScenario(rawScenario) ? rawScenario : 'sam-default';
-	return (
-		<ExerciseLoggingScreen
-			workoutExerciseId={SCENARIO_TO_WORKOUT_EXERCISE_ID[scenario]}
-			backTo="/today"
-			selfPath={`/log/${scenario}`}
-			// Sam has a paired watch (SPEC's persona); Priya doesn't, and gets the first-workout
-			// coach mark tour — both demo-only, since neither signal is tracked for a real workout.
-			hasWatch={scenario !== 'priya-first-run'}
-			showCoachMarks={scenario === 'priya-first-run'}
-		/>
 	);
 }
 
@@ -120,12 +96,6 @@ const progressRoute = createRoute({
 	getParentRoute: () => tabsLayoutRoute,
 	path: '/progress',
 	component: ProgressScreen,
-});
-
-const logRoute = createRoute({
-	getParentRoute: () => rootRoute,
-	path: '/log/$scenario',
-	component: LoggingRoute,
 });
 
 const workoutExerciseRoute = createRoute({
@@ -252,7 +222,6 @@ const settingsDiagnosticsRoute = settingsStubRoute(
 const routeTree = rootRoute.addChildren([
 	indexRoute,
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
-	logRoute,
 	workoutExerciseRoute,
 	activeWorkoutRoute,
 	workoutDetailRoute,
