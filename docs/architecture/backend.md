@@ -4,6 +4,8 @@ _Companion reading for PRs [#8](https://github.com/liminal-hq/cadence/pull/8) an
 
 ---
 
+![Animated diagram of Cadence's schema: workouts, workout_exercises, exercises, and sets, with the composite foreign key pulsing between them](assets/backend-schema.svg)
+
 Six weeks ago, Cadence's entire backend was a JavaScript object living in a browser tab. Every workout, every set, every rest timer — gone the instant you hit refresh. That's a completely reasonable way to build a UI: you get to iterate on screens without a database schema fighting you. But it's not an app.
 
 This document is about what replaced it: a real Rust domain layer sitting on top of an embedded SQLite database, reachable from React through Tauri's command bridge. It's a small case study in a few ideas that show up in a lot of well-built local-first software — versioned migrations that actually run, a persistence layer that stays honest about what it doesn't know, and a state machine that has to survive the process restarting out from under it.

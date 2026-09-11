@@ -4,6 +4,8 @@ _Companion reading for PR [#14](https://github.com/liminal-hq/cadence/pull/14). 
 
 ---
 
+![Animated diagram of a dot travelling from Today, to ActiveWorkoutScreen, to ExerciseLoggingScreen](assets/workout-flow-path.svg)
+
 For most of Cadence's life, "start a workout" was a lie of convenience. `TodayScreen`'s button didn't start anything — it linked to `/log/sam-default`, one of three fixed demo scenarios baked into the seed migration. Tap it a hundred times and you'd land on the exact same fake bench-press set every time. That was fine while the point was proving out the logging screens themselves. It stopped being fine the moment those screens were real and the workout underneath them wasn't.
 
 This document is about the three screens that closed that gap, and about a small, easy-to-underspecify problem they all had to solve together: when a screen can be reached from more than one place, where does its back button actually go?

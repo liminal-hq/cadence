@@ -4,6 +4,8 @@ _Companion reading for PR [#11](https://github.com/liminal-hq/cadence/pull/11). 
 
 ---
 
+![Animated diagram of the bridge: a command travelling from React to Rust, and a rest-timer event travelling back on its own](assets/bridge-invoke.svg)
+
 There's a moment in every desktop-app-with-a-real-backend project where you have to answer an uncomfortable question: the UI is JavaScript, the domain logic is Rust, and a button click needs to get from one to the other without either side having to trust the other's types by hand. Get this wrong and you spend the rest of the project's life with a UI that silently breaks every time someone renames a Rust field.
 
 Cadence's answer has three parts, and the interesting thing about all three is that they were decided _before_ a single real command existed — the entire Logging flow, five screens deep, was built and fully tested against a fake backend that lived in a browser tab. Swapping the fake for the real one was, by design, supposed to be almost boring. This is the story of how it actually was.

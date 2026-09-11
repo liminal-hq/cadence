@@ -1,0 +1,56 @@
+<svg viewBox="0 0 560 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Animated diagram: a dot travelling from Today, to ActiveWorkoutScreen, to ExerciseLoggingScreen">
+  <title>Starting a workout: Today to ActiveWorkoutScreen to ExerciseLoggingScreen</title>
+  <style>
+    :root { color-scheme: light dark; }
+    .card { fill: #a8905a; fill-opacity: 0.07; stroke: #a8905a; stroke-opacity: 0.35; }
+    .path { fill: none; stroke: #a8905a; stroke-opacity: 0.5; stroke-width: 2; stroke-dasharray: 5 6; }
+    .node { fill: #a8905a; fill-opacity: 0.14; stroke: #d97706; stroke-width: 1.5; }
+    .label { font: 600 12px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #96814f; }
+    .cap { font: 500 11px ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace; fill: #96814f; }
+    .traveler {
+      fill: #d97706;
+      offset-path: path('M70 110 H240 Q280 110 300 70 T500 110');
+      animation: travel 4.5s ease-in-out infinite;
+    }
+    @keyframes travel {
+      0% { offset-distance: 0%; opacity: 0; }
+      5% { opacity: 1; }
+      45% { offset-distance: 100%; opacity: 1; }
+      52%, 100% { opacity: 0; offset-distance: 100%; }
+    }
+    .glow { animation: glow 4.5s ease-in-out infinite; }
+    .g2 { animation-delay: 1.9s; }
+    .g3 { animation-delay: 3.6s; }
+    @keyframes glow {
+      0%, 85%, 100% { filter: none; }
+      90% { filter: drop-shadow(0 0 6px #d97706); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .traveler { animation: none; opacity: 0; }
+      .glow { animation: none; }
+    }
+  </style>
+
+  <rect class="card" x="1" y="1" width="558" height="218" rx="20"/>
+
+  <path class="path" d="M70 110 H240 Q280 110 300 70 T500 110"/>
+
+  <g class="glow">
+    <circle class="node" cx="70" cy="110" r="26"/>
+  </g>
+  <text class="label" x="34" y="158">Today</text>
+
+  <g class="glow g2">
+    <circle class="node" cx="300" cy="70" r="26"/>
+  </g>
+  <text class="label" x="230" y="34">ActiveWorkoutScreen</text>
+
+  <g class="glow g3">
+    <circle class="node" cx="500" cy="110" r="26"/>
+  </g>
+  <text class="label" x="432" y="158">ExerciseLogging</text>
+
+  <circle class="traveler" r="5"/>
+
+  <text class="cap" x="34" y="200">createWorkout, then a tap on any exercise row</text>
+</svg>
