@@ -26,7 +26,12 @@ tauri-plugin-prevent-default = "5"
 # Dev/debug tooling. Always compiled in (a normal dependency), but only
 # *registered* under #[cfg(debug_assertions)] in src/lib.rs, so it is
 # present but inert in release builds -- same pattern as Spindle/Threshold.
-tauri-plugin-mcp-bridge = "0.13"
+# Pinned below 0.13: that version's websocket.rs calls
+# WebviewWindow::minimize()/maximize(), which don't exist on mobile, so it
+# fails to compile for Android regardless of debug_assertions (Cargo
+# resolves dependencies before any cfg in our own code is evaluated). 0.12
+# predates that call and is what Threshold ships to Android today.
+tauri-plugin-mcp-bridge = "0.12"
 sqlx = { version = "0.9.0", default-features = false, features = ["sqlite", "runtime-tokio", "macros", "json", "migrate"] }
 uuid = { version = "1.26.1", features = ["v4", "serde"] }
 chrono = { version = "0.4.45", features = ["serde"] }
