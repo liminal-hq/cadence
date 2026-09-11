@@ -1,5 +1,4 @@
-// Android bridge: registers a Channel for native OnBackAnimationCallback frames (re-emitted
-// as a Tauri event) and forwards setCanGoBack toggles down to the Kotlin plugin
+// Android bridge: forwards native back-gesture frames and setCanGoBack toggles to/from Kotlin
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -55,7 +54,7 @@ pub fn init<R: Runtime, C: DeserializeOwned>(
         handle
     };
 
-    // NOTE: iOS is out of scope -- Cadence's predictive back feature is Android-only,
+    // NOTE: iOS is out of scope — Cadence's predictive back feature is Android-only,
     // matching Threshold's own iOS-deferred plugins.
     #[cfg(target_os = "ios")]
     let _ = api;

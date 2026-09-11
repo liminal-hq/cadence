@@ -1,4 +1,4 @@
-// Desktop stub -- predictive back is an Android-only gesture
+// Desktop stub — predictive back is an Android-only gesture
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -18,7 +18,7 @@ pub struct PredictiveBack<R: Runtime>(#[allow(dead_code)] AppHandle<R>);
 
 impl<R: Runtime> PredictiveBack<R> {
     pub fn set_can_go_back(&self, _can_go_back: bool) -> crate::Result<()> {
-        // No-op on desktop -- there is no swipe-back gesture to intercept.
+        // No-op on desktop — there is no swipe-back gesture to intercept.
         Ok(())
     }
 }

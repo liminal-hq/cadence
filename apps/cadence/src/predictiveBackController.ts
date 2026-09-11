@@ -8,7 +8,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 // Mirrors plugins/predictive-back/guest-js/index.ts. Duplicated rather than imported directly:
 // that file resolves `@tauri-apps/api` via node_modules lookup starting from its own directory,
-// which only finds apps/cadence's copy by walking up through apps/cadence itself -- something a
+// which only finds apps/cadence's copy by walking up through apps/cadence itself — something a
 // plain relative import across the plugins/ boundary never does. Keep the two in sync by hand;
 // the guest-js copy stays the canonical reference for any future non-Cadence consumer.
 
@@ -63,7 +63,7 @@ class PredictiveBackController {
 		};
 	}
 
-	/** Always calls through to native rather than caching the last value sent -- a cheap,
+	/** Always calls through to native rather than caching the last value sent — a cheap,
 	 * idempotent round-trip, and the native registration can't be assumed to stay in sync with
 	 * whatever we last told it (e.g. it's re-asserted independently on Activity resume, since a
 	 * pause/resume cycle like screen off/on doesn't reliably survive with the callback still
@@ -72,7 +72,7 @@ class PredictiveBackController {
 		try {
 			await setCanGoBackNative(canGoBack);
 		} catch (e) {
-			// Not on Android, or the plugin didn't load -- nothing to do.
+			// Not on Android, or the plugin didn't load — nothing to do.
 			console.warn('[PredictiveBackController] setCanGoBack failed', e);
 		}
 	}

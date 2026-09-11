@@ -1,4 +1,4 @@
-// What a route renders, given only its path -- used to build RouteStage's predictive-back underlay
+// What a route renders, given only its path — used to build RouteStage's predictive-back underlay
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -27,7 +27,7 @@ import { AccessibilitySettingsScreen } from '../../screens/settings/Accessibilit
 /**
  * Keyed by the same `$param`-templated path string each route already declares via
  * `createRoute({ path: ... })` in router.tsx (that's what a leaf match's `fullPath` resolves to)
- * -- not a re-typed literal a route rename could silently leave stale, since `router.matchRoutes`
+ * — not a re-typed literal a route rename could silently leave stale, since `router.matchRoutes`
  * below does the actual path-to-params parsing, the same logic the router itself uses to
  * navigate. What's irreducible is the per-screen part: turning "this route matched, here are its
  * params" into "here's the prop this specific screen actually wants" is domain knowledge no
@@ -64,7 +64,7 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
 	),
 	'/history/workout/$workoutId': (params) => <WorkoutDetailScreen workoutId={params.workoutId} />,
 	'/workout/$workoutId': (params) => <ActiveWorkoutScreen workoutId={params.workoutId} />,
-	// The underlay is a read-only preview, not the actual mounted destination -- dropping the
+	// The underlay is a read-only preview, not the actual mounted destination — dropping the
 	// `backTo` search param (only relevant once the screen is really navigated to) doesn't
 	// affect what it looks like.
 	'/exercise/$exerciseId': (params) => <ExerciseDetailScreen exerciseId={params.exerciseId} />,
@@ -93,8 +93,8 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
  * `<Outlet/>` always reflects the router's *current* match, so storing it for later "previous
  * screen" playback would just show whatever's current all over again the moment the underlay
  * renders, rather than a snapshot of what was there before. `router.matchRoutes` resolves a bare
- * pathname against the router's real route tree -- the same matching TanStack Router itself does
- * to navigate -- without actually navigating there, so params come from the router, not from
+ * pathname against the router's real route tree — the same matching TanStack Router itself does
+ * to navigate — without actually navigating there, so params come from the router, not from
  * hand-parsing the path string here.
  */
 export function buildUnderlayNode(router: AnyRouter, pathname: string): ReactNode {

@@ -56,7 +56,7 @@ interface TabsChromeProps {
 }
 
 /** The tab shell (top bar + bottom nav) around a given tab's content, taking `pathname` as a
- *  prop rather than reading `useLocation()` -- this is what lets the predictive-back underlay
+ *  prop rather than reading `useLocation()` — this is what lets the predictive-back underlay
  *  (`buildUnderlayNode`) wrap a *previous* tab screen in its real chrome using that screen's own
  *  historical path, without the wrapper silently re-deriving the *current* live route instead. */
 export function TabsChrome({ pathname, children }: TabsChromeProps) {
