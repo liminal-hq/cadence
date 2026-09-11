@@ -1,4 +1,4 @@
-// The RestTimerState DTO, mirroring types.ts field-for-field.
+// The RestTimerState DTO, mirroring types.ts field-for-field
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,9 +13,9 @@ pub struct RestTimerState {
     pub status: String,
     #[cfg_attr(test, ts(optional))]
     pub target_instant: Option<String>,
-    #[cfg_attr(test, ts(optional))]
+    #[cfg_attr(test, ts(optional, type = "number"))]
     pub total_ms: Option<i64>,
-    #[cfg_attr(test, ts(optional))]
+    #[cfg_attr(test, ts(optional, type = "number"))]
     pub remaining_ms_at_pause: Option<i64>,
     #[cfg_attr(test, ts(optional))]
     pub owner_device: Option<String>,

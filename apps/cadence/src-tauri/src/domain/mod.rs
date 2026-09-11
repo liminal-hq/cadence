@@ -1,11 +1,13 @@
-// Domain modules: one per entity area, each with a `models` submodule (the public DTO, matching
+// Domain modules: one per entity area, plus the Coordinator that ties them together
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// Each entity area has a `models` submodule (the public DTO, matching
 // apps/cadence/src/domain/types.ts field-for-field) and a `repo` submodule (row mapping + pure
 // persistence — no events, no cross-entity invariants). Cross-entity coordination, transactions,
 // and event emission live on the `Coordinator`, which `commands.rs`'s Tauri command surface calls
 // into exclusively.
-//
-// (c) Copyright 2026 Liminal HQ, Scott Morris
-// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 pub mod coordinator;
 pub mod error;

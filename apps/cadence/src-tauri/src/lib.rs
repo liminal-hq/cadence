@@ -30,8 +30,16 @@ pub fn run() {
     builder
         .setup(|app| {
             let db_path = app.path().app_data_dir()?.join("cadence.db");
-            let pool = tauri::async_runtime::block_on(db::init_pool(&db_path))?;
-            app.manage(domain::Coordinator::new(pool, app.handle().clone()));
+            let handle = app.handle().clone();
+            let coordinator = tauri::async_runtime::block_on(async {
+                let pool = db::init_pool(&db_path).await?;
+                let coordinator = domain::Coordinator::new(pool, handle);
+                // A timer left "running" when the process last exited has no scheduled-elapse
+                // task anymore; reconcile it against the wall clock before anything else runs.
+                coordinator.rehydrate_rest_timer().await?;
+                Ok::<_, domain::error::Error>(coordinator)
+            })?;
+            app.manage(coordinator);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -1,4 +1,4 @@
-// Row mapping and persistence for the singleton rest-timer row.
+// Row mapping and persistence for the singleton rest-timer row
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

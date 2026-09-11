@@ -1,8 +1,4 @@
-// The Coordinator owns transaction boundaries, revision stamping, cross-entity invariants, and
-// event emission — everything the plain per-entity repo functions deliberately don't do. This is
-// the one piece of the crate that needs an AppHandle (to emit events) and is generic over the
-// Tauri runtime so it can be exercised in tests against `tauri::test::MockRuntime` the same way
-// production code uses it against the real `Wry` runtime.
+// Transaction boundaries, revision stamping, cross-entity invariants, and event emission
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -28,6 +24,10 @@ use super::units::kg_to_g;
 use super::workouts::models::{Workout, WorkoutExercise};
 use super::{barbells, exercises, history, rest_timer, sets, settings, workouts};
 
+/// Everything the plain per-entity repo functions deliberately don't do. This is the one piece of
+/// the crate that needs an `AppHandle` (to emit events) and is generic over the Tauri runtime so
+/// it can be exercised in tests against `tauri::test::MockRuntime` the same way production code
+/// uses it against the real `Wry` runtime.
 pub struct Coordinator<R: Runtime = tauri::Wry> {
     pool: SqlitePool,
     app: AppHandle<R>,
@@ -281,15 +281,14 @@ impl<R: Runtime> Coordinator<R> {
         target_weight: f64,
         barbell: &BarbellConfig,
     ) -> PlateCalculationResult {
-        let to_milli = |v: f64| (v * 1000.0).round() as i64;
         let plates_milli: Vec<i64> = barbell
             .available_plates
             .iter()
-            .map(|&p| to_milli(p))
+            .map(|&p| super::units::unit_to_milli(p))
             .collect();
         plates::calculate_plates(
-            to_milli(target_weight),
-            to_milli(barbell.bar_weight),
+            super::units::unit_to_milli(target_weight),
+            super::units::unit_to_milli(barbell.bar_weight),
             &plates_milli,
         )
     }
@@ -347,11 +346,28 @@ impl<R: Runtime> Coordinator<R> {
         }
     }
 
+    /// Persists a rest-timer state and emits the change event — the common tail of every
+    /// foreground transition below.
+    async fn persist_and_emit_rest_timer(
+        &self,
+        conn: &mut sqlx::SqliteConnection,
+        next: &RestTimerState,
+    ) -> Result<RestTimerState> {
+        let saved = rest_timer::repo::set(conn, next).await?;
+        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
+        Ok(saved)
+    }
+
     /// Spawns a task that marks the timer elapsed and emits the change event once `remaining_ms`
     /// passes, unless something else (pause/dismiss/resume/extend) cancels it first — mirrors
     /// the mock's own `scheduleElapse`/`clearScheduledElapse` pair, using `tokio::spawn`/`abort`
-    /// in place of `setTimeout`/`clearTimeout`.
-    async fn schedule_elapse(&self, remaining_ms: i64)
+    /// in place of `setTimeout`/`clearTimeout`. `expected_target_instant` guards against the
+    /// unavoidable gap between `abort()` being requested and the task actually observing it
+    /// (`abort` is cooperative, only taking effect at the task's next await point): if the row's
+    /// `target_instant` no longer matches what this task was scheduled for by the time it wakes,
+    /// some other transition already superseded it, so it's a no-op instead of clobbering
+    /// whatever that transition wrote (e.g. a dismiss that landed in the same instant).
+    async fn schedule_elapse(&self, remaining_ms: i64, expected_target_instant: String)
     where
         R: 'static,
     {
@@ -366,13 +382,17 @@ impl<R: Runtime> Coordinator<R> {
             let Ok(current) = rest_timer::repo::get(&mut conn).await else {
                 return;
             };
-            if current.status != "running" {
+            if current.status != "running"
+                || current.target_instant.as_deref() != Some(expected_target_instant.as_str())
+            {
                 return;
             }
             let elapsed = RestTimerState {
                 status: "elapsed".to_string(),
                 ..current
             };
+            // A background task has no caller to report a failed persist/emit to; swallowing is
+            // deliberate here, unlike the foreground transitions' `?`-propagating counterpart.
             if let Ok(saved) = rest_timer::repo::set(&mut conn, &elapsed).await {
                 let _ = app.emit(REST_TIMER_CHANGED, &saved);
             }
@@ -383,6 +403,38 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn get_rest_timer_state(&self) -> Result<RestTimerState> {
         let mut conn = self.pool.acquire().await?;
         rest_timer::repo::get(&mut conn).await
+    }
+
+    /// Reconciles the persisted timer row against the wall clock at startup — a process restart
+    /// loses the in-memory `scheduled_elapse` task entirely, so a timer that was `running` when
+    /// the app last exited would otherwise stay stuck `running` forever, even if its target
+    /// instant already passed while the app was closed. Called once from `lib.rs`'s setup hook,
+    /// before the Coordinator is handed to any command.
+    pub async fn rehydrate_rest_timer(&self) -> Result<()>
+    where
+        R: 'static,
+    {
+        let mut conn = self.pool.acquire().await?;
+        let current = rest_timer::repo::get(&mut conn).await?;
+        if current.status != "running" {
+            return Ok(());
+        }
+        let Some(target_instant) = current.target_instant.clone() else {
+            return Ok(());
+        };
+        let target_ms = super::units::iso_to_ms(&target_instant)?;
+        let now = chrono::Utc::now().timestamp_millis();
+        if now >= target_ms {
+            let elapsed = RestTimerState {
+                status: "elapsed".to_string(),
+                ..current
+            };
+            self.persist_and_emit_rest_timer(&mut conn, &elapsed)
+                .await?;
+        } else {
+            self.schedule_elapse(target_ms - now, target_instant).await;
+        }
+        Ok(())
     }
 
     /// "New rest replaces a running one" off: a request that arrives while one is already
@@ -417,9 +469,9 @@ impl<R: Runtime> Coordinator<R> {
             for_set_id: options.for_set_id.clone(),
             next_set_label: options.next_set_label.clone(),
         };
-        let saved = rest_timer::repo::set(&mut conn, &next).await?;
-        self.schedule_elapse(total_ms).await;
-        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
+        let saved = self.persist_and_emit_rest_timer(&mut conn, &next).await?;
+        self.schedule_elapse(total_ms, saved.target_instant.clone().unwrap())
+            .await;
         Ok(saved)
     }
 
@@ -440,9 +492,7 @@ impl<R: Runtime> Coordinator<R> {
             remaining_ms_at_pause: Some(remaining_ms_at_pause),
             ..current
         };
-        let saved = rest_timer::repo::set(&mut conn, &next).await?;
-        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
-        Ok(saved)
+        self.persist_and_emit_rest_timer(&mut conn, &next).await
     }
 
     pub async fn resume_rest_timer(&self) -> Result<RestTimerState>
@@ -464,9 +514,9 @@ impl<R: Runtime> Coordinator<R> {
             remaining_ms_at_pause: None,
             ..current
         };
-        let saved = rest_timer::repo::set(&mut conn, &next).await?;
-        self.schedule_elapse(remaining_ms).await;
-        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
+        let saved = self.persist_and_emit_rest_timer(&mut conn, &next).await?;
+        self.schedule_elapse(remaining_ms, saved.target_instant.clone().unwrap())
+            .await;
         Ok(saved)
     }
 
@@ -481,8 +531,6 @@ impl<R: Runtime> Coordinator<R> {
                 let target_instant_ms =
                     super::units::iso_to_ms(current.target_instant.as_deref().unwrap_or_default())?
                         + delta_ms;
-                let remaining_ms = target_instant_ms - chrono::Utc::now().timestamp_millis();
-                self.schedule_elapse(remaining_ms).await;
                 RestTimerState {
                     target_instant: Some(super::units::ms_to_iso(target_instant_ms)),
                     total_ms: Some(current.total_ms.unwrap_or(0) + delta_ms),
@@ -495,17 +543,25 @@ impl<R: Runtime> Coordinator<R> {
             },
             _ => return Ok(current),
         };
-        let saved = rest_timer::repo::set(&mut conn, &next).await?;
-        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
+        // Persist *before* scheduling the new elapse — scheduling first (as an earlier version
+        // of this code did) could spawn an immediately-runnable task (when the adjusted target is
+        // already due) that reads the row before this write lands, then overwrites this write
+        // with a stale "elapsed" a moment later.
+        let saved = self.persist_and_emit_rest_timer(&mut conn, &next).await?;
+        if saved.status == "running" {
+            let target_instant = saved.target_instant.clone().unwrap();
+            let remaining_ms =
+                super::units::iso_to_ms(&target_instant)? - chrono::Utc::now().timestamp_millis();
+            self.schedule_elapse(remaining_ms, target_instant).await;
+        }
         Ok(saved)
     }
 
     pub async fn dismiss_rest_timer(&self) -> Result<RestTimerState> {
         self.clear_scheduled_elapse().await;
         let mut conn = self.pool.acquire().await?;
-        let saved = rest_timer::repo::set(&mut conn, &RestTimerState::inactive()).await?;
-        let _ = self.app.emit(REST_TIMER_CHANGED, &saved);
-        Ok(saved)
+        self.persist_and_emit_rest_timer(&mut conn, &RestTimerState::inactive())
+            .await
     }
 }
 
@@ -631,6 +687,85 @@ mod tests {
         tokio::time::sleep(Duration::from_millis(200)).await;
         let state = c.get_rest_timer_state().await.unwrap();
         assert_eq!(state.status, "elapsed");
+    }
+
+    #[tokio::test]
+    async fn dismissing_right_as_a_timer_elapses_is_not_clobbered_by_the_stale_elapse_task() {
+        let c = test_coordinator().await;
+        c.start_rest_timer(50, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+        // Dismiss changes the row's target_instant (to None) well before the scheduled task
+        // wakes; the guard token means that stale task must find its expectation no longer
+        // matches and do nothing, rather than resurrecting the timer as "elapsed" afterwards.
+        c.dismiss_rest_timer().await.unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state, RestTimerState::inactive());
+    }
+
+    #[tokio::test]
+    async fn extending_a_timer_persists_before_any_new_elapse_task_can_run() {
+        let c = test_coordinator().await;
+        // A total_ms small enough that a naive "schedule first" ordering could let the spawned
+        // task observe the row before extend's own write lands.
+        c.start_rest_timer(10, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+        let extended = c.extend_rest_timer(200).await.unwrap();
+        assert_eq!(extended.status, "running");
+        assert_eq!(extended.total_ms, Some(210));
+        // The extended timer is genuinely running for a while yet, not already elapsed.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "running");
+    }
+
+    #[tokio::test]
+    async fn rehydrate_reschedules_a_still_running_timer_found_at_startup() {
+        let c = test_coordinator().await;
+        c.start_rest_timer(50, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+        // Simulate a process restart: a fresh Coordinator (empty scheduled_elapse) over the same
+        // already-populated database.
+        let restarted = Coordinator::new(c.pool.clone(), c.app.clone());
+        restarted.rehydrate_rest_timer().await.unwrap();
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        let state = restarted.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "elapsed");
+    }
+
+    #[tokio::test]
+    async fn rehydrate_immediately_elapses_a_timer_whose_target_already_passed() {
+        let c = test_coordinator().await;
+        c.start_rest_timer(60_000, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+        // Force the persisted target into the past, simulating the app having been closed well
+        // past the original duration.
+        let mut conn = c.pool.acquire().await.unwrap();
+        let past = RestTimerState {
+            target_instant: Some(crate::domain::units::ms_to_iso(
+                chrono::Utc::now().timestamp_millis() - 5_000,
+            )),
+            ..rest_timer::repo::get(&mut conn).await.unwrap()
+        };
+        rest_timer::repo::set(&mut conn, &past).await.unwrap();
+        drop(conn);
+
+        let restarted = Coordinator::new(c.pool.clone(), c.app.clone());
+        restarted.rehydrate_rest_timer().await.unwrap();
+        let state = restarted.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "elapsed");
+    }
+
+    #[tokio::test]
+    async fn rehydrate_leaves_a_paused_or_inactive_timer_alone() {
+        let c = test_coordinator().await;
+        let state = c.rehydrate_rest_timer().await;
+        assert!(state.is_ok());
+        assert_eq!(c.get_rest_timer_state().await.unwrap().status, "inactive");
     }
 
     #[tokio::test]
