@@ -2,7 +2,7 @@
 
 Android predictive-back ("peek") gesture support for Cadence, ported from Threshold's plugin of the same name.
 
-This plugin bridges Android's `OnBackAnimationCallback` (API 33+) to the webview, letting the React frontend render a real-time, scrubbable back-gesture animation instead of a discrete back-button press.
+This plugin bridges Android's `OnBackAnimationCallback` (API 34+ — `OnBackInvokedDispatcher` registration itself dates to API 33, but the animated callback with progress wasn't added until API 34) to the webview, letting the React frontend render a real-time, scrubbable back-gesture animation instead of a discrete back-button press. Below API 34, the system back button behaves as it always has.
 
 ## Android Permissions
 

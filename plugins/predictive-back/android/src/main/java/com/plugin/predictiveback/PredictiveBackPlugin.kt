@@ -1,4 +1,4 @@
-// Android predictive-back ("peek") gesture bridge — API 33+ OnBackAnimationCallback to Rust
+// Android predictive-back ("peek") gesture bridge — API 34+ OnBackAnimationCallback to Rust
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -45,11 +45,11 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
 
     // The system's OnBackInvokedDispatcher registration doesn't reliably survive an Activity
     // pause/resume cycle (e.g. screen off then back on) even though our own `callback` object
-    // reference does -- without this, registerCallback()'s "already have a callback" guard
+    // reference does — without this, registerCallback()'s "already have a callback" guard
     // would skip re-registering, silently leaving the gesture dead until the app was restarted.
     // Force a clean re-registration on every resume rather than trusting that guard here.
     override fun onResume() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
         unregisterCallback()
         updateCallbackRegistration()
     }
@@ -74,9 +74,12 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
     }
 
     private fun updateCallbackRegistration() {
-        // OnBackAnimationCallback/BackEvent shipped in API 33 (Tiramisu). Below that, the
-        // system back button just works as it always has -- nothing to register.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        // OnBackInvokedDispatcher registration itself dates to API 33 (Tiramisu), but
+        // OnBackAnimationCallback -- the animated variant with onBackStarted/onBackProgressed/
+        // onBackCancelled -- wasn't added until API 34 (UpsideDownCake); referencing that class on
+        // an API 33 device throws. Below API 34, the system back button just works as it always
+        // has -- nothing to register.
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
 
         if (shouldRegisterPredictiveBack(Build.VERSION.SDK_INT, canGoBack)) {
             registerCallback()
@@ -85,7 +88,7 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     private fun registerCallback() {
         if (callback != null) return
 
@@ -107,7 +110,7 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
             }
         }
 
-        // PRIORITY_DEFAULT, not PRIORITY_OVERLAY -- this is standard in-app back navigation,
+        // PRIORITY_DEFAULT, not PRIORITY_OVERLAY — this is standard in-app back navigation,
         // not a dialog/overlay dismissal that needs to pre-empt other callbacks.
         activity.onBackInvokedDispatcher.registerOnBackInvokedCallback(
             OnBackInvokedDispatcher.PRIORITY_DEFAULT,
@@ -117,7 +120,7 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
         Log.d(TAG, "Registered OnBackAnimationCallback")
     }
 
-    @RequiresApi(Build.VERSION_CODES.TIRAMISU)
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     private fun unregisterCallback() {
         val cb = callback ?: return
         activity.onBackInvokedDispatcher.unregisterOnBackInvokedCallback(cb)
@@ -150,5 +153,5 @@ class PredictiveBackPlugin(private val activity: Activity) : Plugin(activity) {
  * `Build.VERSION.SDK_INT` directly) so it's unit-testable on a plain JVM, without Robolectric.
  */
 internal fun shouldRegisterPredictiveBack(sdkInt: Int, canGoBack: Boolean): Boolean {
-    return sdkInt >= Build.VERSION_CODES.TIRAMISU && canGoBack
+    return sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && canGoBack
 }
