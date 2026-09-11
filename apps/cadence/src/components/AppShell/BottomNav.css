@@ -1,9 +1,12 @@
 .bottom-nav {
-	height: var(--cadence-bottom-nav-height);
+	/* On Android the WebView draws edge-to-edge behind the gesture nav bar, so tap targets
+	 * sit above env(safe-area-inset-bottom) rather than being covered by it. */
+	height: calc(var(--cadence-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
 	background: var(--cadence-surface-container);
 	display: grid;
 	grid-template-columns: repeat(4, 1fr);
 	padding-top: 12px;
+	padding-bottom: env(safe-area-inset-bottom, 0px);
 	box-sizing: border-box;
 	flex-shrink: 0;
 }
