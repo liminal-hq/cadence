@@ -135,7 +135,8 @@ mod tests {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
         let exercises = list(&mut conn).await.unwrap();
-        assert_eq!(exercises.len(), 6);
+        // 6 from the demo-scenario seed (0002) + 74 from the starter library (0003).
+        assert_eq!(exercises.len(), 80);
     }
 
     #[tokio::test]

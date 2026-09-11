@@ -150,7 +150,7 @@ mod tests {
             .fetch_one(&mut *conn)
             .await
             .unwrap();
-        assert_eq!(exercise_count, 6);
+        assert_eq!(exercise_count, 80);
         let (barbell_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM barbell_configs")
             .fetch_one(&mut *conn)
             .await
