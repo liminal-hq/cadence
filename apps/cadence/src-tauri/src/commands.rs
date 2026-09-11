@@ -65,6 +65,15 @@ pub async fn update_workout_note(
 }
 
 #[tauri::command]
+pub async fn create_workout(
+    state: State<'_, Coordinator>,
+    local_date: String,
+    title: String,
+) -> Result<Workout, Error> {
+    state.create_workout(&local_date, &title).await
+}
+
+#[tauri::command]
 pub async fn duplicate_workout(
     state: State<'_, Coordinator>,
     workout_id: String,
@@ -95,6 +104,23 @@ pub async fn list_workout_exercises_by_exercise(
     exercise_id: String,
 ) -> Result<Vec<WorkoutExercise>, Error> {
     state.list_workout_exercises_by_exercise(&exercise_id).await
+}
+
+#[tauri::command]
+pub async fn add_workout_exercise(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+    exercise_id: String,
+) -> Result<WorkoutExercise, Error> {
+    state.add_workout_exercise(&workout_id, &exercise_id).await
+}
+
+#[tauri::command]
+pub async fn delete_workout_exercise(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_workout_exercise(&id).await
 }
 
 #[tauri::command]

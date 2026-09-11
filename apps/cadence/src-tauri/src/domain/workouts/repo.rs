@@ -118,6 +118,29 @@ pub async fn list_in_range(
     Ok(rows.into_iter().map(Workout::from).collect())
 }
 
+/// Creates a brand-new in-progress, manually-sourced workout with no exercises yet — the
+/// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
+/// minimal ceremony rather than requiring a routine or a pre-picked exercise list.
+pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) -> Result<Workout> {
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    sqlx::query(
+        "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+         created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, 'in-progress', 'manual', 0, \
+         ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(local_date)
+    .bind(title)
+    .bind(now)
+    .bind(now)
+    .bind(revision)
+    .execute(&mut *conn)
+    .await?;
+    get(conn, &id).await
+}
+
 pub async fn update_note(
     conn: &mut SqliteConnection,
     id: &str,
@@ -252,5 +275,23 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::NotFound { .. }));
+    }
+
+    #[tokio::test]
+    async fn creates_a_fresh_in_progress_manual_workout_with_no_exercises() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-10", "Today's workout")
+            .await
+            .unwrap();
+        assert_eq!(created.date, "2026-09-10");
+        assert_eq!(created.title, "Today's workout");
+        assert_eq!(created.status, "in-progress");
+        assert_eq!(created.source, "manual");
+        assert!(!created.logged_by_watch);
+        assert!(created.health_connect.is_none());
+        // A freshly created workout is genuinely new, not a stale seeded fixture reused.
+        let reloaded = get(&mut conn, &created.id).await.unwrap();
+        assert_eq!(reloaded, created);
     }
 }

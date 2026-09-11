@@ -122,6 +122,52 @@ pub async fn list_by_exercise(
     Ok(rows.into_iter().map(WorkoutExercise::from).collect())
 }
 
+/// Appends the exercise at the end of the workout's order — `MAX(sort_order)+1`, not `COUNT+1`,
+/// matching `sets::repo::add`'s reasoning: a prior removal can leave a gap that `COUNT` would
+/// collide with.
+pub async fn add(
+    conn: &mut SqliteConnection,
+    workout_id: &str,
+    exercise_id: &str,
+) -> Result<WorkoutExercise> {
+    let siblings = list_by_workout(conn, workout_id).await?;
+    let next_order = siblings.iter().map(|we| we.order).max().unwrap_or(0) + 1;
+    let id = uuid::Uuid::new_v4().to_string();
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    sqlx::query(
+        "INSERT INTO workout_exercises (id, workout_id, exercise_id, sort_order, created_at_ms, \
+         updated_at_ms, revision) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    )
+    .bind(&id)
+    .bind(workout_id)
+    .bind(exercise_id)
+    .bind(next_order)
+    .bind(now)
+    .bind(now)
+    .bind(revision)
+    .execute(&mut *conn)
+    .await?;
+    get(conn, &id).await
+}
+
+/// A no-op if the workout-exercise doesn't exist, otherwise records a tombstone — same shape as
+/// `sets::repo::delete`/`barbells::repo::delete`. Its own sets cascade via the schema's
+/// `ON DELETE CASCADE`, but this doesn't tombstone those sets individually; a future sync consumer
+/// sees the workout-exercise's own tombstone and can infer the rest.
+pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
+    let result = sqlx::query("DELETE FROM workout_exercises WHERE id = ?")
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+    if result.rows_affected() > 0 {
+        let revision = crate::db::next_revision(conn).await?;
+        let now = chrono::Utc::now().timestamp_millis();
+        crate::db::write_tombstone(conn, "workout_exercise", id, revision, now).await?;
+    }
+    Ok(())
+}
+
 pub async fn update_today_note(
     conn: &mut SqliteConnection,
     id: &str,
@@ -234,5 +280,56 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::NotFound { .. }));
+    }
+
+    #[tokio::test]
+    async fn add_appends_at_the_end_of_the_workouts_existing_order() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        // workout-push-a already has we-bench-press (order 1) and we-running (order 2).
+        let added = add(&mut conn, "workout-push-a", "ex-goblet-squat")
+            .await
+            .unwrap();
+        assert_eq!(added.order, 3);
+        assert_eq!(added.exercise_id, "ex-goblet-squat");
+        assert_eq!(added.workout_id, "workout-push-a");
+    }
+
+    #[tokio::test]
+    async fn add_to_an_empty_workout_starts_at_order_one() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-10", "Fresh")
+            .await
+            .unwrap();
+        let added = add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+        assert_eq!(added.order, 1);
+    }
+
+    #[tokio::test]
+    async fn deletes_a_workout_exercise_and_records_a_tombstone() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let added = add(&mut conn, "workout-push-a", "ex-goblet-squat")
+            .await
+            .unwrap();
+        delete(&mut conn, &added.id).await.unwrap();
+        let err = get(&mut conn, &added.id).await.unwrap_err();
+        assert!(matches!(err, Error::NotFound { .. }));
+        let (count,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM tombstones WHERE entity_type = 'workout_exercise' AND entity_id = ?",
+        )
+        .bind(&added.id)
+        .fetch_one(&mut *conn)
+        .await
+        .unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn deleting_an_unknown_workout_exercise_is_a_silent_no_op() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        delete(&mut conn, "no-such-we").await.unwrap();
     }
 }

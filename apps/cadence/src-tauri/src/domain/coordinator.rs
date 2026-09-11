@@ -111,6 +111,28 @@ impl<R: Runtime> Coordinator<R> {
         workouts::workout_exercises::update_today_note(&mut conn, workout_exercise_id, note).await
     }
 
+    /// "Start workout" with minimal ceremony (SPEC.md 8.1): an in-progress, manually-sourced
+    /// workout with no exercises yet — adding the first one is a separate `add_workout_exercise`
+    /// call, not part of creation.
+    pub async fn create_workout(&self, local_date: &str, title: &str) -> Result<Workout> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::create(&mut conn, local_date, title).await
+    }
+
+    pub async fn add_workout_exercise(
+        &self,
+        workout_id: &str,
+        exercise_id: &str,
+    ) -> Result<WorkoutExercise> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::workout_exercises::add(&mut conn, workout_id, exercise_id).await
+    }
+
+    pub async fn delete_workout_exercise(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::workout_exercises::delete(&mut conn, id).await
+    }
+
     /// Copies every workout-exercise and set from `workout_id` into a new planned workout dated
     /// `target_date` — mirrors `duplicateWorkout`'s reset-on-copy semantics exactly (today_note/
     /// offline_since dropped, sets reset to planned), but rebuilds supersets as new rows scoped to
@@ -766,6 +788,60 @@ mod tests {
         let state = c.rehydrate_rest_timer().await;
         assert!(state.is_ok());
         assert_eq!(c.get_rest_timer_state().await.unwrap().status, "inactive");
+    }
+
+    #[tokio::test]
+    async fn create_workout_starts_in_progress_with_no_exercises() {
+        let c = test_coordinator().await;
+        let created = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        assert_eq!(created.date, "2026-09-10");
+        assert_eq!(created.title, "Push day");
+        assert_eq!(created.status, "in-progress");
+        assert_eq!(created.source, "manual");
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&created.id)
+            .await
+            .unwrap();
+        assert!(workout_exercises.is_empty());
+    }
+
+    #[tokio::test]
+    async fn add_workout_exercise_appends_to_a_freshly_created_workout() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let added = c
+            .add_workout_exercise(&workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        assert_eq!(added.order, 1);
+        assert_eq!(added.workout_id, workout.id);
+        let second = c
+            .add_workout_exercise(&workout.id, "ex-goblet-squat")
+            .await
+            .unwrap();
+        assert_eq!(second.order, 2);
+    }
+
+    #[tokio::test]
+    async fn delete_workout_exercise_is_a_no_op_on_an_unknown_id() {
+        let c = test_coordinator().await;
+        c.delete_workout_exercise("no-such-we").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn delete_workout_exercise_removes_it_from_its_workout() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let added = c
+            .add_workout_exercise(&workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.delete_workout_exercise(&added.id).await.unwrap();
+        let remaining = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert!(remaining.is_empty());
     }
 
     #[tokio::test]
