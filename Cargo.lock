@@ -257,6 +257,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-mcp-bridge",
  "tauri-plugin-os",
+ "tauri-plugin-predictive-back",
  "tauri-plugin-prevent-default",
  "tauri-plugin-window-state",
  "thiserror 2.0.20",
@@ -4152,6 +4153,18 @@ dependencies = [
  "serde_json",
  "serialize-to-javascript",
  "sys-locale",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.20",
+]
+
+[[package]]
+name = "tauri-plugin-predictive-back"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
  "tauri",
  "tauri-plugin",
  "thiserror 2.0.20",
