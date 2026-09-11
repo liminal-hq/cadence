@@ -15,7 +15,7 @@ interface RouteStageProps {
 }
 
 const SETTLE_MS = 220;
-// Safety net for the "wait for the real navigation to land" finalize effect below -- in the
+// Safety net for the "wait for the real navigation to land" finalize effect below — in the
 // (unexpected) case router.history.back() never actually changes location.pathname, don't leave
 // the underlay stuck visible forever.
 const FINALIZE_FALLBACK_MS = 1000;
@@ -39,9 +39,24 @@ export function RouteStage({ children }: RouteStageProps) {
 		void predictiveBackController.init();
 	}, []);
 
+	// Mirrors router.history's own PUSH/POP/REPLACE actions into the stack (see ScreenStack's own
+	// comment for why this replaced an earlier path-identity-based guess). router.history.subscribe
+	// only reports *future* transitions, so the stack needs an explicit seed for wherever
+	// navigation already was the moment this mounts.
 	useEffect(() => {
-		stackRef.current.setCurrent(location.pathname, buildUnderlayNode(router, location.pathname));
-	}, [location.pathname, router]);
+		const seedPath = router.history.location.pathname;
+		stackRef.current.apply('push', seedPath, buildUnderlayNode(router, seedPath));
+
+		return router.history.subscribe(({ location: nextLocation, action }) => {
+			const stackAction =
+				action.type === 'REPLACE' ? 'replace' : action.type === 'BACK' ? 'pop' : 'push';
+			stackRef.current.apply(
+				stackAction,
+				nextLocation.pathname,
+				buildUnderlayNode(router, nextLocation.pathname),
+			);
+		});
+	}, [router]);
 
 	useEffect(() => predictiveBackController.subscribe(setPbState), []);
 
@@ -55,12 +70,12 @@ export function RouteStage({ children }: RouteStageProps) {
 	}, [location.pathname]);
 
 	// Finalizes a committed gesture once the navigation actually lands. router.history.back()
-	// is asynchronous -- hiding the underlay and resetting the top layer's transform in the same
+	// is asynchronous — hiding the underlay and resetting the top layer's transform in the same
 	// tick as calling it would do so while the outgoing screen is still rendered, visibly
 	// animating it snapping back into view before the real destination lands. Waiting for
 	// location.pathname to actually change first means the reset happens once the destination is
 	// already showing, so there's nothing to visibly animate between the underlay and real
-	// content -- both already show the same thing in the same place.
+	// content — both already show the same thing in the same place.
 	useEffect(() => {
 		if (!pendingCommitRef.current) return;
 		pendingCommitRef.current = false;

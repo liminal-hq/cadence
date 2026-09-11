@@ -1,6 +1,4 @@
-// Path-keyed cache of previously-rendered screens, ported from Threshold's
-// ScreenStack. Deliberately unbounded (not capped at depth 2) so a
-// Home -> A -> B -> back-to-A -> back sequence still correctly reveals Home.
+// Path-keyed stack of previously-rendered screens, mirroring real browser-history transitions
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -12,26 +10,31 @@ export interface ScreenStackEntry {
 	node: ReactNode;
 }
 
+export type ScreenStackAction = 'push' | 'pop' | 'replace';
+
+/**
+ * Mirrors `router.history`'s own PUSH/POP/REPLACE actions exactly, rather than guessing a
+ * transition's shape from path identity: an earlier version treated "does this path already
+ * exist deeper in the stack?" as "the user went back to it," truncating there -- but a plain
+ * `<Link to="/settings">` back button pushes a genuinely new history entry even when `/settings`
+ * was already visited, so that guess diverges from what `router.history.back()` actually returns
+ * to the moment any in-app link points at an already-visited path. Driving this off the real
+ * action type keeps the stack and the browser's own history in lockstep by construction.
+ */
 export class ScreenStack {
 	private entries: ScreenStackEntry[] = [];
 
-	/**
-	 * Refreshes the top entry in place if `path` is already current; promotes
-	 * and truncates if `path` exists deeper in the stack (a non-linear "leaf"
-	 * navigation, e.g. tapping back into a screen reached a different way);
-	 * otherwise pushes a new entry.
-	 */
-	setCurrent(path: string, node: ReactNode): void {
-		const index = this.entries.findIndex((entry) => entry.path === path);
-
-		if (index === this.entries.length - 1) {
-			if (index !== -1) this.entries[index] = { path, node };
-			else this.entries.push({ path, node });
+	apply(action: ScreenStackAction, path: string, node: ReactNode): void {
+		if (action === 'pop') {
+			// Never pop the last entry -- there's nowhere further back to go, and an unexpected
+			// extra BACK action (e.g. from outside the app's own tracked history) shouldn't leave
+			// the stack empty.
+			if (this.entries.length > 1) this.entries.pop();
 			return;
 		}
 
-		if (index !== -1) {
-			this.entries = [...this.entries.slice(0, index), { path, node }];
+		if (action === 'replace' && this.entries.length > 0) {
+			this.entries[this.entries.length - 1] = { path, node };
 			return;
 		}
 
