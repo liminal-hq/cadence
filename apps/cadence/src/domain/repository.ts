@@ -1,7 +1,6 @@
-// The logging flow's data-access boundary. Every method is async, even
-// though the mock implementation resolves immediately, so a future
-// Tauri `invoke()`-backed implementation is a drop-in swap with no
-// call-site changes.
+// The logging flow's data-access boundary. Every method is async, even though the mock
+// implementation resolves immediately, so a real Tauri `invoke()`-backed implementation
+// (tauriRepository.ts) is a drop-in swap with no call-site changes.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
