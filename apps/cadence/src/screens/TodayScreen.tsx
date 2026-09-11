@@ -1,7 +1,6 @@
-// Today — the operational home of Cadence (SPEC.md section 8.1). "It opens to the active
-// workout when one exists" — this screen redirects there the moment it finds one, rather than
-// rendering its own summary card, since SPEC.md 8.1 explicitly allows a lightweight "Start
-// workout" action in place of a fuller Quick-start surface.
+// Today — the operational home of Cadence (SPEC.md section 8.1). The app always launches here,
+// tabs visible, even with a workout already in progress — Today surfaces a "Continue workout"
+// action rather than auto-navigating away, so opening the app never lands on a tab-less screen.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -32,20 +31,28 @@ export function TodayScreen() {
 		};
 	}, [repository]);
 
-	useEffect(() => {
-		if (todayWorkoutId) {
-			navigate({ to: '/workout/$workoutId', params: { workoutId: todayWorkoutId }, replace: true });
-		}
-	}, [todayWorkoutId, navigate]);
-
-	if (todayWorkoutId === undefined || todayWorkoutId) return null;
+	if (todayWorkoutId === undefined) return null;
 
 	async function handleStartWorkout() {
 		const created = await repository.createWorkout(todayLocalDate(), '');
 		navigate({ to: '/workout/$workoutId', params: { workoutId: created.id } });
 	}
 
-	return (
+	function handleContinueWorkout() {
+		navigate({ to: '/workout/$workoutId', params: { workoutId: todayWorkoutId as string } });
+	}
+
+	return todayWorkoutId ? (
+		<EmptyState
+			headline="Workout in progress"
+			body="Pick up where you left off."
+			action={
+				<Button variant="filled" onClick={handleContinueWorkout}>
+					Continue workout
+				</Button>
+			}
+		/>
+	) : (
 		<EmptyState
 			headline="No workout yet today"
 			body="A workout is created the moment you log a set, or you can start one now."

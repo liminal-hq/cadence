@@ -206,11 +206,11 @@ On phones, these destinations should use bottom navigation where appropriate. On
 
 First run must make the core promise clear without requiring registration. The user chooses unit defaults, can set a default rest duration, and may import FitNotes data or continue into an empty journal. Appearance, notifications, watch setup, health permissions, and detailed preferences remain skippable and revisitable.
 
-Returning users bypass onboarding. After process death, reboot, update, or restore, Cadence opens to the most useful safe state: an active workout if one remains active, otherwise Today. An interrupted draft is recoverable, but an unsaved draft must never be mistaken for a completed set.
+Returning users bypass onboarding. After process death, reboot, update, or restore, Cadence opens to Today, tabs visible; an interrupted draft is recoverable from there in one action rather than being the launch destination itself. An unsaved draft must never be mistaken for a completed set.
 
 ### 8.1 Today and workout lifecycle
 
-Today is the operational home of Cadence. It opens to the active workout when one exists; otherwise it shows the current date, a clear quick-start action, favourites/recent exercises, and routine entry points.
+Today is the operational home of Cadence, and Cadence always launches here. When a workout is already active, Today surfaces a "Continue workout" action in place of quick-start; otherwise it shows the current date, a clear quick-start action, favourites/recent exercises, and routine entry points.
 
 Users can:
 
