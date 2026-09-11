@@ -26,6 +26,7 @@ The UI design work itself is done: a Claude Design handoff (Foundations canvas +
 
 - `bun install` — install workspace dependencies.
 - `bun run --filter @liminal-hq/cadence tauri dev` (or `cd apps/cadence && bun run tauri dev`) — launch the desktop app.
+- `cd apps/cadence && bun run tauri:dev` — the same, but merging `src-tauri/tauri.conf.dev.json`'s `withGlobalTauri: true`, required for the Tauri MCP tooling's webview JS execution (`webview_execute_js`, `webview_screenshot`, etc.) to work at all; plain `tauri dev` leaves `window.__TAURI__` unexposed and every such call times out.
 - `bun run build` — typecheck and build the frontend.
 - `bun run test:js` — run the frontend test suite (`bun run test:js:ci` for the junit-reporting CI variant).
 - `bun run format` / `bun run format:check` — Prettier.
