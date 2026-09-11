@@ -15,7 +15,8 @@ pub fn run() {
     // (so they're still there while developing) and disables everything in release builds.
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
-        .plugin(tauri_plugin_prevent_default::debug());
+        .plugin(tauri_plugin_prevent_default::debug())
+        .plugin(tauri_plugin_predictive_back::init());
 
     #[cfg(desktop)]
     {

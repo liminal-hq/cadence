@@ -34,4 +34,7 @@
             android:resource="@xml/file_paths" />
         </provider>
     </application>
+    <!-- tauri-plugin-predictive-back.permissions. AUTO-GENERATED. DO NOT REMOVE. -->
+    
+    <!-- tauri-plugin-predictive-back.permissions. AUTO-GENERATED. DO NOT REMOVE. -->
 </manifest>
