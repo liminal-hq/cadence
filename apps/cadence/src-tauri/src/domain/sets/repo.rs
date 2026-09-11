@@ -303,16 +303,58 @@ mod tests {
     use super::*;
     use crate::db::init_test_pool;
 
+    const SPOTTER_NOTE: &str = "Spotter touched the bar on rep 9 — count it as 8 clean. Grip felt \
+         narrow, try one finger wider next";
+
+    /// A fresh bench-press workout-exercise with the same four-set shape the old seed fixture
+    /// had: two completed sets (the second carrying a note) in order, then two planned ones.
+    async fn seed_four_bench_press_sets(conn: &mut SqliteConnection) -> (String, Vec<SetEntry>) {
+        let workout = crate::domain::workouts::repo::create(conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let we =
+            crate::domain::workouts::workout_exercises::add(conn, &workout.id, "ex-bench-press")
+                .await
+                .unwrap();
+        log_new(
+            conn,
+            &we.id,
+            &SetValues {
+                weight_kg: Some(80.0),
+                reps: Some(8),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let second = log_new(
+            conn,
+            &we.id,
+            &SetValues {
+                weight_kg: Some(80.0),
+                reps: Some(9),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        update_note(conn, &second.id, Some(SPOTTER_NOTE))
+            .await
+            .unwrap();
+        add(conn, &we.id).await.unwrap();
+        add(conn, &we.id).await.unwrap();
+        let sets = list(conn, &we.id).await.unwrap();
+        (we.id, sets)
+    }
+
     #[tokio::test]
     async fn lists_sets_in_order_with_units_converted() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let sets = list(&mut conn, "we-bench-press").await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
         assert_eq!(sets.len(), 4);
         assert_eq!(sets[0].weight_kg, Some(80.0));
-        assert_eq!(sets[1].note.as_deref(), Some(
-            "Spotter touched the bar on rep 9 — count it as 8 clean. Grip felt narrow, try one finger wider next"
-        ));
+        assert_eq!(sets[1].note.as_deref(), Some(SPOTTER_NOTE));
         assert!(sets[1].completed_at.is_some());
     }
 
@@ -320,7 +362,25 @@ mod tests {
     async fn distance_duration_sets_round_trip_correctly() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let sets = list(&mut conn, "we-2026-09-04-run").await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-04", "Push A")
+            .await
+            .unwrap();
+        let we =
+            crate::domain::workouts::workout_exercises::add(&mut conn, &workout.id, "ex-running")
+                .await
+                .unwrap();
+        log_new(
+            &mut conn,
+            &we.id,
+            &SetValues {
+                distance_km: Some(5.0),
+                duration_sec: Some(1680),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        let sets = list(&mut conn, &we.id).await.unwrap();
         assert_eq!(sets[0].distance_km, Some(5.0));
         assert_eq!(sets[0].duration_sec, Some(1680));
     }
@@ -329,7 +389,8 @@ mod tests {
     async fn completes_a_planned_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let completed = complete(&mut conn, "set-bp-3").await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        let completed = complete(&mut conn, &sets[2].id).await.unwrap();
         assert_eq!(completed.status, "completed");
         assert!(completed.completed_at.is_some());
     }
@@ -346,7 +407,8 @@ mod tests {
     async fn save_updates_an_existing_set_in_place() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let mut set = get(&mut conn, "set-bp-3").await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        let mut set = get(&mut conn, &sets[2].id).await.unwrap();
         set.weight_kg = Some(85.0);
         set.reps = Some(6);
         let saved = save(&mut conn, &set).await.unwrap();
@@ -360,7 +422,9 @@ mod tests {
         let mut conn = pool.acquire().await.unwrap();
         let phantom = SetEntry {
             id: "no-such-set".to_string(),
-            workout_exercise_id: "we-bench-press".to_string(),
+            // Never actually looked up — save() fails on the UPDATE affecting zero rows, not any
+            // FK check against this field.
+            workout_exercise_id: "no-such-workout-exercise".to_string(),
             order: 1,
             status: "planned".to_string(),
             weight_kg: None,
@@ -380,10 +444,13 @@ mod tests {
     async fn add_repeats_the_last_siblings_values_as_a_planned_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let added = add(&mut conn, "we-bench-press").await.unwrap();
+        let (we_id, sets) = seed_four_bench_press_sets(&mut conn).await;
+        let added = add(&mut conn, &we_id).await.unwrap();
         assert_eq!(added.status, "planned");
-        assert_eq!(added.weight_kg, Some(80.0));
-        assert_eq!(added.reps, Some(8));
+        // Repeats the last sibling's (sets[3], a planned set that itself repeated sets[1]'s
+        // 80kg/9reps) values.
+        assert_eq!(added.weight_kg, sets[3].weight_kg);
+        assert_eq!(added.reps, sets[3].reps);
         assert_eq!(added.order, 5);
     }
 
@@ -391,8 +458,18 @@ mod tests {
     async fn add_with_no_siblings_creates_an_empty_planned_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let added = add(&mut conn, "we-goblet-squat").await.unwrap();
-        assert_eq!(added.order, 2);
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &workout.id,
+            "ex-goblet-squat",
+        )
+        .await
+        .unwrap();
+        let added = add(&mut conn, &we.id).await.unwrap();
+        assert_eq!(added.order, 1);
         assert_eq!(added.weight_kg, None);
     }
 
@@ -400,12 +477,22 @@ mod tests {
     async fn log_new_creates_an_already_completed_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &workout.id,
+            "ex-bench-press",
+        )
+        .await
+        .unwrap();
         let values = SetValues {
             weight_kg: Some(82.5),
             reps: Some(6),
             ..Default::default()
         };
-        let logged = log_new(&mut conn, "we-bench-press", &values).await.unwrap();
+        let logged = log_new(&mut conn, &we.id, &values).await.unwrap();
         assert_eq!(logged.status, "completed");
         assert!(logged.completed_at.is_some());
         assert_eq!(logged.weight_kg, Some(82.5));
@@ -415,23 +502,25 @@ mod tests {
     async fn duplicate_resets_completion_and_sync_state_but_keeps_the_note() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let duplicated = duplicate(&mut conn, "set-bp-2").await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        let duplicated = duplicate(&mut conn, &sets[1].id).await.unwrap();
         assert_eq!(duplicated.status, "planned");
         assert_eq!(duplicated.completed_at, None);
         assert!(!duplicated.pending_sync);
         assert_eq!(duplicated.weight_kg, Some(80.0));
         assert_eq!(duplicated.reps, Some(9));
         assert!(duplicated.note.is_some());
-        assert_ne!(duplicated.id, "set-bp-2");
+        assert_ne!(duplicated.id, sets[1].id);
     }
 
     #[tokio::test]
     async fn deletes_a_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        delete(&mut conn, "set-bp-4").await.unwrap();
-        let remaining = list(&mut conn, "we-bench-press").await.unwrap();
-        assert!(!remaining.iter().any(|s| s.id == "set-bp-4"));
+        let (we_id, sets) = seed_four_bench_press_sets(&mut conn).await;
+        delete(&mut conn, &sets[3].id).await.unwrap();
+        let remaining = list(&mut conn, &we_id).await.unwrap();
+        assert!(!remaining.iter().any(|s| s.id == sets[3].id));
     }
 
     #[tokio::test]
@@ -445,10 +534,12 @@ mod tests {
     async fn delete_records_a_tombstone_for_future_sync() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        delete(&mut conn, "set-bp-4").await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        delete(&mut conn, &sets[3].id).await.unwrap();
         let (revision,): (i64,) = sqlx::query_as(
-            "SELECT revision FROM tombstones WHERE entity_type = 'set' AND entity_id = 'set-bp-4'",
+            "SELECT revision FROM tombstones WHERE entity_type = 'set' AND entity_id = ?",
         )
+        .bind(&sets[3].id)
         .fetch_one(&mut *conn)
         .await
         .unwrap();
@@ -459,10 +550,11 @@ mod tests {
     async fn add_extends_past_the_highest_order_even_after_a_middle_set_was_deleted() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        // we-bench-press has sets at order 1..4; deleting order 2 leaves a gap COUNT-based math
-        // would collide on (COUNT=3, +1=4 — already taken by the surviving order-4 set).
-        delete(&mut conn, "set-bp-2").await.unwrap();
-        let added = add(&mut conn, "we-bench-press").await.unwrap();
+        // Four sets at order 1..4; deleting order 2 leaves a gap COUNT-based math would collide
+        // on (COUNT=3, +1=4 — already taken by the surviving order-4 set).
+        let (we_id, sets) = seed_four_bench_press_sets(&mut conn).await;
+        delete(&mut conn, &sets[1].id).await.unwrap();
+        let added = add(&mut conn, &we_id).await.unwrap();
         assert_eq!(added.order, 5);
     }
 
@@ -470,11 +562,12 @@ mod tests {
     async fn updates_and_clears_a_set_note() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let updated = update_note(&mut conn, "set-bp-1", Some("Felt easy"))
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        let updated = update_note(&mut conn, &sets[0].id, Some("Felt easy"))
             .await
             .unwrap();
         assert_eq!(updated.note.as_deref(), Some("Felt easy"));
-        let cleared = update_note(&mut conn, "set-bp-1", None).await.unwrap();
+        let cleared = update_note(&mut conn, &sets[0].id, None).await.unwrap();
         assert_eq!(cleared.note, None);
     }
 

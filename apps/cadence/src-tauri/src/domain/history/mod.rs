@@ -89,20 +89,69 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
 mod tests {
     use super::*;
     use crate::db::init_test_pool;
+    use crate::domain::sets::models::SetValues;
+    use crate::domain::{sets, workouts};
+
+    /// One completed workout (an exercise with two sets) and one in-progress "survivor" workout
+    /// (an exercise with one set) — the two-workout shape `delete_all`'s scope tests need.
+    /// Returns (completed_workout_id, completed_set_ids, survivor_workout_exercise_id).
+    async fn seed_completed_and_in_progress_workouts(
+        conn: &mut SqliteConnection,
+    ) -> (String, Vec<String>, String) {
+        let completed = workouts::repo::create(conn, "2026-09-04", "Push A")
+            .await
+            .unwrap();
+        let completed_we = workouts::workout_exercises::add(conn, &completed.id, "ex-bench-press")
+            .await
+            .unwrap();
+        let mut set_ids = Vec::new();
+        for _ in 0..2 {
+            let set = sets::repo::log_new(
+                conn,
+                &completed_we.id,
+                &SetValues {
+                    weight_kg: Some(80.0),
+                    reps: Some(8),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+            set_ids.push(set.id);
+        }
+        sqlx::query("UPDATE workouts SET status = 'completed' WHERE id = ?")
+            .bind(&completed.id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+
+        let survivor = workouts::repo::create(conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let survivor_we = workouts::workout_exercises::add(conn, &survivor.id, "ex-running")
+            .await
+            .unwrap();
+        sets::repo::add(conn, &survivor_we.id).await.unwrap();
+
+        (completed.id, set_ids, survivor_we.id)
+    }
 
     #[tokio::test]
-    async fn summarizes_the_seeded_completed_workouts_and_sets() {
+    async fn summarizes_completed_workouts_and_sets() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        seed_completed_and_in_progress_workouts(&mut conn).await;
         let summary = get_summary(&mut conn).await.unwrap();
-        assert_eq!(summary.workout_count, 12);
-        assert_eq!(summary.set_count, 49);
+        assert_eq!(summary.workout_count, 1);
+        assert_eq!(summary.set_count, 2);
     }
 
     #[tokio::test]
     async fn delete_all_clears_completed_history_but_keeps_in_progress_workouts() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        let (completed_id, _, survivor_we_id) =
+            seed_completed_and_in_progress_workouts(&mut conn).await;
         delete_all(&mut conn).await.unwrap();
 
         let summary = get_summary(&mut conn).await.unwrap();
@@ -114,36 +163,30 @@ mod tests {
             }
         );
 
-        // The routine scaffold survives, sets included — Today and Logging still resolve these
-        // by id, and today's already-logged sets aren't history yet either.
+        // The in-progress workout's own exercise and sets survive — Today and Logging still
+        // resolve these by id, and an in-progress workout's sets aren't history yet either.
         let (we_count,): (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM workout_exercises WHERE id = 'we-bench-press'")
+            sqlx::query_as("SELECT COUNT(*) FROM workout_exercises WHERE id = ?")
+                .bind(&survivor_we_id)
                 .fetch_one(&mut *conn)
                 .await
                 .unwrap();
         assert_eq!(we_count, 1);
-        let (set_count,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM sets WHERE workout_exercise_id = 'we-bench-press'",
-        )
-        .fetch_one(&mut *conn)
-        .await
-        .unwrap();
-        assert!(set_count > 0);
-
-        // A completed workout and its workout_exercise are gone.
-        let (workout_count,): (i64,) =
-            sqlx::query_as("SELECT COUNT(*) FROM workouts WHERE id = 'workout-2026-09-04'")
+        let (set_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM sets WHERE workout_exercise_id = ?")
+                .bind(&survivor_we_id)
                 .fetch_one(&mut *conn)
                 .await
                 .unwrap();
+        assert!(set_count > 0);
+
+        // The completed workout and its workout_exercise are gone.
+        let (workout_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM workouts WHERE id = ?")
+            .bind(&completed_id)
+            .fetch_one(&mut *conn)
+            .await
+            .unwrap();
         assert_eq!(workout_count, 0);
-        let (we_2026_09_04,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM workout_exercises WHERE id = 'we-2026-09-04-bench'",
-        )
-        .fetch_one(&mut *conn)
-        .await
-        .unwrap();
-        assert_eq!(we_2026_09_04, 0);
 
         // Exercises, barbells, and settings are untouched.
         let (exercise_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM exercises")
@@ -162,17 +205,20 @@ mod tests {
     async fn delete_all_writes_tombstones_for_everything_it_removes() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        let (completed_id, set_ids, _) = seed_completed_and_in_progress_workouts(&mut conn).await;
         delete_all(&mut conn).await.unwrap();
         let (tombstoned_workout,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM tombstones WHERE entity_type = 'workout' AND entity_id = 'workout-2026-09-04'",
+            "SELECT COUNT(*) FROM tombstones WHERE entity_type = 'workout' AND entity_id = ?",
         )
+        .bind(&completed_id)
         .fetch_one(&mut *conn)
         .await
         .unwrap();
         assert_eq!(tombstoned_workout, 1);
         let (tombstoned_set,): (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM tombstones WHERE entity_type = 'set' AND entity_id = 'set-2026-09-04-bench-1'",
+            "SELECT COUNT(*) FROM tombstones WHERE entity_type = 'set' AND entity_id = ?",
         )
+        .bind(&set_ids[0])
         .fetch_one(&mut *conn)
         .await
         .unwrap();
@@ -183,6 +229,7 @@ mod tests {
     async fn delete_all_stamps_a_distinct_revision_per_tombstoned_row() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        seed_completed_and_in_progress_workouts(&mut conn).await;
         delete_all(&mut conn).await.unwrap();
         let (distinct_revisions,): (i64,) =
             sqlx::query_as("SELECT COUNT(DISTINCT revision) FROM tombstones")

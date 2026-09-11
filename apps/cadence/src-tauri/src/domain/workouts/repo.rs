@@ -174,7 +174,8 @@ mod tests {
     async fn gets_a_manual_workout() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let workout = get(&mut conn, "workout-push-a").await.unwrap();
+        let created = create(&mut conn, "2026-09-09", "Push A").await.unwrap();
+        let workout = get(&mut conn, &created.id).await.unwrap();
         assert_eq!(workout.title, "Push A");
         assert_eq!(workout.date, "2026-09-09");
         assert_eq!(workout.status, "in-progress");
@@ -182,24 +183,46 @@ mod tests {
         assert!(workout.health_connect.is_none());
     }
 
+    /// `create()` never sets Health Connect provenance — that's an import-only path with no
+    /// command surface yet, so this inserts the row directly to exercise `get`'s HC projection.
+    async fn insert_health_connect_workout(
+        conn: &mut SqliteConnection,
+        id: &str,
+        overlaps_with: Option<&str>,
+    ) {
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             hc_source_app, hc_record_id, hc_imported_at_ms, hc_unmapped_metrics, \
+             hc_overlaps_workout_id, created_at_ms, updated_at_ms, revision) \
+             VALUES (?, '2026-08-27', 'Morning Run', 'completed', 'health-connect-import', 0, \
+             'Google Fit', 'gfit-run-2026-08-27', 0, '[\"Average heart rate: 142 bpm\"]', ?, 0, 0, 1)",
+        )
+        .bind(id)
+        .bind(overlaps_with)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+    }
+
     #[tokio::test]
     async fn gets_a_health_connect_imported_workout_with_full_provenance() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let workout = get(&mut conn, "workout-2026-08-27-hc").await.unwrap();
+        // hc_overlaps_workout_id has a real FK to workouts(id) — the overlapped workout must
+        // actually exist.
+        let strength = create(&mut conn, "2026-08-27", "Push A").await.unwrap();
+        insert_health_connect_workout(&mut conn, "workout-hc", Some(&strength.id)).await;
+        let workout = get(&mut conn, "workout-hc").await.unwrap();
         let hc = workout
             .health_connect
-            .expect("seeded with health connect provenance");
+            .expect("inserted with health connect provenance");
         assert_eq!(hc.source_app, "Google Fit");
         assert_eq!(hc.record_id, "gfit-run-2026-08-27");
         assert_eq!(
             hc.unmapped_metrics,
             Some(vec!["Average heart rate: 142 bpm".to_string()])
         );
-        assert_eq!(
-            hc.overlaps_with_workout_id,
-            Some("workout-2026-08-27-strength".to_string())
-        );
+        assert_eq!(hc.overlaps_with_workout_id, Some(strength.id));
         // No start/end timestamps reported by the source app.
         assert_eq!(workout.started_at, None);
     }
@@ -208,13 +231,15 @@ mod tests {
     async fn drops_health_connect_provenance_when_the_row_is_only_partially_populated() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-09", "Push A").await.unwrap();
         // hc_source_app set without a matching record_id/imported_at — shouldn't happen via any
         // real write path, but a corrupt row here must not surface a half-populated badge.
-        sqlx::query("UPDATE workouts SET hc_source_app = 'Google Fit' WHERE id = 'workout-push-a'")
+        sqlx::query("UPDATE workouts SET hc_source_app = 'Google Fit' WHERE id = ?")
+            .bind(&created.id)
             .execute(&mut *conn)
             .await
             .unwrap();
-        let workout = get(&mut conn, "workout-push-a").await.unwrap();
+        let workout = get(&mut conn, &created.id).await.unwrap();
         assert_eq!(workout.health_connect, None);
     }
 
@@ -236,19 +261,21 @@ mod tests {
     async fn lists_workouts_within_an_inclusive_date_range_ordered_by_date() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        let inside_start = create(&mut conn, "2026-08-07", "Superset A").await.unwrap();
+        let inside_end = create(&mut conn, "2026-08-29", "Push A").await.unwrap();
+        create(&mut conn, "2026-07-31", "Before the range")
+            .await
+            .unwrap();
+        create(&mut conn, "2026-09-01", "After the range")
+            .await
+            .unwrap();
+
         let workouts = list_in_range(&mut conn, "2026-08-01", "2026-08-31")
             .await
             .unwrap();
         assert_eq!(
             workouts.iter().map(|w| w.id.as_str()).collect::<Vec<_>>(),
-            vec![
-                "workout-2026-08-07",
-                "workout-2026-08-14",
-                "workout-2026-08-19",
-                "workout-2026-08-27-hc",
-                "workout-2026-08-27-strength",
-                "workout-2026-08-29",
-            ]
+            vec![inside_start.id.as_str(), inside_end.id.as_str()]
         );
     }
 
@@ -256,14 +283,13 @@ mod tests {
     async fn updates_a_workout_note() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let updated = update_note(&mut conn, "workout-2026-09-04", Some("Felt strong today"))
+        let created = create(&mut conn, "2026-09-04", "Push A").await.unwrap();
+        let updated = update_note(&mut conn, &created.id, Some("Felt strong today"))
             .await
             .unwrap();
         assert_eq!(updated.note.as_deref(), Some("Felt strong today"));
 
-        let cleared = update_note(&mut conn, "workout-2026-09-04", None)
-            .await
-            .unwrap();
+        let cleared = update_note(&mut conn, &created.id, None).await.unwrap();
         assert_eq!(cleared.note, None);
     }
 

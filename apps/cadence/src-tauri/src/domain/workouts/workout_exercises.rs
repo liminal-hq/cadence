@@ -202,8 +202,15 @@ mod tests {
     async fn gets_a_workout_exercise_with_a_computed_label_and_projected_technical_note() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let we = get(&mut conn, "we-2026-09-04-bench").await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-04", "Push A")
+            .await
+            .unwrap();
+        let bench = add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+        add(&mut conn, &workout.id, "ex-running").await.unwrap();
+        let we = get(&mut conn, &bench.id).await.unwrap();
         assert_eq!(we.workout_label, "Push A · 1 of 2");
+        // ex-bench-press's technical note is seeded onto the exercise itself (0002), not this
+        // workout-exercise, so it's present regardless of which workout the exercise appears in.
         assert_eq!(
             we.technical_note.as_deref(),
             Some("Pause at chest · pinky on ring · feet back")
@@ -212,11 +219,58 @@ mod tests {
         assert_eq!(we.superset_size, None);
     }
 
+    /// `add()` never sets superset membership — that's the Coordinator's job when superset
+    /// management ships — so this wires the FK up directly to exercise `get`'s superset-size
+    /// projection.
+    async fn add_to_superset(conn: &mut SqliteConnection, workout_id: &str, superset_id: &str) {
+        sqlx::query(
+            "INSERT INTO supersets (id, workout_id, created_at_ms, updated_at_ms, revision) \
+             VALUES (?, ?, 0, 0, 1)",
+        )
+        .bind(superset_id)
+        .bind(workout_id)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+    }
+
     #[tokio::test]
     async fn reports_superset_size_from_actual_group_membership() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let we = get(&mut conn, "we-lateral-raise").await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Superset A")
+            .await
+            .unwrap();
+        add_to_superset(&mut conn, &workout.id, "ss-1").await;
+        let lateral_raise = add(&mut conn, &workout.id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let triceps_pushdown = add(&mut conn, &workout.id, "ex-triceps-pushdown")
+            .await
+            .unwrap();
+        let now = chrono::Utc::now().timestamp_millis();
+        sqlx::query(
+            "UPDATE workout_exercises SET superset_id = ?, superset_position = ?, \
+             offline_since_ms = ? WHERE id = ?",
+        )
+        .bind("ss-1")
+        .bind(1)
+        .bind(now)
+        .bind(&lateral_raise.id)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+        sqlx::query(
+            "UPDATE workout_exercises SET superset_id = ?, superset_position = ? WHERE id = ?",
+        )
+        .bind("ss-1")
+        .bind(2)
+        .bind(&triceps_pushdown.id)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+
+        let we = get(&mut conn, &lateral_raise.id).await.unwrap();
         assert_eq!(we.superset_group_id.as_deref(), Some("ss-1"));
         assert_eq!(we.superset_size, Some(2));
         assert!(we.offline_since.is_some());
@@ -240,10 +294,15 @@ mod tests {
     async fn lists_siblings_in_order_by_workout() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let sibs = list_by_workout(&mut conn, "workout-push-a").await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let bench = add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+        let running = add(&mut conn, &workout.id, "ex-running").await.unwrap();
+        let sibs = list_by_workout(&mut conn, &workout.id).await.unwrap();
         assert_eq!(
             sibs.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
-            vec!["we-bench-press", "we-running"]
+            vec![bench.id.as_str(), running.id.as_str()]
         );
     }
 
@@ -251,8 +310,14 @@ mod tests {
     async fn lists_every_occurrence_of_an_exercise_across_workouts() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
+        for date in ["2026-09-04", "2026-09-09", "2026-09-12"] {
+            let workout = crate::domain::workouts::repo::create(&mut conn, date, "Push A")
+                .await
+                .unwrap();
+            add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+        }
         let occurrences = list_by_exercise(&mut conn, "ex-bench-press").await.unwrap();
-        assert_eq!(occurrences.len(), 9);
+        assert_eq!(occurrences.len(), 3);
         assert!(occurrences
             .iter()
             .all(|o| o.exercise_id == "ex-bench-press"));
@@ -262,11 +327,15 @@ mod tests {
     async fn updates_and_clears_the_today_note() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let updated = update_today_note(&mut conn, "we-running", Some("Legs felt heavy"))
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let running = add(&mut conn, &workout.id, "ex-running").await.unwrap();
+        let updated = update_today_note(&mut conn, &running.id, Some("Legs felt heavy"))
             .await
             .unwrap();
         assert_eq!(updated.today_note.as_deref(), Some("Legs felt heavy"));
-        let cleared = update_today_note(&mut conn, "we-running", None)
+        let cleared = update_today_note(&mut conn, &running.id, None)
             .await
             .unwrap();
         assert_eq!(cleared.today_note, None);
@@ -286,13 +355,17 @@ mod tests {
     async fn add_appends_at_the_end_of_the_workouts_existing_order() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        // workout-push-a already has we-bench-press (order 1) and we-running (order 2).
-        let added = add(&mut conn, "workout-push-a", "ex-goblet-squat")
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+        add(&mut conn, &workout.id, "ex-running").await.unwrap();
+        let added = add(&mut conn, &workout.id, "ex-goblet-squat")
             .await
             .unwrap();
         assert_eq!(added.order, 3);
         assert_eq!(added.exercise_id, "ex-goblet-squat");
-        assert_eq!(added.workout_id, "workout-push-a");
+        assert_eq!(added.workout_id, workout.id);
     }
 
     #[tokio::test]
@@ -310,7 +383,10 @@ mod tests {
     async fn deletes_a_workout_exercise_and_records_a_tombstone() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let added = add(&mut conn, "workout-push-a", "ex-goblet-squat")
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-09-09", "Push A")
+            .await
+            .unwrap();
+        let added = add(&mut conn, &workout.id, "ex-goblet-squat")
             .await
             .unwrap();
         delete(&mut conn, &added.id).await.unwrap();

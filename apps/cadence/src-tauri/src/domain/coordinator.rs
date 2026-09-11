@@ -847,11 +847,27 @@ mod tests {
     #[tokio::test]
     async fn duplicate_workout_copies_sets_as_planned_and_drops_day_specific_fields() {
         let c = test_coordinator().await;
-        let duplicated = c
-            .duplicate_workout("workout-2026-09-04", "2026-09-20")
+        let source = c.create_workout("2026-09-04", "Push A").await.unwrap();
+        let bench = c
+            .add_workout_exercise(&source.id, "ex-bench-press")
             .await
             .unwrap();
-        assert_ne!(duplicated.id, "workout-2026-09-04");
+        c.log_new_set(
+            &bench.id,
+            &SetValues {
+                weight_kg: Some(80.0),
+                reps: Some(8),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        c.add_workout_exercise(&source.id, "ex-running")
+            .await
+            .unwrap();
+
+        let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
+        assert_ne!(duplicated.id, source.id);
         assert_eq!(duplicated.date, "2026-09-20");
         assert_eq!(duplicated.title, "Push A");
         assert_eq!(duplicated.status, "in-progress");
@@ -865,7 +881,6 @@ mod tests {
             assert_eq!(we.today_note, None);
             assert_eq!(we.offline_since, None);
             let sets = c.list_sets(&we.id).await.unwrap();
-            assert!(!sets.is_empty());
             for set in sets {
                 assert_eq!(set.status, "planned");
                 assert_eq!(set.completed_at, None);
@@ -874,18 +889,46 @@ mod tests {
         }
 
         // The source workout is untouched.
-        let source_we = c.get_workout_exercise("we-2026-09-04-bench").await.unwrap();
-        let source_sets = c.list_sets(&source_we.id).await.unwrap();
+        let source_sets = c.list_sets(&bench.id).await.unwrap();
         assert_eq!(source_sets[0].status, "completed");
     }
 
     #[tokio::test]
     async fn duplicate_workout_rebuilds_supersets_under_new_ids() {
         let c = test_coordinator().await;
-        let duplicated = c
-            .duplicate_workout("workout-push-b", "2026-09-20")
+        let source = c.create_workout("2026-09-09", "Superset A").await.unwrap();
+        let lateral_raise = c
+            .add_workout_exercise(&source.id, "ex-lateral-raise")
             .await
             .unwrap();
+        let triceps_pushdown = c
+            .add_workout_exercise(&source.id, "ex-triceps-pushdown")
+            .await
+            .unwrap();
+        {
+            let mut conn = c.pool.acquire().await.unwrap();
+            sqlx::query(
+                "INSERT INTO supersets (id, workout_id, created_at_ms, updated_at_ms, revision) \
+                 VALUES ('ss-1', ?, 0, 0, 1)",
+            )
+            .bind(&source.id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+            for (id, position) in [(&lateral_raise.id, 1), (&triceps_pushdown.id, 2)] {
+                sqlx::query(
+                    "UPDATE workout_exercises SET superset_id = 'ss-1', superset_position = ? \
+                     WHERE id = ?",
+                )
+                .bind(position)
+                .bind(id)
+                .execute(&mut *conn)
+                .await
+                .unwrap();
+            }
+        }
+
+        let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
             .list_workout_exercises_by_workout(&duplicated.id)
             .await

@@ -90,7 +90,7 @@ mod tests {
             total_ms: Some(120_000),
             remaining_ms_at_pause: None,
             owner_device: Some("phone".to_string()),
-            for_set_id: Some("set-bp-1".to_string()),
+            for_set_id: Some("set-1".to_string()),
             next_set_label: None,
         };
         let saved = set(&mut conn, &running).await.unwrap();
