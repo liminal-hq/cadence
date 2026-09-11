@@ -10,6 +10,15 @@ import { RouteStage } from './RouteStage';
 let mockPathname = '/today';
 vi.mock('@tanstack/react-router', () => ({
 	useLocation: () => ({ pathname: mockPathname }),
+	useRouter: () => ({ history: { back: vi.fn() }, matchRoutes: () => [] }),
+}));
+
+vi.mock('../../predictiveBackController', () => ({
+	predictiveBackController: {
+		init: vi.fn().mockResolvedValue(undefined),
+		subscribe: () => () => {},
+		setCanGoBack: vi.fn().mockResolvedValue(undefined),
+	},
 }));
 
 describe('RouteStage', () => {
