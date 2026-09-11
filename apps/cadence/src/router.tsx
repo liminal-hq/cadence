@@ -1,10 +1,12 @@
-// Route tree: a `/today|/history|/plan|/progress` tab layout (AppShell +
-// bottom nav), a sibling `/log/$scenario` route for Exercise logging, and a
-// sibling `/settings/*` tree for the Settings hub and its sub-screens —
-// none of the three share the tab shell, so each renders its own header.
+// Route tree: the `/today|/history|/plan|/progress` tab layout, the real workout/logging routes,
+// the `/log/$scenario` demo adapter, and the `/settings/*` tree — none of the latter share the tab shell
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// `/workout/$workoutId` (ActiveWorkoutScreen) and `/workout-exercise/$workoutExerciseId`
+// (ExerciseLoggingScreen) are the real Quick-start/Workout-detail/Exercise-logging flow;
+// `/log/$scenario` still resolves the three demo scenarios onto that same logging screen.
 
 import { useState } from 'react';
 import {
@@ -24,6 +26,7 @@ import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
+import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
 import { SettingsComingSoon } from './screens/settings/SettingsComingSoon';
 import { UnitsSettingsScreen } from './screens/settings/UnitsSettingsScreen';
@@ -55,8 +58,31 @@ function isScenario(value: string): value is Scenario {
 }
 
 function LoggingRoute() {
-	const { scenario } = logRoute.useParams();
-	return <ExerciseLoggingScreen scenario={isScenario(scenario) ? scenario : 'sam-default'} />;
+	const { scenario: rawScenario } = logRoute.useParams();
+	const scenario = isScenario(rawScenario) ? rawScenario : 'sam-default';
+	return (
+		<ExerciseLoggingScreen
+			workoutExerciseId={SCENARIO_TO_WORKOUT_EXERCISE_ID[scenario]}
+			backTo="/today"
+			selfPath={`/log/${scenario}`}
+			// Sam has a paired watch (SPEC's persona); Priya doesn't, and gets the first-workout
+			// coach mark tour — both demo-only, since neither signal is tracked for a real workout.
+			hasWatch={scenario !== 'priya-first-run'}
+			showCoachMarks={scenario === 'priya-first-run'}
+		/>
+	);
+}
+
+function WorkoutExerciseRoute() {
+	const { workoutExerciseId } = workoutExerciseRoute.useParams();
+	return (
+		<ExerciseLoggingScreen
+			workoutExerciseId={workoutExerciseId}
+			backTo="/today"
+			backToOwnWorkout
+			selfPath={`/workout-exercise/${workoutExerciseId}`}
+		/>
+	);
 }
 
 const rootRoute = createRootRoute({ component: RootLayout });
@@ -100,6 +126,23 @@ const logRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/log/$scenario',
 	component: LoggingRoute,
+});
+
+const workoutExerciseRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/workout-exercise/$workoutExerciseId',
+	component: WorkoutExerciseRoute,
+});
+
+function ActiveWorkoutRoute() {
+	const { workoutId } = activeWorkoutRoute.useParams();
+	return <ActiveWorkoutScreen workoutId={workoutId} />;
+}
+
+const activeWorkoutRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/workout/$workoutId',
+	component: ActiveWorkoutRoute,
 });
 
 function WorkoutDetailRoute() {
@@ -210,6 +253,8 @@ const routeTree = rootRoute.addChildren([
 	indexRoute,
 	tabsLayoutRoute.addChildren([todayRoute, historyRoute, planRoute, progressRoute]),
 	logRoute,
+	workoutExerciseRoute,
+	activeWorkoutRoute,
 	workoutDetailRoute,
 	exerciseDetailRoute,
 	settingsRoute,
