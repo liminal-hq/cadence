@@ -1,5 +1,4 @@
-// Tauri command surface — one thin wrapper per LoggingRepository method, each just resolving
-// the managed Coordinator and delegating. No logic lives here.
+// Thin Tauri command wrappers, one per LoggingRepository method, delegating to the Coordinator
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

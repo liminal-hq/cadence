@@ -4,4 +4,4 @@
  * Mirrors `updateSettings`'s `Partial<Settings>` parameter — every field optional, `None` means
  * "leave unchanged."
  */
-export type SettingsPatch = { weightUnit?: string, defaultRestMs?: bigint, restAutoStart?: boolean, restReplacesRunning?: boolean, vibrateEnabled?: boolean, soundEnabled?: boolean, restFeedbackDevice?: string, workoutTimerAutoStart?: boolean, keepScreenOnDuringWorkout?: boolean, hapticOnSetComplete?: boolean, hapticOnRestEnd?: boolean, reducedMotion?: boolean, notificationsDenied?: boolean, automaticBackupEnabled?: boolean, };
+export type SettingsPatch = { weightUnit?: string, defaultRestMs?: number, restAutoStart?: boolean, restReplacesRunning?: boolean, vibrateEnabled?: boolean, soundEnabled?: boolean, restFeedbackDevice?: string, workoutTimerAutoStart?: boolean, keepScreenOnDuringWorkout?: boolean, hapticOnSetComplete?: boolean, hapticOnRestEnd?: boolean, reducedMotion?: boolean, notificationsDenied?: boolean, automaticBackupEnabled?: boolean, };

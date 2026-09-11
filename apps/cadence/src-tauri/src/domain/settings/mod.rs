@@ -1,4 +1,4 @@
-// Settings domain module: the singleton app-settings row.
+// Settings domain module: the singleton app-settings row
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

@@ -1,4 +1,4 @@
-// The Settings DTO and its update-patch shape, mirroring types.ts field-for-field.
+// The Settings DTO and its update-patch shape, mirroring types.ts field-for-field
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub weight_unit: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub default_rest_ms: i64,
     pub rest_auto_start: bool,
     pub rest_replaces_running: bool,
@@ -35,7 +36,7 @@ pub struct Settings {
 pub struct SettingsPatch {
     #[cfg_attr(test, ts(optional))]
     pub weight_unit: Option<String>,
-    #[cfg_attr(test, ts(optional))]
+    #[cfg_attr(test, ts(optional, type = "number"))]
     pub default_rest_ms: Option<i64>,
     #[cfg_attr(test, ts(optional))]
     pub rest_auto_start: Option<bool>,

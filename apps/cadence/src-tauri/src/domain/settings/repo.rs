@@ -1,4 +1,4 @@
-// Row mapping and persistence for the singleton app-settings row.
+// Row mapping and persistence for the singleton app-settings row
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
