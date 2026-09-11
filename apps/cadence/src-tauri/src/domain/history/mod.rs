@@ -1,5 +1,4 @@
-// History summary and delete-all — cross-entity operations composing workouts/workout_exercises/
-// sets directly, rather than through those modules' own single-entity repo functions.
+// History summary and delete-all, composing workouts/workout_exercises/sets directly
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -14,7 +13,9 @@ use crate::domain::error::Result;
 #[cfg_attr(test, ts(export, export_to = "../../src/domain/generated/"))]
 #[serde(rename_all = "camelCase")]
 pub struct HistorySummary {
+    #[cfg_attr(test, ts(type = "number"))]
     pub workout_count: i64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub set_count: i64,
 }
 
@@ -43,7 +44,6 @@ pub async fn get_summary(conn: &mut SqliteConnection) -> Result<HistorySummary> 
 /// before the cascade runs, since a cascading delete never calls back into application code.
 pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
     let now = chrono::Utc::now().timestamp_millis();
-    let revision = crate::db::next_revision(conn).await?;
 
     let set_ids: Vec<(String,)> = sqlx::query_as(
         "SELECT s.id FROM sets s JOIN workouts w ON w.id = s.workout_id \
@@ -52,6 +52,10 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
     .fetch_all(&mut *conn)
     .await?;
     for (id,) in set_ids {
+        // One revision per row, not one shared for the whole batch — matching every other
+        // mutation path in this crate, so a future revision-cursor sync consumer never has to
+        // treat "hundreds of rows changed in the same tick" as a special case.
+        let revision = crate::db::next_revision(conn).await?;
         crate::db::write_tombstone(conn, "set", &id, revision, now).await?;
     }
 
@@ -62,6 +66,7 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
     .fetch_all(&mut *conn)
     .await?;
     for (id,) in workout_exercise_ids {
+        let revision = crate::db::next_revision(conn).await?;
         crate::db::write_tombstone(conn, "workout_exercise", &id, revision, now).await?;
     }
 
@@ -70,6 +75,7 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
             .fetch_all(&mut *conn)
             .await?;
     for (id,) in workout_ids {
+        let revision = crate::db::next_revision(conn).await?;
         crate::db::write_tombstone(conn, "workout", &id, revision, now).await?;
     }
 
@@ -171,5 +177,23 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(tombstoned_set, 1);
+    }
+
+    #[tokio::test]
+    async fn delete_all_stamps_a_distinct_revision_per_tombstoned_row() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        delete_all(&mut conn).await.unwrap();
+        let (distinct_revisions,): (i64,) =
+            sqlx::query_as("SELECT COUNT(DISTINCT revision) FROM tombstones")
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        let (total_tombstones,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM tombstones")
+            .fetch_one(&mut *conn)
+            .await
+            .unwrap();
+        assert!(total_tombstones > 1);
+        assert_eq!(distinct_revisions, total_tombstones);
     }
 }
