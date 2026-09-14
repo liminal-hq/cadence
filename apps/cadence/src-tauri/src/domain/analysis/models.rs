@@ -32,3 +32,15 @@ pub struct AnalysisSetEntry {
     #[cfg_attr(test, ts(optional))]
     pub duration_sec: Option<i32>,
 }
+
+/// A pinned P-47 breakdown configuration (SPEC.md 8.7: "let users pin recurring breakdowns without changing their underlying workout data"). `config` is an opaque JSON blob the frontend defines and parses — this layer never inspects its shape.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(export, export_to = "../../src/domain/generated/"))]
+#[serde(rename_all = "camelCase")]
+pub struct AnalysisFavourite {
+    pub id: String,
+    pub name: String,
+    pub config: String,
+    pub sort_order: i32,
+}

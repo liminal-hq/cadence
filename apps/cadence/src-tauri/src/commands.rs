@@ -5,7 +5,7 @@
 
 use tauri::State;
 
-use crate::domain::analysis::models::AnalysisSetEntry;
+use crate::domain::analysis::models::{AnalysisFavourite, AnalysisSetEntry};
 use crate::domain::barbells::models::{BarbellConfig, NewBarbellConfig};
 use crate::domain::barbells::plates::PlateCalculationResult;
 use crate::domain::categories::models::Category;
@@ -336,6 +336,56 @@ pub async fn list_analysis_sets(
     end_date: String,
 ) -> Result<Vec<AnalysisSetEntry>, Error> {
     state.list_analysis_sets(&start_date, &end_date).await
+}
+
+#[tauri::command]
+pub async fn get_analysis_favourite(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<AnalysisFavourite, Error> {
+    state.get_analysis_favourite(&id).await
+}
+
+#[tauri::command]
+pub async fn list_analysis_favourites(
+    state: State<'_, Coordinator>,
+) -> Result<Vec<AnalysisFavourite>, Error> {
+    state.list_analysis_favourites().await
+}
+
+#[tauri::command]
+pub async fn create_analysis_favourite(
+    state: State<'_, Coordinator>,
+    name: String,
+    config: String,
+) -> Result<AnalysisFavourite, Error> {
+    state.create_analysis_favourite(&name, &config).await
+}
+
+#[tauri::command]
+pub async fn update_analysis_favourite(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: String,
+    config: String,
+) -> Result<AnalysisFavourite, Error> {
+    state.update_analysis_favourite(&id, &name, &config).await
+}
+
+#[tauri::command]
+pub async fn reorder_analysis_favourites(
+    state: State<'_, Coordinator>,
+    ordered_ids: Vec<String>,
+) -> Result<Vec<AnalysisFavourite>, Error> {
+    state.reorder_analysis_favourites(&ordered_ids).await
+}
+
+#[tauri::command]
+pub async fn delete_analysis_favourite(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_analysis_favourite(&id).await
 }
 
 // ============ workouts / workout-exercises ============

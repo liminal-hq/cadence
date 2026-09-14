@@ -58,3 +58,16 @@
 	font-size: var(--cadence-type-body-m-size);
 	color: var(--cadence-on-surface-variant);
 }
+
+.training-analysis__pin-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3);
+}
+
+.training-analysis__pin-form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--cadence-space-2);
+}

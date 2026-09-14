@@ -22,6 +22,38 @@ export type AnalysisMetric =
 
 export type AnalysisGroupBy = 'category' | 'exercise';
 
+export type AnalysisPeriod = '7d' | '30d' | '90d' | '1y' | 'all';
+
+/** The opaque JSON shape stored in `AnalysisFavourite.config` — this file both writes and reads it, so `AnalysisFavourite`'s backend-side "opaque blob" stays genuinely opaque to everything else. */
+export interface AnalysisFavouriteConfig {
+	period: AnalysisPeriod;
+	metric: AnalysisMetric;
+	groupBy: AnalysisGroupBy;
+}
+
+export function serializeAnalysisFavouriteConfig(config: AnalysisFavouriteConfig): string {
+	return JSON.stringify(config);
+}
+
+/** Returns `undefined` for anything that isn't a well-formed config — a favourite saved by a future version with fields this build doesn't recognize, or corrupted storage — so the caller can skip it rather than crash applying it. */
+export function parseAnalysisFavouriteConfig(raw: string): AnalysisFavouriteConfig | undefined {
+	try {
+		const parsed: unknown = JSON.parse(raw);
+		if (
+			typeof parsed === 'object' &&
+			parsed !== null &&
+			'period' in parsed &&
+			'metric' in parsed &&
+			'groupBy' in parsed
+		) {
+			return parsed as AnalysisFavouriteConfig;
+		}
+		return undefined;
+	} catch {
+		return undefined;
+	}
+}
+
 export const WEIGHT_REPS_METRICS: AnalysisMetric[] = [
 	'frequency',
 	'sets',

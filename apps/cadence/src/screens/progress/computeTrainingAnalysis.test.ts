@@ -10,6 +10,8 @@ import {
 	displayMetricUnit,
 	displayMetricValue,
 	formatEntrySummary,
+	parseAnalysisFavouriteConfig,
+	serializeAnalysisFavouriteConfig,
 } from './computeTrainingAnalysis';
 import type { AnalysisSetEntry } from '../../domain/types';
 
@@ -349,5 +351,24 @@ describe('formatEntrySummary', () => {
 		const first = formatEntrySummary(entry({ weightKg: 80, reps: 8 }), 'kg');
 		const second = formatEntrySummary(entry({ weightKg: 82.5, reps: 6 }), 'kg');
 		expect(first).not.toBe(second);
+	});
+});
+
+describe('analysis favourite config round-trip', () => {
+	it('round-trips a config through serialize and parse', () => {
+		const config = {
+			period: '30d' as const,
+			metric: 'volume' as const,
+			groupBy: 'category' as const,
+		};
+		expect(parseAnalysisFavouriteConfig(serializeAnalysisFavouriteConfig(config))).toEqual(config);
+	});
+
+	it('rejects malformed JSON rather than throwing', () => {
+		expect(parseAnalysisFavouriteConfig('not json')).toBeUndefined();
+	});
+
+	it('rejects a well-formed object missing a required field', () => {
+		expect(parseAnalysisFavouriteConfig(JSON.stringify({ period: '30d' }))).toBeUndefined();
 	});
 });

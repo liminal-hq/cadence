@@ -11,7 +11,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use super::analysis::models::AnalysisSetEntry;
+use super::analysis::models::{AnalysisFavourite, AnalysisSetEntry};
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
@@ -309,6 +309,48 @@ impl<R: Runtime> Coordinator<R> {
     ) -> Result<Vec<AnalysisSetEntry>> {
         let mut conn = self.pool.acquire().await?;
         analysis::repo::list_completed_sets_in_range(&mut conn, start_date, end_date).await
+    }
+
+    pub async fn get_analysis_favourite(&self, id: &str) -> Result<AnalysisFavourite> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::get(&mut conn, id).await
+    }
+
+    pub async fn list_analysis_favourites(&self) -> Result<Vec<AnalysisFavourite>> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::list(&mut conn).await
+    }
+
+    pub async fn create_analysis_favourite(
+        &self,
+        name: &str,
+        config: &str,
+    ) -> Result<AnalysisFavourite> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::create(&mut conn, name, config).await
+    }
+
+    pub async fn update_analysis_favourite(
+        &self,
+        id: &str,
+        name: &str,
+        config: &str,
+    ) -> Result<AnalysisFavourite> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::update(&mut conn, id, name, config).await
+    }
+
+    pub async fn reorder_analysis_favourites(
+        &self,
+        ordered_ids: &[String],
+    ) -> Result<Vec<AnalysisFavourite>> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::reorder(&mut conn, ordered_ids).await
+    }
+
+    pub async fn delete_analysis_favourite(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::favourites::delete(&mut conn, id).await
     }
 
     // ============ workouts / workout-exercises ============

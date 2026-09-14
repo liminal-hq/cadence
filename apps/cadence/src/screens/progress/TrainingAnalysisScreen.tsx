@@ -10,10 +10,11 @@ import { Chip } from '../../components/ui/Chip/Chip';
 import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { Surface } from '../../components/ui/Surface/Surface';
+import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { formatDurationSec, formatNumber, todayLocalDate } from '../../domain/format';
 import { addDays, formatCalendarDateLabel } from '../history/historyDates';
-import type { AnalysisSetEntry, WeightUnit } from '../../domain/types';
+import type { AnalysisFavourite, AnalysisSetEntry, WeightUnit } from '../../domain/types';
 import {
 	ANALYSIS_METRICS,
 	ANALYSIS_METRIC_DEFINITIONS,
@@ -23,14 +24,15 @@ import {
 	displayMetricUnit,
 	displayMetricValue,
 	formatEntrySummary,
+	parseAnalysisFavouriteConfig,
+	serializeAnalysisFavouriteConfig,
 	type AnalysisGroupBy,
 	type AnalysisMetric,
+	type AnalysisPeriod,
 } from './computeTrainingAnalysis';
 import './progress.css';
 
-export type Period = '7d' | '30d' | '90d' | '1y' | 'all';
-
-const PERIOD_OPTIONS: { value: Period; label: string }[] = [
+const PERIOD_OPTIONS: { value: AnalysisPeriod; label: string }[] = [
 	{ value: '7d', label: '7 days' },
 	{ value: '30d', label: '30 days' },
 	{ value: '90d', label: '90 days' },
@@ -48,7 +50,7 @@ const GROUP_BY_OPTIONS: { value: AnalysisGroupBy; label: string }[] = [
 const EARLIEST_DATE = '0001-01-01';
 
 export function dateRangeFor(
-	period: Period,
+	period: AnalysisPeriod,
 	today: string,
 ): { startDate: string; endDate: string } {
 	if (period === 'all') return { startDate: EARLIEST_DATE, endDate: today };
@@ -58,11 +60,15 @@ export function dateRangeFor(
 	return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 
+function defaultFavouriteName(metric: AnalysisMetric, groupBy: AnalysisGroupBy): string {
+	return `${ANALYSIS_METRIC_LABELS[metric]} by ${groupBy}`;
+}
+
 // Bare, no own AppBar — TabsLayout's shared AppShell supplies the title/top bar here, same shape as TodayScreen/RoutineListScreen.
 export function TrainingAnalysisScreen() {
 	const repository = useLoggingRepository();
 	const navigate = useNavigate();
-	const [period, setPeriod] = useState<Period>('30d');
+	const [period, setPeriod] = useState<AnalysisPeriod>('30d');
 	const [metric, setMetric] = useState<AnalysisMetric>('volume');
 	const [groupBy, setGroupBy] = useState<AnalysisGroupBy>('category');
 	const [entries, setEntries] = useState<AnalysisSetEntry[] | null>(null);
@@ -70,6 +76,8 @@ export function TrainingAnalysisScreen() {
 	const [retryToken, setRetryToken] = useState(0);
 	const [expandedKey, setExpandedKey] = useState<string | null>(null);
 	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+	const [favourites, setFavourites] = useState<AnalysisFavourite[]>([]);
+	const [pinDraftName, setPinDraftName] = useState<string | null>(null);
 
 	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
@@ -96,6 +104,31 @@ export function TrainingAnalysisScreen() {
 		};
 	}, [repository, startDate, endDate, retryToken]);
 
+	useEffect(() => {
+		repository.listAnalysisFavourites().then(setFavourites);
+	}, [repository]);
+
+	function applyFavourite(favourite: AnalysisFavourite) {
+		const config = parseAnalysisFavouriteConfig(favourite.config);
+		if (!config) return;
+		setPeriod(config.period);
+		setMetric(config.metric);
+		setGroupBy(config.groupBy);
+	}
+
+	async function handlePin() {
+		if (!pinDraftName?.trim()) return;
+		const config = serializeAnalysisFavouriteConfig({ period, metric, groupBy });
+		const created = await repository.createAnalysisFavourite(pinDraftName.trim(), config);
+		setFavourites((current) => [...current, created]);
+		setPinDraftName(null);
+	}
+
+	async function handleUnpin(id: string) {
+		await repository.deleteAnalysisFavourite(id);
+		setFavourites((current) => current.filter((f) => f.id !== id));
+	}
+
 	if (loadError) {
 		return (
 			<div className="training-analysis">
@@ -119,6 +152,47 @@ export function TrainingAnalysisScreen() {
 
 	return (
 		<div className="training-analysis">
+			{favourites.length > 0 && (
+				<div className="training-analysis__filters">
+					{favourites.map((favourite) => (
+						<Chip
+							key={favourite.id}
+							variant="input"
+							label={favourite.name}
+							onClick={() => applyFavourite(favourite)}
+							onRemove={() => handleUnpin(favourite.id)}
+						/>
+					))}
+				</div>
+			)}
+
+			{pinDraftName == null ? (
+				<Button
+					variant="text"
+					icon="push_pin"
+					onClick={() => setPinDraftName(defaultFavouriteName(metric, groupBy))}
+				>
+					Pin this view
+				</Button>
+			) : (
+				<Surface tone="container-low" radius="m" className="training-analysis__pin-form">
+					<TextField
+						label="Favourite name"
+						value={pinDraftName}
+						onChange={setPinDraftName}
+						autoFocus
+					/>
+					<div className="training-analysis__pin-form-actions">
+						<Button variant="text" onClick={() => setPinDraftName(null)}>
+							Cancel
+						</Button>
+						<Button variant="filled" disabled={!pinDraftName.trim()} onClick={handlePin}>
+							Save
+						</Button>
+					</div>
+				</Surface>
+			)}
+
 			<div className="training-analysis__filters">
 				{PERIOD_OPTIONS.map((option) => (
 					<Chip

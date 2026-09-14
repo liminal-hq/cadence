@@ -343,3 +343,11 @@ export interface AnalysisSetEntry {
 	distanceKm?: number;
 	durationSec?: number;
 }
+
+/** A pinned P-47 breakdown configuration (SPEC.md 8.7: "pin recurring breakdowns without changing their underlying workout data"). `config` is an opaque JSON blob the frontend defines and parses — the backend never inspects its shape. */
+export interface AnalysisFavourite {
+	id: string;
+	name: string;
+	config: string;
+	sortOrder: number;
+}

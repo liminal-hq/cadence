@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type {
+	AnalysisFavourite,
 	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
@@ -246,4 +247,12 @@ export interface LoggingRepository {
 
 	/** Every completed set with `date` in `[startDate, endDate]` (inclusive), denormalized with exercise/category context — P-47's training analysis aggregates this bulk read entirely in TS. */
 	listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]>;
+
+	getAnalysisFavourite(id: string): Promise<AnalysisFavourite>;
+	listAnalysisFavourites(): Promise<AnalysisFavourite[]>;
+	/** `config` is an opaque JSON string the caller defines and parses — see computeTrainingAnalysis.ts's `AnalysisFavouriteConfig`. */
+	createAnalysisFavourite(name: string, config: string): Promise<AnalysisFavourite>;
+	updateAnalysisFavourite(id: string, name: string, config: string): Promise<AnalysisFavourite>;
+	reorderAnalysisFavourites(orderedIds: string[]): Promise<AnalysisFavourite[]>;
+	deleteAnalysisFavourite(id: string): Promise<void>;
 }

@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
+	AnalysisFavourite,
 	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
@@ -541,6 +542,34 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]> {
 		return call('list_analysis_sets', { startDate, endDate });
+	}
+
+	async getAnalysisFavourite(id: string): Promise<AnalysisFavourite> {
+		return call('get_analysis_favourite', { id });
+	}
+
+	async listAnalysisFavourites(): Promise<AnalysisFavourite[]> {
+		return call('list_analysis_favourites');
+	}
+
+	async createAnalysisFavourite(name: string, config: string): Promise<AnalysisFavourite> {
+		return call('create_analysis_favourite', { name, config });
+	}
+
+	async updateAnalysisFavourite(
+		id: string,
+		name: string,
+		config: string,
+	): Promise<AnalysisFavourite> {
+		return call('update_analysis_favourite', { id, name, config });
+	}
+
+	async reorderAnalysisFavourites(orderedIds: string[]): Promise<AnalysisFavourite[]> {
+		return call('reorder_analysis_favourites', { orderedIds });
+	}
+
+	async deleteAnalysisFavourite(id: string): Promise<void> {
+		return call('delete_analysis_favourite', { id });
 	}
 }
 

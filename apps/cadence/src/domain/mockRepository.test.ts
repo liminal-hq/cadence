@@ -1122,6 +1122,34 @@ describe('MockLoggingRepository', () => {
 			expect(benchSetIds).not.toContain('set-bp-3');
 			expect(benchSetIds).not.toContain('set-bp-4');
 		});
+
+		describe('favourites', () => {
+			it('creates a favourite appending at the end of the order', async () => {
+				const created = await repo.createAnalysisFavourite('Monthly volume', '{"metric":"volume"}');
+				expect(created.sortOrder).toBe(0);
+				expect(created.config).toBe('{"metric":"volume"}');
+			});
+
+			it('updates a favourite in place', async () => {
+				const created = await repo.createAnalysisFavourite('Monthly volume', '{}');
+				const updated = await repo.updateAnalysisFavourite(created.id, 'Weekly volume', '{}');
+				expect(updated.name).toBe('Weekly volume');
+			});
+
+			it('reorders favourites, rejecting an incomplete list', async () => {
+				const a = await repo.createAnalysisFavourite('A', '{}');
+				const b = await repo.createAnalysisFavourite('B', '{}');
+				const reordered = await repo.reorderAnalysisFavourites([b.id, a.id]);
+				expect(reordered.map((f) => f.id)).toEqual([b.id, a.id]);
+				await expect(repo.reorderAnalysisFavourites([a.id])).rejects.toThrow();
+			});
+
+			it('deletes a favourite', async () => {
+				const created = await repo.createAnalysisFavourite('Monthly volume', '{}');
+				await repo.deleteAnalysisFavourite(created.id);
+				await expect(repo.getAnalysisFavourite(created.id)).rejects.toThrow();
+			});
+		});
 	});
 });
 

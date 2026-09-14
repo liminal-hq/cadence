@@ -410,9 +410,9 @@ Watch
 
 **Entry:** Progress primary destination — Cadence's Progress-tab landing screen.
 
-**Content and actions:** period filter (7/30/90 days, 1 year, all time); metric filter (training days, total sets, volume, total reps, max weight, estimated 1RM, max distance, total distance, duration, avg pace, avg speed — each shown only where its input metrics support it), each metric's definition and unit stated alongside it; group-by toggle (category or exercise); a breakdown table sorted by value; expanding a row reveals the originating sets, each opening its source workout. Comparison and a dedicated single-exercise filter are Planned advanced, not yet built.
+**Content and actions:** period filter (7/30/90 days, 1 year, all time); metric filter (training days, total sets, volume, total reps, max weight, estimated 1RM, max distance, total distance, duration, avg pace, avg speed — each shown only where its input metrics support it), each metric's definition and unit stated alongside it; group-by toggle (category or exercise); a breakdown table sorted by value; expanding a row reveals the originating sets, each opening its source workout; pin the current period/metric/group-by as a named favourite, shown as a removable chip that reapplies it on tap, and unpin it from there. Comparison and a dedicated single-exercise filter are Planned advanced, not yet built.
 
-**States:** no data in the period; a metric with no compatible sets in the period; accessible table (the breakdown is a real `<table>`, not a chart, so no separate alternative view is needed).
+**States:** no data in the period; a metric with no compatible sets in the period; accessible table (the breakdown is a real `<table>`, not a chart, so no separate alternative view is needed); no favourites pinned; a pinned favourite applied; a favourite unpinned.
 
 ### P-48 — Exercise goals
 

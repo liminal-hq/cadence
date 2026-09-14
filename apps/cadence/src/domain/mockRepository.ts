@@ -8,6 +8,7 @@
 
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
+	AnalysisFavourite,
 	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
@@ -147,6 +148,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	private exerciseGoals = new Map<string, ExerciseGoal>();
 	private measurementDefinitions = new Map(MEASUREMENT_DEFINITIONS.map((d) => [d.id, { ...d }]));
 	private measurementRecords = new Map<string, MeasurementRecord>();
+	private analysisFavourites = new Map<string, AnalysisFavourite>();
 
 	async getExercise(id: string): Promise<Exercise> {
 		const exercise = this.exercises.get(id);
@@ -1402,6 +1404,61 @@ export class MockLoggingRepository implements LoggingRepository {
 			});
 		}
 		return entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+	}
+
+	async getAnalysisFavourite(id: string): Promise<AnalysisFavourite> {
+		const favourite = this.analysisFavourites.get(id);
+		if (!favourite) throw new Error(`Unknown analysis favourite: ${id}`);
+		return favourite;
+	}
+
+	async listAnalysisFavourites(): Promise<AnalysisFavourite[]> {
+		return [...this.analysisFavourites.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+	}
+
+	async createAnalysisFavourite(name: string, config: string): Promise<AnalysisFavourite> {
+		const existing = await this.listAnalysisFavourites();
+		const nextOrder = existing.length > 0 ? Math.max(...existing.map((f) => f.sortOrder)) + 1 : 0;
+		const favourite: AnalysisFavourite = {
+			id: newId('analysis-favourite'),
+			name,
+			config,
+			sortOrder: nextOrder,
+		};
+		this.analysisFavourites.set(favourite.id, favourite);
+		return favourite;
+	}
+
+	async updateAnalysisFavourite(
+		id: string,
+		name: string,
+		config: string,
+	): Promise<AnalysisFavourite> {
+		const existing = await this.getAnalysisFavourite(id);
+		const updated = { ...existing, name, config };
+		this.analysisFavourites.set(id, updated);
+		return updated;
+	}
+
+	async reorderAnalysisFavourites(orderedIds: string[]): Promise<AnalysisFavourite[]> {
+		const remaining = new Set(this.analysisFavourites.keys());
+		for (const id of orderedIds) {
+			if (!remaining.delete(id)) {
+				throw new Error(`Analysis favourite ${id} does not exist, or is listed more than once`);
+			}
+		}
+		if (remaining.size > 0) {
+			throw new Error(`Reorder omits ${remaining.size} existing favourite(s)`);
+		}
+		orderedIds.forEach((id, index) => {
+			const favourite = this.analysisFavourites.get(id)!;
+			this.analysisFavourites.set(id, { ...favourite, sortOrder: index + 1 });
+		});
+		return this.listAnalysisFavourites();
+	}
+
+	async deleteAnalysisFavourite(id: string): Promise<void> {
+		this.analysisFavourites.delete(id);
 	}
 }
 
