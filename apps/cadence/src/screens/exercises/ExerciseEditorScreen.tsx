@@ -79,6 +79,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 		name: initialName ?? '',
 	});
 	const [hasHistory, setHasHistory] = useState(false);
+	const [historyLoaded, setHistoryLoaded] = useState(false);
 	const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [deletePendingConfirm, setDeletePendingConfirm] = useState(false);
@@ -108,6 +109,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 		});
 		repository.listWorkoutExercisesByExercise(exerciseId).then((occurrences) => {
 			setHasHistory(occurrences.length > 0);
+			setHistoryLoaded(true);
 		});
 	}, [repository, exerciseId]);
 
@@ -129,7 +131,8 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			: DISTANCE_DURATION_GRAPH_METRICS;
 	const selectedCategory = categories.find((c) => c.id === values.category);
 	const availableCategories = categories.filter((c) => !c.archived || c.id === values.category);
-	const metricProfileLocked = Boolean(existing && hasHistory);
+	// Locked (pessimistically) until the history check resolves, so a fast typist can't change the profile in the window before we know whether this exercise actually has logged history.
+	const metricProfileLocked = Boolean(existing && (!historyLoaded || hasHistory));
 
 	function handleMetricProfileChange(metricProfile: MetricProfile) {
 		if (metricProfileLocked) return;
@@ -139,13 +142,21 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	async function handleSave() {
 		try {
 			setError(null);
+			const wasExisting = existing;
 			const saved = existing
 				? await repository.updateExercise(existing.id, values)
 				: await repository.createExercise(values);
-			if (!existing && draftFavourite) {
+			if (!wasExisting && draftFavourite) {
 				await repository.updateExerciseFavourite(saved.id, true);
 			}
-			navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
+			setExisting(saved);
+			baselineRef.current = {
+				values: valuesFromExercise(saved),
+				favourite: saved.favourite ?? false,
+			};
+			if (!wasExisting) {
+				navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
+			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
 		}
@@ -240,7 +251,10 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 					checked={currentFavourite}
 					onChange={(favourite) =>
 						existing
-							? repository.updateExerciseFavourite(existing.id, favourite).then(setExisting)
+							? repository.updateExerciseFavourite(existing.id, favourite).then((updated) => {
+									setExisting(updated);
+									if (baselineRef.current) baselineRef.current.favourite = favourite;
+								})
 							: setDraftFavourite(favourite)
 					}
 					label="Favourite"

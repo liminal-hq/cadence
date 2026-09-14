@@ -154,6 +154,21 @@ export class MockLoggingRepository implements LoggingRepository {
 		if (values.graphDefaultMetric && !KNOWN_GRAPH_METRICS.has(values.graphDefaultMetric)) {
 			throw new Error(`Unknown graph default metric: ${values.graphDefaultMetric}`);
 		}
+		if (values.weightIncrementKg != null && !(values.weightIncrementKg > 0)) {
+			throw new Error('Weight increment must be positive');
+		}
+		if (values.repsIncrement != null && !(values.repsIncrement > 0)) {
+			throw new Error('Reps increment must be positive');
+		}
+		if (values.distanceIncrementKm != null && !(values.distanceIncrementKm > 0)) {
+			throw new Error('Distance increment must be positive');
+		}
+		if (values.durationIncrementSec != null && !(values.durationIncrementSec > 0)) {
+			throw new Error('Duration increment must be positive');
+		}
+		if (values.restDefaultMs != null && !(values.restDefaultMs > 0)) {
+			throw new Error('Default rest must be positive');
+		}
 	}
 
 	private rejectDuplicateExerciseName(name: string, excludingId?: string) {
@@ -165,9 +180,11 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async createExercise(values: ExerciseValues): Promise<Exercise> {
 		this.validateExerciseValues(values);
-		this.rejectDuplicateExerciseName(values.name);
+		const name = values.name.trim();
+		this.rejectDuplicateExerciseName(name);
 		const exercise: Exercise = {
 			...values,
+			name,
 			id: newId('exercise'),
 			archived: false,
 			favourite: false,
@@ -178,9 +195,10 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async updateExercise(id: string, values: ExerciseValues): Promise<Exercise> {
 		this.validateExerciseValues(values);
-		this.rejectDuplicateExerciseName(values.name, id);
+		const name = values.name.trim();
+		this.rejectDuplicateExerciseName(name, id);
 		const existing = await this.getExercise(id);
-		const updated: Exercise = { ...existing, ...values };
+		const updated: Exercise = { ...existing, ...values, name };
 		this.exercises.set(id, updated);
 		return updated;
 	}

@@ -102,7 +102,7 @@ fn is_known_metric_profile(value: &str) -> bool {
     matches!(value, "weight-reps" | "distance-duration")
 }
 
-/// Shared validation for `create` and `update` — a caller-supplied `metric_profile` or `graph_default_metric` outside the known set would silently persist a value nothing downstream (the logging flow's stepper cluster, the graph tab's metric selector) knows how to interpret.
+/// Shared validation for `create` and `update` — a caller-supplied `metric_profile` or `graph_default_metric` outside the known set would silently persist a value nothing downstream (the logging flow's stepper cluster, the graph tab's metric selector) knows how to interpret. The numeric defaults are checked here too: a negative or non-finite increment reverses the logging stepper controls, and a non-positive rest default would start a timer whose target is already in the past.
 fn validate_values(values: &ExerciseValues) -> Result<()> {
     if !is_known_metric_profile(&values.metric_profile) {
         return Err(Error::Validation(format!(
@@ -115,6 +115,37 @@ fn validate_values(values: &ExerciseValues) -> Result<()> {
             return Err(Error::Validation(format!(
                 "unknown graph default metric {metric:?}"
             )));
+        }
+    }
+    if let Some(v) = values.weight_increment_kg {
+        if !(v.is_finite() && v > 0.0) {
+            return Err(Error::Validation(
+                "weight increment must be positive".into(),
+            ));
+        }
+    }
+    if let Some(v) = values.reps_increment {
+        if v <= 0 {
+            return Err(Error::Validation("reps increment must be positive".into()));
+        }
+    }
+    if let Some(v) = values.distance_increment_km {
+        if !(v.is_finite() && v > 0.0) {
+            return Err(Error::Validation(
+                "distance increment must be positive".into(),
+            ));
+        }
+    }
+    if let Some(v) = values.duration_increment_sec {
+        if v <= 0 {
+            return Err(Error::Validation(
+                "duration increment must be positive".into(),
+            ));
+        }
+    }
+    if let Some(v) = values.rest_default_ms {
+        if v <= 0 {
+            return Err(Error::Validation("default rest must be positive".into()));
         }
     }
     Ok(())
@@ -143,7 +174,8 @@ async fn reject_duplicate_name(
 
 pub async fn create(conn: &mut SqliteConnection, values: &ExerciseValues) -> Result<Exercise> {
     validate_values(values)?;
-    reject_duplicate_name(conn, &values.name, None).await?;
+    let name = values.name.trim();
+    reject_duplicate_name(conn, name, None).await?;
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
@@ -154,7 +186,7 @@ pub async fn create(conn: &mut SqliteConnection, values: &ExerciseValues) -> Res
          revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?)",
     )
     .bind(&id)
-    .bind(&values.name)
+    .bind(name)
     .bind(&values.category)
     .bind(&values.metric_profile)
     .bind(&values.note)
@@ -179,7 +211,8 @@ pub async fn update(
     values: &ExerciseValues,
 ) -> Result<Exercise> {
     validate_values(values)?;
-    reject_duplicate_name(conn, &values.name, Some(id)).await?;
+    let name = values.name.trim();
+    reject_duplicate_name(conn, name, Some(id)).await?;
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
@@ -188,7 +221,7 @@ pub async fn update(
          duration_increment_s = ?, default_rest_ms = ?, graph_defaults = ?, updated_at_ms = ?, \
          revision = ? WHERE id = ?",
     )
-    .bind(&values.name)
+    .bind(name)
     .bind(&values.category)
     .bind(&values.metric_profile)
     .bind(&values.note)
@@ -403,6 +436,51 @@ mod tests {
         let mut conn = pool.acquire().await.unwrap();
         let mut values = sample_values();
         values.name = "bench press".to_string();
+        let err = create(&mut conn, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn trims_the_name_before_storing_and_before_the_duplicate_check() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.name = "  Cable Fly Variant  ".to_string();
+        let created = create(&mut conn, &values).await.unwrap();
+        assert_eq!(created.name, "Cable Fly Variant");
+
+        let mut duplicate = sample_values();
+        duplicate.name = "cable fly variant ".to_string();
+        let err = create(&mut conn, &duplicate).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_non_positive_rest_default() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.rest_default_ms = Some(-1000);
+        let err = create(&mut conn, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_negative_weight_increment() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.weight_increment_kg = Some(-2.5);
+        let err = create(&mut conn, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_zero_reps_increment() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.reps_increment = Some(0);
         let err = create(&mut conn, &values).await.unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
     }

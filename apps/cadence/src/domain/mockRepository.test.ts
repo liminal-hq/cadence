@@ -265,6 +265,29 @@ describe('MockLoggingRepository', () => {
 			expect(updated.note).toBe('Updated cue');
 		});
 
+		it('trims the name before storing and before the duplicate check', async () => {
+			const created = await repo.createExercise({
+				...sampleValues(),
+				name: '  Cable Fly Variant  ',
+			});
+			expect(created.name).toBe('Cable Fly Variant');
+			await expect(
+				repo.createExercise({ ...sampleValues(), name: 'cable fly variant ' }),
+			).rejects.toThrow();
+		});
+
+		it('rejects a non-positive rest default', async () => {
+			await expect(
+				repo.createExercise({ ...sampleValues(), restDefaultMs: -1000 }),
+			).rejects.toThrow();
+		});
+
+		it('rejects a negative weight increment', async () => {
+			await expect(
+				repo.createExercise({ ...sampleValues(), weightIncrementKg: -2.5 }),
+			).rejects.toThrow();
+		});
+
 		it('archives and unarchives an exercise', async () => {
 			const created = await repo.createExercise(sampleValues());
 			const archived = await repo.setExerciseArchived(created.id, true);
