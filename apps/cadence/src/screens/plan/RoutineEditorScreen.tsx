@@ -105,8 +105,9 @@ function ExercisePicker({ onClose, onSelect }: ExercisePickerProps) {
 		repository.listExercises().then(setExercises);
 	}, [repository]);
 
-	const filtered = exercises.filter((exercise) =>
-		exercise.name.toLowerCase().includes(query.trim().toLowerCase()),
+	const filtered = exercises.filter(
+		(exercise) =>
+			!exercise.archived && exercise.name.toLowerCase().includes(query.trim().toLowerCase()),
 	);
 
 	return (

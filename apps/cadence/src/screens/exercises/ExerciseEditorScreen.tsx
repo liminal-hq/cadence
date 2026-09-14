@@ -1,10 +1,9 @@
-// P-34 Exercise definition editor — name, category, metric profile, note/URL, unit/increment/
-// rest/graph defaults, favourite, and archive
+// P-34 Exercise definition editor — name, category, metric profile, note/URL, unit/increment/rest/graph defaults, favourite, and archive
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { Banner } from '../../components/ui/Banner/Banner';
@@ -83,34 +82,57 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [deletePendingConfirm, setDeletePendingConfirm] = useState(false);
+	const [discardPendingConfirm, setDiscardPendingConfirm] = useState(false);
+	const [draftFavourite, setDraftFavourite] = useState(false);
+	const baselineRef = useRef<{ values: ExerciseValues; favourite: boolean } | null>(null);
 
 	useEffect(() => {
 		repository.listCategories().then((all) => {
 			setCategories(all);
-			setValues((current) =>
-				current.category ? current : { ...current, category: all[0]?.id ?? '' },
-			);
+			setValues((current) => {
+				if (current.category) return current;
+				const next = { ...current, category: all.find((c) => !c.archived)?.id ?? '' };
+				if (!exerciseId) baselineRef.current = { values: next, favourite: false };
+				return next;
+			});
 		});
-	}, [repository]);
+	}, [repository, exerciseId]);
 
 	useEffect(() => {
 		if (!exerciseId) return;
 		repository.getExercise(exerciseId).then((exercise) => {
 			setExisting(exercise);
-			setValues(valuesFromExercise(exercise));
+			const loaded = valuesFromExercise(exercise);
+			setValues(loaded);
+			baselineRef.current = { values: loaded, favourite: exercise.favourite ?? false };
 		});
 		repository.listWorkoutExercisesByExercise(exerciseId).then((occurrences) => {
 			setHasHistory(occurrences.length > 0);
 		});
 	}, [repository, exerciseId]);
 
+	const currentFavourite = existing ? (existing.favourite ?? false) : draftFavourite;
+	const isDirty = Boolean(
+		baselineRef.current &&
+		(JSON.stringify(values) !== JSON.stringify(baselineRef.current.values) ||
+			currentFavourite !== baselineRef.current.favourite),
+	);
+
+	function handleBack() {
+		if (isDirty) setDiscardPendingConfirm(true);
+		else navigate({ to: '/exercise-library' });
+	}
+
 	const graphMetricOptions =
 		values.metricProfile === 'weight-reps'
 			? WEIGHT_REPS_GRAPH_METRICS
 			: DISTANCE_DURATION_GRAPH_METRICS;
 	const selectedCategory = categories.find((c) => c.id === values.category);
+	const availableCategories = categories.filter((c) => !c.archived || c.id === values.category);
+	const metricProfileLocked = Boolean(existing && hasHistory);
 
 	function handleMetricProfileChange(metricProfile: MetricProfile) {
+		if (metricProfileLocked) return;
 		setValues({ ...values, metricProfile, graphDefaultMetric: undefined });
 	}
 
@@ -120,6 +142,9 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			const saved = existing
 				? await repository.updateExercise(existing.id, values)
 				: await repository.createExercise(values);
+			if (!existing && draftFavourite) {
+				await repository.updateExerciseFavourite(saved.id, true);
+			}
 			navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
@@ -153,7 +178,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			<AppBar
 				title={existing ? existing.name : 'New exercise'}
 				size="medium"
-				back={{ to: '/exercise-library' }}
+				back={{ onClick: handleBack }}
 				trailingContent={
 					<Button
 						variant="text"
@@ -190,23 +215,33 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 						value={values.metricProfile}
 						onChange={handleMetricProfileChange}
 						options={[
-							{ value: 'weight-reps', label: 'Weight & reps' },
-							{ value: 'distance-duration', label: 'Distance & duration' },
+							{
+								value: 'weight-reps',
+								label: 'Weight & reps',
+								disabled: metricProfileLocked && values.metricProfile !== 'weight-reps',
+							},
+							{
+								value: 'distance-duration',
+								label: 'Distance & duration',
+								disabled: metricProfileLocked && values.metricProfile !== 'distance-duration',
+							},
 						]}
 					/>
-					{existing && hasHistory && values.metricProfile !== existing.metricProfile && (
+					{metricProfileLocked && (
 						<Banner
 							icon="info"
 							tone="attention"
-							message="This exercise has logged history. Changing its metric profile won't convert past sets — they'll keep their original values, just displayed under the new profile."
+							message="This exercise has logged history, so its metric profile can't change — create a new exercise instead if you need the other profile."
 						/>
 					)}
 				</div>
 
 				<Switch
-					checked={existing?.favourite ?? false}
+					checked={currentFavourite}
 					onChange={(favourite) =>
-						existing && repository.updateExerciseFavourite(existing.id, favourite).then(setExisting)
+						existing
+							? repository.updateExerciseFavourite(existing.id, favourite).then(setExisting)
+							: setDraftFavourite(favourite)
 					}
 					label="Favourite"
 				/>
@@ -235,6 +270,62 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 						})
 					}
 				/>
+
+				{values.metricProfile === 'weight-reps' ? (
+					<>
+						<TextField
+							label="Weight increment (kg, default 2.5)"
+							type="number"
+							step={0.5}
+							value={values.weightIncrementKg != null ? String(values.weightIncrementKg) : ''}
+							onChange={(raw) =>
+								setValues({
+									...values,
+									weightIncrementKg: raw.trim() === '' ? undefined : Number(raw),
+								})
+							}
+						/>
+						<TextField
+							label="Reps increment (default 1)"
+							type="number"
+							step={1}
+							value={values.repsIncrement != null ? String(values.repsIncrement) : ''}
+							onChange={(raw) =>
+								setValues({
+									...values,
+									repsIncrement: raw.trim() === '' ? undefined : Number(raw),
+								})
+							}
+						/>
+					</>
+				) : (
+					<>
+						<TextField
+							label="Distance increment (km, default 0.1)"
+							type="number"
+							step={0.1}
+							value={values.distanceIncrementKm != null ? String(values.distanceIncrementKm) : ''}
+							onChange={(raw) =>
+								setValues({
+									...values,
+									distanceIncrementKm: raw.trim() === '' ? undefined : Number(raw),
+								})
+							}
+						/>
+						<TextField
+							label="Duration increment (seconds, default 10)"
+							type="number"
+							step={5}
+							value={values.durationIncrementSec != null ? String(values.durationIncrementSec) : ''}
+							onChange={(raw) =>
+								setValues({
+									...values,
+									durationIncrementSec: raw.trim() === '' ? undefined : Number(raw),
+								})
+							}
+						/>
+					</>
+				)}
 
 				<div className="exercise-editor__field-group">
 					<span>Default graph metric</span>
@@ -277,7 +368,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 					role="dialog"
 				>
 					<div className="routine-picker-list">
-						{categories.map((category) => (
+						{availableCategories.map((category) => (
 							<button
 								key={category.id}
 								type="button"
@@ -321,6 +412,29 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 					This permanently removes "{existing?.name}". Exercises still referenced by a workout,
 					routine, or goal can't be deleted — archive it instead.
 				</p>
+			</Dialog>
+
+			<Dialog
+				open={discardPendingConfirm}
+				onClose={() => setDiscardPendingConfirm(false)}
+				headline="Discard changes?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => setDiscardPendingConfirm(false)}>
+							Cancel
+						</Button>
+						<Button
+							variant="filled"
+							tone="error"
+							onClick={() => navigate({ to: '/exercise-library' })}
+						>
+							Discard
+						</Button>
+					</>
+				}
+			>
+				<p>Your unsaved changes to this exercise will be lost.</p>
 			</Dialog>
 		</div>
 	);
