@@ -21,6 +21,7 @@ use super::history::HistorySummary;
 use super::rest_timer::models::{RestTimerState, StartRestTimerOptions};
 use super::routines::models::{
     Routine, RoutineExercise, RoutineSection, RoutineSuperset, SetTemplate, SetTemplateValues,
+    SEED_LAST_PERFORMANCE,
 };
 use super::sets::models::{SetEntry, SetValues};
 use super::settings::models::{Settings, SettingsPatch};
@@ -459,6 +460,150 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn delete_set_template(&self, id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         routines::set_templates::delete(&mut conn, id).await
+    }
+
+    /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed
+    /// materialization" step) — only the exercises named in `selected_routine_exercise_ids` are
+    /// carried over (in their original relative order), each set template resolved into a real
+    /// planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the
+    /// exercise's most recent completed set, or left blank with no fallback value when there's no
+    /// history yet), and superset grouping remapped into new workout-level supersets exactly like
+    /// `duplicate_workout` remaps them — a routine section's own superset-membership invariant
+    /// (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here
+    /// belongs to this same section.
+    pub async fn materialize_routine_section(
+        &self,
+        routine_section_id: &str,
+        target_date: &str,
+        selected_routine_exercise_ids: &[String],
+    ) -> Result<Workout> {
+        let mut tx = self.pool.begin().await?;
+
+        let section = routines::sections::get(&mut tx, routine_section_id).await?;
+        let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
+        let selected: Vec<RoutineExercise> =
+            routines::routine_exercises::list_by_section(&mut tx, routine_section_id)
+                .await?
+                .into_iter()
+                .filter(|re| selected_routine_exercise_ids.contains(&re.id))
+                .collect();
+
+        let now = chrono::Utc::now().timestamp_millis();
+        let new_workout_id = uuid::Uuid::new_v4().to_string();
+        let workout_revision = crate::db::next_revision(&mut tx).await?;
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             source_routine_id, source_routine_name, created_at_ms, updated_at_ms, revision) \
+             VALUES (?, ?, ?, 'in-progress', 'manual', 0, ?, ?, ?, ?, ?)",
+        )
+        .bind(&new_workout_id)
+        .bind(target_date)
+        .bind(&routine.name)
+        .bind(&routine.id)
+        .bind(&routine.name)
+        .bind(now)
+        .bind(now)
+        .bind(workout_revision)
+        .execute(&mut *tx)
+        .await?;
+
+        let mut superset_id_map: HashMap<String, String> = HashMap::new();
+
+        for re in &selected {
+            let new_superset_id = match &re.routine_superset_id {
+                None => None,
+                Some(old_superset_id) => {
+                    if let Some(existing) = superset_id_map.get(old_superset_id) {
+                        Some(existing.clone())
+                    } else {
+                        let routine_superset =
+                            routines::supersets::get(&mut tx, old_superset_id).await?;
+                        let new_id = uuid::Uuid::new_v4().to_string();
+                        let revision = crate::db::next_revision(&mut tx).await?;
+                        sqlx::query(
+                            "INSERT INTO supersets (id, workout_id, colour, auto_advance, \
+                             rest_ms, created_at_ms, updated_at_ms, revision) \
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        )
+                        .bind(&new_id)
+                        .bind(&new_workout_id)
+                        .bind(&routine_superset.colour)
+                        .bind(routine_superset.auto_advance)
+                        .bind(routine_superset.rest_ms)
+                        .bind(now)
+                        .bind(now)
+                        .bind(revision)
+                        .execute(&mut *tx)
+                        .await?;
+                        superset_id_map.insert(old_superset_id.clone(), new_id.clone());
+                        Some(new_id)
+                    }
+                }
+            };
+
+            let new_we_id = uuid::Uuid::new_v4().to_string();
+            let we_revision = crate::db::next_revision(&mut tx).await?;
+            sqlx::query(
+                "INSERT INTO workout_exercises (id, workout_id, exercise_id, sort_order, \
+                 superset_id, superset_position, created_at_ms, updated_at_ms, revision) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            )
+            .bind(&new_we_id)
+            .bind(&new_workout_id)
+            .bind(&re.exercise_id)
+            .bind(re.order)
+            .bind(&new_superset_id)
+            .bind(re.superset_position)
+            .bind(now)
+            .bind(now)
+            .bind(we_revision)
+            .execute(&mut *tx)
+            .await?;
+
+            let templates =
+                routines::set_templates::list_by_routine_exercise(&mut tx, &re.id).await?;
+            for template in &templates {
+                let values = if template.population_rule.as_deref() == Some(SEED_LAST_PERFORMANCE) {
+                    sets::repo::most_recent_completed(&mut tx, &re.exercise_id)
+                        .await?
+                        .unwrap_or_default()
+                } else {
+                    SetValues {
+                        weight_kg: template.weight_kg,
+                        reps: template.reps,
+                        distance_km: template.distance_km,
+                        duration_sec: template.duration_sec,
+                    }
+                };
+                let set_id = uuid::Uuid::new_v4().to_string();
+                let set_revision = crate::db::next_revision(&mut tx).await?;
+                sqlx::query(
+                    "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, \
+                     sort_order, status, weight_g, reps, distance_m, duration_s, \
+                     source_template_id, pending_sync, created_at_ms, updated_at_ms, revision) \
+                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+                )
+                .bind(&set_id)
+                .bind(&new_workout_id)
+                .bind(&new_we_id)
+                .bind(&re.exercise_id)
+                .bind(template.order)
+                .bind(values.weight_kg.map(kg_to_g))
+                .bind(values.reps)
+                .bind(values.distance_km.map(super::units::km_to_m))
+                .bind(values.duration_sec)
+                .bind(&template.id)
+                .bind(now)
+                .bind(now)
+                .bind(set_revision)
+                .execute(&mut *tx)
+                .await?;
+            }
+        }
+
+        tx.commit().await?;
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::get(&mut conn, &new_workout_id).await
     }
 
     // ============ sets ============
@@ -1188,5 +1333,214 @@ mod tests {
         let result = c.calculate_plates(100.0, &olympic);
         assert!(result.loadable);
         assert_eq!(result.achieved_total, 100.0);
+    }
+
+    #[tokio::test]
+    async fn materialize_carries_the_routines_name_and_provenance_onto_the_new_workout() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap();
+        assert_eq!(workout.date, "2026-09-20");
+        assert_eq!(workout.title, "Push day");
+        assert_eq!(workout.status, "in-progress");
+        assert_eq!(workout.source, "manual");
+
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises.len(), 1);
+        assert_eq!(workout_exercises[0].exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn materialize_resolves_explicit_and_seeded_set_templates() {
+        let c = test_coordinator().await;
+        // Seed history: a completed 82.5kg x 6 bench-press set in an earlier, unrelated workout.
+        let history_workout = c
+            .create_workout("2026-09-01", "Earlier session")
+            .await
+            .unwrap();
+        let history_we = c
+            .add_workout_exercise(&history_workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.log_new_set(
+            &history_we.id,
+            &SetValues {
+                weight_kg: Some(82.5),
+                reps: Some(6),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.add_set_template(
+            &re.id,
+            &SetTemplateValues {
+                weight_kg: Some(60.0),
+                reps: Some(10),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        c.add_set_template(
+            &re.id,
+            &SetTemplateValues {
+                population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        let sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
+        assert_eq!(sets.len(), 2);
+        assert_eq!(sets[0].weight_kg, Some(60.0));
+        assert_eq!(sets[0].reps, Some(10));
+        assert_eq!(sets[0].status, "planned");
+        // Seeded from the completed history set above, not the explicit 60kg/10 template.
+        assert_eq!(sets[1].weight_kg, Some(82.5));
+        assert_eq!(sets[1].reps, Some(6));
+        assert_eq!(sets[1].status, "planned");
+    }
+
+    #[tokio::test]
+    async fn materialize_leaves_a_seeded_template_blank_with_no_history() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        // ex-running has no completed sets anywhere in a fresh test database.
+        let re = c
+            .add_routine_exercise(&section.id, "ex-running")
+            .await
+            .unwrap();
+        c.add_set_template(
+            &re.id,
+            &SetTemplateValues {
+                population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        let sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
+        assert_eq!(sets.len(), 1);
+        assert_eq!(sets[0].weight_kg, None);
+        assert_eq!(sets[0].reps, None);
+        assert_eq!(sets[0].distance_km, None);
+        assert_eq!(sets[0].duration_sec, None);
+    }
+
+    #[tokio::test]
+    async fn materialize_only_carries_over_the_selected_exercises() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let bench = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.add_routine_exercise(&section.id, "ex-running")
+            .await
+            .unwrap();
+
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&bench.id))
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises.len(), 1);
+        assert_eq!(workout_exercises[0].exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn materialize_rebuilds_superset_grouping_under_new_workout_level_ids() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Superset A").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let superset = c
+            .create_routine_superset(&section.id, Some("#ffcc00"), true, Some(60_000))
+            .await
+            .unwrap();
+        let lateral_raise = c
+            .add_routine_exercise(&section.id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let triceps_pushdown = c
+            .add_routine_exercise(&section.id, "ex-triceps-pushdown")
+            .await
+            .unwrap();
+        c.set_routine_exercise_superset(&lateral_raise.id, Some(&superset.id), Some(1))
+            .await
+            .unwrap();
+        c.set_routine_exercise_superset(&triceps_pushdown.id, Some(&superset.id), Some(2))
+            .await
+            .unwrap();
+
+        let workout = c
+            .materialize_routine_section(
+                &section.id,
+                "2026-09-20",
+                &[lateral_raise.id.clone(), triceps_pushdown.id.clone()],
+            )
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises.len(), 2);
+        let group_ids: Vec<&str> = workout_exercises
+            .iter()
+            .map(|we| {
+                we.superset_group_id
+                    .as_deref()
+                    .expect("copied superset membership")
+            })
+            .collect();
+        assert_eq!(group_ids[0], group_ids[1]);
+        assert_ne!(
+            group_ids[0], superset.id,
+            "must not point at the routine-level superset"
+        );
+        assert_eq!(workout_exercises[0].superset_size, Some(2));
     }
 }

@@ -274,6 +274,38 @@ pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     Ok(())
 }
 
+#[derive(FromRow)]
+struct MostRecentCompletedRow {
+    weight_g: Option<i64>,
+    reps: Option<i32>,
+    distance_m: Option<i64>,
+    duration_s: Option<i32>,
+}
+
+/// The most recent completed set for this exercise, across every workout — the pure lookup behind
+/// routine materialization's "seed from most recent comparable performance" rule (SPEC.md 8.4).
+/// Ordered by `completed_at_ms`, not `created_at_ms`, since a set can be completed out of creation
+/// order (e.g. a batch-logged rest day).
+pub async fn most_recent_completed(
+    conn: &mut SqliteConnection,
+    exercise_id: &str,
+) -> Result<Option<SetValues>> {
+    let row: Option<MostRecentCompletedRow> = sqlx::query_as(
+        "SELECT weight_g, reps, distance_m, duration_s FROM sets \
+         WHERE exercise_id = ? AND status = 'completed' \
+         ORDER BY completed_at_ms DESC LIMIT 1",
+    )
+    .bind(exercise_id)
+    .fetch_optional(&mut *conn)
+    .await?;
+    Ok(row.map(|row| SetValues {
+        weight_kg: row.weight_g.map(g_to_kg),
+        reps: row.reps,
+        distance_km: row.distance_m.map(m_to_km),
+        duration_sec: row.duration_s,
+    }))
+}
+
 pub async fn update_note(
     conn: &mut SqliteConnection,
     id: &str,
@@ -569,6 +601,31 @@ mod tests {
         assert_eq!(updated.note.as_deref(), Some("Felt easy"));
         let cleared = update_note(&mut conn, &sets[0].id, None).await.unwrap();
         assert_eq!(cleared.note, None);
+    }
+
+    #[tokio::test]
+    async fn most_recent_completed_finds_the_latest_completed_set_for_an_exercise() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        // sets[1] is the later of the two completed sets (80kg x 9); sets[0] (80kg x 8) is
+        // earlier, and sets[2]/sets[3] are still planned.
+        let found = most_recent_completed(&mut conn, "ex-bench-press")
+            .await
+            .unwrap()
+            .expect("a completed set exists");
+        assert_eq!(found.weight_kg, sets[1].weight_kg);
+        assert_eq!(found.reps, sets[1].reps);
+    }
+
+    #[tokio::test]
+    async fn most_recent_completed_is_none_with_no_history() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let found = most_recent_completed(&mut conn, "ex-running")
+            .await
+            .unwrap();
+        assert_eq!(found, None);
     }
 
     #[tokio::test]

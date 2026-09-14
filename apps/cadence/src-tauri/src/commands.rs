@@ -398,6 +398,22 @@ pub async fn delete_set_template(state: State<'_, Coordinator>, id: String) -> R
     state.delete_set_template(&id).await
 }
 
+#[tauri::command]
+pub async fn materialize_routine_section(
+    state: State<'_, Coordinator>,
+    routine_section_id: String,
+    target_date: String,
+    selected_routine_exercise_ids: Vec<String>,
+) -> Result<Workout, Error> {
+    state
+        .materialize_routine_section(
+            &routine_section_id,
+            &target_date,
+            &selected_routine_exercise_ids,
+        )
+        .await
+}
+
 // ============ sets ============
 
 #[tauri::command]
