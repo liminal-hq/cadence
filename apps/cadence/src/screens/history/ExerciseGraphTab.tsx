@@ -62,7 +62,8 @@ export function ExerciseGraphTab({ exercise, history }: ExerciseGraphTabProps) {
 	const navigate = useNavigate();
 	const metricOptions =
 		exercise.metricProfile === 'weight-reps' ? WEIGHT_REPS_METRICS : DISTANCE_DURATION_METRICS;
-	const [metric, setMetric] = useState<GraphMetric>(metricOptions[0].value);
+	const defaultMetric = metricOptions.find((o) => o.value === exercise.graphDefaultMetric)?.value;
+	const [metric, setMetric] = useState<GraphMetric>(defaultMetric ?? metricOptions[0].value);
 	const [selectedSetId, setSelectedSetId] = useState<string | null>(null);
 	const [showTable, setShowTable] = useState(false);
 	const [saved, setSaved] = useState(false);

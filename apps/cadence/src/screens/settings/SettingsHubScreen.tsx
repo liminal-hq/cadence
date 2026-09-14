@@ -10,7 +10,6 @@ import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { SettingsRow } from './SettingsRow';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { Settings } from '../../domain/types';
-import { CATEGORY_COLOURS } from '../../data/categoryColours';
 import './settings.css';
 
 const CADENCE_VERSION = '2026.9.0';
@@ -31,10 +30,14 @@ export function SettingsHubScreen() {
 	const repository = useLoggingRepository();
 	const [settings, setSettings] = useState<Settings | null>(null);
 	const [barbellCount, setBarbellCount] = useState(0);
+	const [exerciseCount, setExerciseCount] = useState(0);
+	const [categoryCount, setCategoryCount] = useState(0);
 
 	useEffect(() => {
 		repository.getSettings().then(setSettings);
 		repository.listBarbellConfigs().then((list) => setBarbellCount(list.length));
+		repository.listExercises().then((list) => setExerciseCount(list.length));
+		repository.listCategories().then((list) => setCategoryCount(list.length));
 	}, [repository]);
 
 	const sections: SettingsSection[] = [
@@ -61,9 +64,15 @@ export function SettingsHubScreen() {
 					to: '/settings/plates',
 				},
 				{
+					icon: 'exercise',
+					label: 'Exercise library',
+					status: `${exerciseCount} exercise${exerciseCount === 1 ? '' : 's'}`,
+					to: '/exercise-library',
+				},
+				{
 					icon: 'label',
 					label: 'Categories',
-					status: `${Object.keys(CATEGORY_COLOURS).length} categories`,
+					status: `${categoryCount} categor${categoryCount === 1 ? 'y' : 'ies'}`,
 					to: '/settings/categories',
 				},
 			],

@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { DetailAppBar } from '../../components/DetailAppBar/DetailAppBar';
 import { Tabs } from '../../components/ui/Tabs/Tabs';
 import { ExerciseHistoryTab } from './ExerciseHistoryTab';
@@ -41,6 +42,7 @@ export function ExerciseDetailScreen({
 	backTo = '/history',
 }: ExerciseDetailScreenProps) {
 	const repository = useLoggingRepository();
+	const navigate = useNavigate();
 	const [exercise, setExercise] = useState<Exercise | null>(null);
 	const [history, setHistory] = useState<ExerciseHistoryEntry[] | null>(null);
 	const [tab, setTab] = useState<TabValue>('history');
@@ -91,7 +93,12 @@ export function ExerciseDetailScreen({
 						iconFilled: true,
 						onClick: toggleFavourite,
 					},
-					{ icon: 'edit', label: 'Edit exercise' },
+					{
+						icon: 'edit',
+						label: 'Edit exercise',
+						onClick: () =>
+							navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId } }),
+					},
 				]}
 			/>
 			<div className="screen-shell__content exercise-detail">
