@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type {
+	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
 	Exercise,
@@ -242,4 +243,7 @@ export interface LoggingRepository {
 		recordedAt?: string,
 	): Promise<MeasurementRecord>;
 	deleteMeasurementRecord(id: string): Promise<void>;
+
+	/** Every completed set with `date` in `[startDate, endDate]` (inclusive), denormalized with exercise/category context — P-47's training analysis aggregates this bulk read entirely in TS. */
+	listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]>;
 }

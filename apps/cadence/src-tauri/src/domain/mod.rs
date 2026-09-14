@@ -14,6 +14,7 @@ pub mod error;
 pub mod events;
 pub mod units;
 
+pub mod analysis;
 pub mod barbells;
 pub mod categories;
 pub mod exercises;

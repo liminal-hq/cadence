@@ -408,11 +408,11 @@ Watch
 **Scope:** Initial basic; Planned advanced  
 **Purpose:** Answer how training volume, frequency, duration, and composition are changing overall.
 
-**Entry:** Progress primary destination.
+**Entry:** Progress primary destination — Cadence's Progress-tab landing screen.
 
-**Content and actions:** period, metric, category/exercise filters, comparison, category/exercise breakdown, drill-down to exercise/workout.
+**Content and actions:** period filter (7/30/90 days, 1 year, all time); metric filter (total sets, volume, total reps, max weight, estimated 1RM, max distance, total distance, duration, avg pace, avg speed — each shown only where its input metrics support it); group-by toggle (category or exercise); a breakdown table sorted by value; expanding a row reveals the originating sets, each opening its source workout. Comparison and a dedicated single-exercise filter are Planned advanced, not yet built.
 
-**States:** no data; filtered-empty result; long time range computing; data with no volume-compatible sets; accessible table alternative.
+**States:** no data in the period; a metric with no compatible sets in the period; accessible table (the breakdown is a real `<table>`, not a chart, so no separate alternative view is needed).
 
 ### P-48 — Exercise goals
 

@@ -78,6 +78,7 @@ pub fn run() {
             commands::create_measurement_record,
             commands::update_measurement_record,
             commands::delete_measurement_record,
+            commands::list_analysis_sets,
             commands::get_workout,
             commands::list_workouts_in_range,
             commands::update_workout_note,

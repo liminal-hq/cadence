@@ -8,6 +8,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
+	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
 	Exercise,
@@ -536,6 +537,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async deleteMeasurementRecord(id: string): Promise<void> {
 		return call('delete_measurement_record', { id });
+	}
+
+	async listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]> {
+		return call('list_analysis_sets', { startDate, endDate });
 	}
 }
 

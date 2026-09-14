@@ -27,8 +27,10 @@ const SCREEN_TITLES: Record<Destination, string> = {
 };
 
 /** Per-tab top-bar actions. History's settings icon is real ahead of History's own screen
- *  (SPEC.md P-40) landing, so the Settings hub has a working entry point before then; the
- *  others stay unwired until each destination's own screen lands. */
+ *  (SPEC.md P-40) landing, so the Settings hub has a working entry point before then; Progress's
+ *  measurements icon is the Progress-tab entry point P-49 deferred until this tab had a real
+ *  landing screen to attach it to. Goals have no equivalent — they're per-exercise with no global
+ *  list screen, so Exercise detail (P-44) stays their only entry point. */
 function useScreenActions(): Record<Destination, AppBarAction[] | undefined> {
 	const navigate = useNavigate();
 	return useMemo(
@@ -38,7 +40,13 @@ function useScreenActions(): Record<Destination, AppBarAction[] | undefined> {
 				{ icon: 'settings', label: 'Settings', onClick: () => navigate({ to: '/settings' }) },
 			],
 			plan: undefined,
-			progress: undefined,
+			progress: [
+				{
+					icon: 'straighten',
+					label: 'Measurements',
+					onClick: () => navigate({ to: '/measurements' }),
+				},
+			],
 		}),
 		[navigate],
 	);

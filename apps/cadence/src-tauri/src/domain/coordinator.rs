@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Runtime};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use super::analysis::models::AnalysisSetEntry;
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
@@ -30,8 +31,8 @@ use super::settings::models::{Settings, SettingsPatch};
 use super::units::kg_to_g;
 use super::workouts::models::{Workout, WorkoutExercise};
 use super::{
-    barbells, categories, exercises, goals, history, measurements, rest_timer, routines, sets,
-    settings, workouts,
+    analysis, barbells, categories, exercises, goals, history, measurements, rest_timer, routines,
+    sets, settings, workouts,
 };
 
 /// Everything the plain per-entity repo functions deliberately don't do. This is the one piece of
@@ -297,6 +298,17 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn delete_measurement_record(&self, id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         measurements::records::delete(&mut conn, id).await
+    }
+
+    // ============ analysis ============
+
+    pub async fn list_analysis_sets(
+        &self,
+        start_date: &str,
+        end_date: &str,
+    ) -> Result<Vec<AnalysisSetEntry>> {
+        let mut conn = self.pool.acquire().await?;
+        analysis::repo::list_completed_sets_in_range(&mut conn, start_date, end_date).await
     }
 
     // ============ workouts / workout-exercises ============

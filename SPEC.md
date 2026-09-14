@@ -332,7 +332,7 @@ Calendar day summaries must distinguish multiple workouts on one day and dates w
 
 Exercise history shows the original unit context, note indicators, workout title, and enough set detail to compare sessions. Graphs support metric, date range, aggregation, and optional trendline choices. Missing data is omitted rather than coerced to zero. Every aggregate defines whether it includes incomplete/planned sets; the default is completed sets only.
 
-Training analysis provides category/exercise breakdowns over a selected period, including frequency, sets, reps, volume, duration, and distance as applicable. Analysis favourites let users pin recurring breakdowns without changing their underlying workout data.
+Training analysis (P-47) provides category/exercise breakdowns over a selected period, including frequency, sets, reps, volume, duration, and distance as applicable — each metric applies only to sets whose metric profile supports it, so a weight-reps metric like volume simply excludes distance-duration sets rather than treating them as zero. Selecting a breakdown row reveals the sets it was computed from and their originating workouts. Analysis favourites let users pin recurring breakdowns without changing their underlying workout data.
 
 ### 8.8 Goals and body measurements
 

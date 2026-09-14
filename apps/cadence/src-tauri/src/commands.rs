@@ -5,6 +5,7 @@
 
 use tauri::State;
 
+use crate::domain::analysis::models::AnalysisSetEntry;
 use crate::domain::barbells::models::{BarbellConfig, NewBarbellConfig};
 use crate::domain::barbells::plates::PlateCalculationResult;
 use crate::domain::categories::models::Category;
@@ -324,6 +325,17 @@ pub async fn delete_measurement_record(
     id: String,
 ) -> Result<(), Error> {
     state.delete_measurement_record(&id).await
+}
+
+// ============ analysis ============
+
+#[tauri::command]
+pub async fn list_analysis_sets(
+    state: State<'_, Coordinator>,
+    start_date: String,
+    end_date: String,
+) -> Result<Vec<AnalysisSetEntry>, Error> {
+    state.list_analysis_sets(&start_date, &end_date).await
 }
 
 // ============ workouts / workout-exercises ============

@@ -325,3 +325,19 @@ export interface MeasurementRecord {
 	value: number;
 	note?: string;
 }
+
+/** One completed set, denormalized with its exercise/category context for P-47's training analysis — grouping and drill-down happen entirely in TS, mirroring computeStats.ts/computeRecords.ts's own "pure function over fetched rows" pattern. */
+export interface AnalysisSetEntry {
+	setId: string;
+	workoutId: string;
+	exerciseId: string;
+	exerciseName: string;
+	categoryId: string;
+	categoryName: string;
+	metricProfile: MetricProfile;
+	date: string;
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+}

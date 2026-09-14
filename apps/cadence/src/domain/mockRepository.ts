@@ -8,6 +8,7 @@
 
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
+	AnalysisSetEntry,
 	BarbellConfig,
 	Category,
 	Exercise,
@@ -1371,6 +1372,35 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async deleteMeasurementRecord(id: string): Promise<void> {
 		this.measurementRecords.delete(id);
+	}
+
+	async listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]> {
+		const entries: AnalysisSetEntry[] = [];
+		for (const set of this.sets.values()) {
+			if (set.status !== 'completed') continue;
+			const workoutExercise = this.workoutExercises.get(set.workoutExerciseId);
+			if (!workoutExercise) continue;
+			const workout = this.workouts.get(workoutExercise.workoutId);
+			if (!workout || workout.date < startDate || workout.date > endDate) continue;
+			const exercise = this.exercises.get(workoutExercise.exerciseId);
+			if (!exercise) continue;
+			const category = this.categories.get(exercise.category);
+			entries.push({
+				setId: set.id,
+				workoutId: workout.id,
+				exerciseId: exercise.id,
+				exerciseName: exercise.name,
+				categoryId: exercise.category,
+				categoryName: category?.name ?? exercise.category,
+				metricProfile: exercise.metricProfile,
+				date: workout.date,
+				weightKg: set.weightKg,
+				reps: set.reps,
+				distanceKm: set.distanceKm,
+				durationSec: set.durationSec,
+			});
+		}
+		return entries.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 	}
 }
 

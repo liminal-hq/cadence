@@ -1095,6 +1095,34 @@ describe('MockLoggingRepository', () => {
 			expect(result.shortfall).toBeCloseTo(1.25);
 		});
 	});
+
+	describe('analysis', () => {
+		it('lists completed sets in range with exercise and category context', async () => {
+			const entries = await repo.listAnalysisSets('2026-09-01', '2026-09-30');
+			const bp1 = entries.find((e) => e.setId === 'set-bp-1');
+			expect(bp1).toMatchObject({
+				exerciseName: 'Bench Press',
+				categoryName: 'Chest',
+				weightKg: 80,
+				reps: 8,
+				date: '2026-09-09',
+			});
+		});
+
+		it('excludes sets outside the given range', async () => {
+			const entries = await repo.listAnalysisSets('2099-01-01', '2099-12-31');
+			expect(entries).toEqual([]);
+		});
+
+		it('excludes planned sets, even for a workout exercise with completed ones in range', async () => {
+			const entries = await repo.listAnalysisSets('2026-09-01', '2026-09-30');
+			const benchSetIds = entries
+				.filter((e) => e.exerciseId === 'ex-bench-press')
+				.map((e) => e.setId);
+			expect(benchSetIds).not.toContain('set-bp-3');
+			expect(benchSetIds).not.toContain('set-bp-4');
+		});
+	});
 });
 
 describe('calculatePlatesPure', () => {
