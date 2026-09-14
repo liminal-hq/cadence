@@ -494,10 +494,22 @@ impl<R: Runtime> Coordinator<R> {
                 .into_iter()
                 .map(|re| (re.id.clone(), re))
                 .collect();
-        let selected: Vec<RoutineExercise> = selected_routine_exercise_ids
+        // Excludes an exercise that's since been archived — the review screen's own picker
+        // filters archived exercises out of fresh selections, but a routine can still reference
+        // one that was archived after it was added, and materializing it would put an archived
+        // exercise straight into a brand-new workout.
+        let mut selected: Vec<RoutineExercise> = selected_routine_exercise_ids
             .iter()
             .filter_map(|id| by_id.get(id).cloned())
             .collect();
+        let mut archived_status: HashMap<String, bool> = HashMap::new();
+        for re in &selected {
+            if !archived_status.contains_key(&re.exercise_id) {
+                let exercise = exercises::repo::get(&mut tx, &re.exercise_id).await?;
+                archived_status.insert(re.exercise_id.clone(), exercise.archived);
+            }
+        }
+        selected.retain(|re| !archived_status[&re.exercise_id]);
 
         let now = chrono::Utc::now().timestamp_millis();
         let new_workout_id = uuid::Uuid::new_v4().to_string();
@@ -1691,6 +1703,40 @@ mod tests {
             .unwrap();
         assert_eq!(workout_exercises.len(), 1);
         assert_eq!(workout_exercises[0].exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn materialize_excludes_a_selected_exercise_that_has_since_been_archived() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let bench = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        let running = c
+            .add_routine_exercise(&section.id, "ex-running")
+            .await
+            .unwrap();
+        sqlx::query("UPDATE exercises SET archived = 1 WHERE id = 'ex-bench-press'")
+            .execute(&c.pool)
+            .await
+            .unwrap();
+
+        let workout = c
+            .materialize_routine_section(
+                &section.id,
+                "2026-09-20",
+                &[bench.id.clone(), running.id.clone()],
+            )
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises.len(), 1);
+        assert_eq!(workout_exercises[0].exercise_id, "ex-running");
     }
 
     #[tokio::test]
