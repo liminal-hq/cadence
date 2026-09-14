@@ -26,6 +26,8 @@ import { AccessibilitySettingsScreen } from '../../screens/settings/Accessibilit
 import { ExerciseLibraryScreen } from '../../screens/exercises/ExerciseLibraryScreen';
 import { ExerciseEditorScreen } from '../../screens/exercises/ExerciseEditorScreen';
 import { CategoryEditorScreen } from '../../screens/exercises/CategoryEditorScreen';
+import { MeasurementTrackerScreen } from '../../screens/measurements/MeasurementTrackerScreen';
+import { MeasurementDetailScreen } from '../../screens/measurements/MeasurementDetailScreen';
 
 /**
  * Keyed by the same `$param`-templated path string each route already declares via
@@ -71,6 +73,10 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
 	// `backTo` search param (only relevant once the screen is really navigated to) doesn't
 	// affect what it looks like.
 	'/exercise/$exerciseId': (params) => <ExerciseDetailScreen exerciseId={params.exerciseId} />,
+	'/measurements': () => <MeasurementTrackerScreen />,
+	'/measurements/$definitionId': (params) => (
+		<MeasurementDetailScreen definitionId={params.definitionId} />
+	),
 	'/exercise-library': () => <ExerciseLibraryScreen />,
 	'/exercise-library/new': () => <ExerciseEditorScreen />,
 	'/exercise-library/$exerciseId/edit': (params) => (
