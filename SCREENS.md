@@ -427,25 +427,25 @@ Watch
 
 ### P-49 — Measurement tracker
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** Record generic body/custom measurements separately from a workout.
 
-**Entry:** Progress; Today shortcut (optional).
+**Entry:** Reachable at `/measurements`; a Progress-tab entry point is deferred to the training-analysis screen (P-47), still a placeholder as of this screen's build. Today shortcut remains Planned.
 
-**Content and actions:** enabled measurement list, current values, log record, open history/graph, manage definitions.
+**Content and actions:** enabled measurement list with each one's latest value; a quick per-row "log a value" action; a "Manage measurements" mode for add/rename/re-unit/enable-disable/reorder/delete over every definition, enabled or not; open a definition's detail (P-50).
 
-**States:** no enabled measurements; no records; unit-specific values; multiple readings in a day; record imported from Health Connect (Planned — see P-65) shown with source provenance.
+**States:** no measurements enabled (with a path into Manage measurements); a definition with no records yet; unit-specific values; built-in suggestions (bodyweight, body-fat, common circumferences) ship disabled by default; record imported from Health Connect (Planned — see P-65) shown with source provenance.
 
 ### P-50 — Measurement detail and editor
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** View a measurement's trend and maintain its definition/records.
 
 **Entry:** Measurement tracker.
 
-**Content and actions:** graph/history; add/edit/delete record; definition name/unit/goal/enabled/order; source/provenance display.
+**Content and actions:** graph (with a table alternative) and history of records; add/edit/delete record; edit the definition's name/unit/goal/archived state inline; archive/unarchive and delete the definition itself.
 
-**States:** empty history; goal line; duplicate timestamp; archived definition; health-imported record (Planned) clearly marked as external and not directly editable to the same degree as a manual entry.
+**States:** empty history; a goal line rendered on the graph once a goal value is set; archived definition; a unit change is rejected once the definition has records or a goal (both are bare values with no unit of their own, so reinterpreting them under a new unit would be wrong); health-imported record (Planned) clearly marked as external and not directly editable to the same degree as a manual entry.
 
 ## 7. Phone: settings, data, and connected devices
 
