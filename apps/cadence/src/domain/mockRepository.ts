@@ -826,6 +826,12 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async setCategoryArchived(id: string, archived: boolean): Promise<Category> {
 		const existing = await this.getCategory(id);
+		if (archived) {
+			const inUse = [...this.exercises.values()].some((e) => e.category === id);
+			if (inUse) {
+				throw new Error(`Category ${id} still has exercises — reassign them first`);
+			}
+		}
 		const updated = { ...existing, archived };
 		this.categories.set(id, updated);
 		return updated;

@@ -496,11 +496,18 @@ describe('MockLoggingRepository', () => {
 			expect(recoloured.colourBackground).toBe('#aaa');
 		});
 
-		it('archives and unarchives a category', async () => {
-			const archived = await repo.setCategoryArchived('cardio', true);
+		it('archives and unarchives a category with no exercises', async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			const archived = await repo.setCategoryArchived(created.id, true);
 			expect(archived.archived).toBe(true);
-			const restored = await repo.setCategoryArchived('cardio', false);
+			const restored = await repo.setCategoryArchived(created.id, false);
 			expect(restored.archived).toBe(false);
+		});
+
+		it('refuses to archive a category with exercises but allows unarchiving', async () => {
+			await expect(repo.setCategoryArchived('cardio', true)).rejects.toThrow();
+			const unarchived = await repo.setCategoryArchived('cardio', false);
+			expect(unarchived.archived).toBe(false);
 		});
 
 		it('refuses to delete a category with exercises', async () => {

@@ -144,11 +144,34 @@ pub async fn recolour(
     get(conn, id).await
 }
 
+/// Returns a validation error naming how many exercises still reference `id`, or `Ok(())` if
+/// none do. Shared by `set_archived` (only when archiving — unarchiving is always safe) and
+/// `delete`, since both are "this category is going away" operations SCREENS.md's P-35 requires
+/// exercises to be reassigned away from first.
+async fn reject_if_referenced(conn: &mut SqliteConnection, id: &str) -> Result<()> {
+    let (exercise_count,): (i64,) =
+        sqlx::query_as("SELECT COUNT(*) FROM exercises WHERE category_id = ?")
+            .bind(id)
+            .fetch_one(&mut *conn)
+            .await?;
+    if exercise_count > 0 {
+        return Err(Error::Validation(format!(
+            "category {id:?} still has {exercise_count} exercise(s) — reassign them first"
+        )));
+    }
+    Ok(())
+}
+
+/// Archiving requires exercises to be reassigned away first, matching `delete`'s own guard —
+/// unarchiving never does, since it only makes a hidden category visible again.
 pub async fn set_archived(
     conn: &mut SqliteConnection,
     id: &str,
     archived: bool,
 ) -> Result<Category> {
+    if archived {
+        reject_if_referenced(conn, id).await?;
+    }
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
@@ -171,16 +194,7 @@ pub async fn set_archived(
 
 /// Rejects deleting a category any exercise still references, rather than letting the database's own foreign-key constraint surface as an opaque `Db` error — P-35's "reassign exercises before archival/deletion" means the caller is expected to move exercises to another category (or archive the category instead) before this can succeed.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
-    let (exercise_count,): (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM exercises WHERE category_id = ?")
-            .bind(id)
-            .fetch_one(&mut *conn)
-            .await?;
-    if exercise_count > 0 {
-        return Err(Error::Validation(format!(
-            "category {id:?} still has {exercise_count} exercise(s) — reassign them first"
-        )));
-    }
+    reject_if_referenced(conn, id).await?;
     let result = sqlx::query("DELETE FROM categories WHERE id = ?")
         .bind(id)
         .execute(&mut *conn)
@@ -265,13 +279,29 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn archives_and_unarchives_a_category() {
+    async fn archives_and_unarchives_a_category_with_no_exercises() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let archived = set_archived(&mut conn, "cardio", true).await.unwrap();
+        let created = create(&mut conn, "grip", "Grip", "#eee", "#111", "#999")
+            .await
+            .unwrap();
+        let archived = set_archived(&mut conn, &created.id, true).await.unwrap();
         assert!(archived.archived);
-        let restored = set_archived(&mut conn, "cardio", false).await.unwrap();
+        let restored = set_archived(&mut conn, &created.id, false).await.unwrap();
         assert!(!restored.archived);
+    }
+
+    #[tokio::test]
+    async fn refuses_to_archive_a_category_with_exercises_but_allows_unarchiving() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        // "cardio" has ex-running from the starter library seed (0003).
+        let err = set_archived(&mut conn, "cardio", true).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+        // Unarchiving an already-unarchived, referenced category is still fine — it never needs
+        // the same guard, since it only makes a hidden category visible again.
+        let unarchived = set_archived(&mut conn, "cardio", false).await.unwrap();
+        assert!(!unarchived.archived);
     }
 
     #[tokio::test]
