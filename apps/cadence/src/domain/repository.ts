@@ -7,6 +7,7 @@
 
 import type {
 	BarbellConfig,
+	Category,
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
@@ -138,4 +139,27 @@ export interface LoggingRepository {
 	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;
 	addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate>;
 	deleteSetTemplate(id: string): Promise<void>;
+
+	getCategory(id: string): Promise<Category>;
+	/** Every category, archived or not — the category editor (P-35) filters. */
+	listCategories(): Promise<Category[]>;
+	/** `id` is a lowercase, hyphenated slug the caller derives from `name` — matching the seeded
+	 *  categories' existing addressing scheme (`"chest"`, `"back"`, ...) rather than a UUID. */
+	createCategory(
+		id: string,
+		name: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category>;
+	renameCategory(id: string, name: string): Promise<Category>;
+	recolourCategory(
+		id: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category>;
+	setCategoryArchived(id: string, archived: boolean): Promise<Category>;
+	/** Rejects if any exercise still references this category — reassign them first. */
+	deleteCategory(id: string): Promise<void>;
 }

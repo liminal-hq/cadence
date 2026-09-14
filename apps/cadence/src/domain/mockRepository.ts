@@ -9,6 +9,7 @@
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
 	BarbellConfig,
+	Category,
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
@@ -26,6 +27,7 @@ import type {
 import { SEED_LAST_PERFORMANCE } from './types';
 import {
 	BARBELL_CONFIGS,
+	CATEGORIES,
 	DEFAULT_SETTINGS,
 	EXERCISES,
 	SETS,
@@ -122,6 +124,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	private routineSupersets = new Map<string, RoutineSuperset>();
 	private routineExercises = new Map<string, RoutineExercise>();
 	private setTemplates = new Map<string, SetTemplate>();
+	private categories = new Map(CATEGORIES.map((c) => [c.id, { ...c }]));
 
 	async getExercise(id: string): Promise<Exercise> {
 		const exercise = this.exercises.get(id);
@@ -765,6 +768,75 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async deleteSetTemplate(id: string): Promise<void> {
 		this.setTemplates.delete(id);
+	}
+
+	async getCategory(id: string): Promise<Category> {
+		const category = this.categories.get(id);
+		if (!category) throw new Error(`Unknown category: ${id}`);
+		return category;
+	}
+
+	async listCategories(): Promise<Category[]> {
+		return [...this.categories.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+	}
+
+	async createCategory(
+		id: string,
+		name: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		if (this.categories.has(id)) {
+			throw new Error(`A category with id ${id} already exists`);
+		}
+		const existing = [...this.categories.values()];
+		const nextOrder = existing.reduce((max, c) => Math.max(max, c.sortOrder), 0) + 1;
+		const created: Category = {
+			id,
+			name,
+			colourBackground,
+			colourText,
+			colourDot,
+			sortOrder: nextOrder,
+			archived: false,
+		};
+		this.categories.set(id, created);
+		return created;
+	}
+
+	async renameCategory(id: string, name: string): Promise<Category> {
+		const existing = await this.getCategory(id);
+		const updated = { ...existing, name };
+		this.categories.set(id, updated);
+		return updated;
+	}
+
+	async recolourCategory(
+		id: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		const existing = await this.getCategory(id);
+		const updated = { ...existing, colourBackground, colourText, colourDot };
+		this.categories.set(id, updated);
+		return updated;
+	}
+
+	async setCategoryArchived(id: string, archived: boolean): Promise<Category> {
+		const existing = await this.getCategory(id);
+		const updated = { ...existing, archived };
+		this.categories.set(id, updated);
+		return updated;
+	}
+
+	async deleteCategory(id: string): Promise<void> {
+		const inUse = [...this.exercises.values()].some((e) => e.category === id);
+		if (inUse) {
+			throw new Error(`Category ${id} still has exercises — reassign them first`);
+		}
+		this.categories.delete(id);
 	}
 }
 

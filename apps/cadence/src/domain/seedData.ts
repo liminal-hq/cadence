@@ -7,12 +7,89 @@
 
 import type {
 	BarbellConfig,
+	Category,
 	Exercise,
 	SetEntry,
 	Settings,
 	Workout,
 	WorkoutExercise,
 } from './types';
+
+// Mirrors 0002_seed_defaults.sql's INSERT INTO categories exactly (same ids/names/colours/order).
+export const CATEGORIES: Category[] = [
+	{
+		id: 'chest',
+		name: 'Chest',
+		colourBackground: '#ffd9dd',
+		colourText: '#5a0f1c',
+		colourDot: '#a83a4c',
+		sortOrder: 0,
+		archived: false,
+	},
+	{
+		id: 'back',
+		name: 'Back',
+		colourBackground: '#ffddb8',
+		colourText: '#3a2200',
+		colourDot: '#9a5b00',
+		sortOrder: 1,
+		archived: false,
+	},
+	{
+		id: 'shoulders',
+		name: 'Shoulders',
+		colourBackground: '#ffe7a3',
+		colourText: '#3e2e00',
+		colourDot: '#7a6000',
+		sortOrder: 2,
+		archived: false,
+	},
+	{
+		id: 'biceps',
+		name: 'Biceps',
+		colourBackground: '#d2efc8',
+		colourText: '#0f2e0b',
+		colourDot: '#3e7a34',
+		sortOrder: 3,
+		archived: false,
+	},
+	{
+		id: 'triceps',
+		name: 'Triceps',
+		colourBackground: '#c8eee6',
+		colourText: '#00302a',
+		colourDot: '#0e7566',
+		sortOrder: 4,
+		archived: false,
+	},
+	{
+		id: 'legs',
+		name: 'Legs',
+		colourBackground: '#d3e4ff',
+		colourText: '#0b2547',
+		colourDot: '#2d5fa8',
+		sortOrder: 5,
+		archived: false,
+	},
+	{
+		id: 'core',
+		name: 'Core',
+		colourBackground: '#e7dff6',
+		colourText: '#1d192b',
+		colourDot: '#6f5aa6',
+		sortOrder: 6,
+		archived: false,
+	},
+	{
+		id: 'cardio',
+		name: 'Cardio',
+		colourBackground: '#e6e0eb',
+		colourText: '#1c1b20',
+		colourDot: '#5f5c68',
+		sortOrder: 7,
+		archived: false,
+	},
+];
 
 export const EXERCISES: Exercise[] = [
 	{

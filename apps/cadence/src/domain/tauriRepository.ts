@@ -9,6 +9,7 @@ import { listen } from '@tauri-apps/api/event';
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
 	BarbellConfig,
+	Category,
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
@@ -336,6 +337,45 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async deleteSetTemplate(id: string): Promise<void> {
 		return call('delete_set_template', { id });
+	}
+
+	async getCategory(id: string): Promise<Category> {
+		return call('get_category', { id });
+	}
+
+	async listCategories(): Promise<Category[]> {
+		return call('list_categories');
+	}
+
+	async createCategory(
+		id: string,
+		name: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		return call('create_category', { id, name, colourBackground, colourText, colourDot });
+	}
+
+	async renameCategory(id: string, name: string): Promise<Category> {
+		return call('rename_category', { id, name });
+	}
+
+	async recolourCategory(
+		id: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		return call('recolour_category', { id, colourBackground, colourText, colourDot });
+	}
+
+	async setCategoryArchived(id: string, archived: boolean): Promise<Category> {
+		return call('set_category_archived', { id, archived });
+	}
+
+	async deleteCategory(id: string): Promise<void> {
+		return call('delete_category', { id });
 	}
 }
 

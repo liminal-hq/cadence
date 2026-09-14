@@ -457,6 +457,64 @@ describe('MockLoggingRepository', () => {
 		});
 	});
 
+	describe('categories', () => {
+		it('lists every seeded category, ordered', async () => {
+			const categories = await repo.listCategories();
+			expect(categories).toHaveLength(8);
+			expect(categories[0].id).toBe('chest');
+		});
+
+		it('gets a seeded category', async () => {
+			const category = await repo.getCategory('chest');
+			expect(category.name).toBe('Chest');
+			expect(category.colourDot).toBe('#a83a4c');
+		});
+
+		it('rejects a lookup for an unknown category', async () => {
+			await expect(repo.getCategory('no-such-category')).rejects.toThrow(
+				'Unknown category: no-such-category',
+			);
+		});
+
+		it('creates a category, appending at the end of the order', async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			expect(created.sortOrder).toBe(8);
+			expect(created.archived).toBe(false);
+		});
+
+		it('rejects creating a category with a duplicate id', async () => {
+			await expect(
+				repo.createCategory('chest', 'Chest Again', '#eee', '#111', '#999'),
+			).rejects.toThrow();
+		});
+
+		it('renames and recolours a category', async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			const renamed = await repo.renameCategory(created.id, 'Grip Strength');
+			expect(renamed.name).toBe('Grip Strength');
+			const recoloured = await repo.recolourCategory(created.id, '#aaa', '#bbb', '#ccc');
+			expect(recoloured.colourBackground).toBe('#aaa');
+		});
+
+		it('archives and unarchives a category', async () => {
+			const archived = await repo.setCategoryArchived('cardio', true);
+			expect(archived.archived).toBe(true);
+			const restored = await repo.setCategoryArchived('cardio', false);
+			expect(restored.archived).toBe(false);
+		});
+
+		it('refuses to delete a category with exercises', async () => {
+			await expect(repo.deleteCategory('chest')).rejects.toThrow();
+			await repo.getCategory('chest');
+		});
+
+		it('deletes an empty category', async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			await repo.deleteCategory(created.id);
+			await expect(repo.getCategory(created.id)).rejects.toThrow();
+		});
+	});
+
 	describe('calculatePlates', () => {
 		it('finds an exact loadable combination', async () => {
 			const olympic = BARBELL_CONFIGS.find((b) => b.id === 'barbell-olympic')!;

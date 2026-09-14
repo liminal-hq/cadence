@@ -12,6 +12,19 @@ export type SetStatus = 'planned' | 'completed';
 
 export type WeightUnit = 'kg' | 'lb';
 
+/** A user-owned exercise category — three tonal colour roles, matching
+ *  `src/data/categoryColours.ts`'s `CategoryColour` shape (P-35 retires that hardcoded map in
+ *  favour of reading these rows for real). */
+export interface Category {
+	id: string;
+	name: string;
+	colourBackground: string;
+	colourText: string;
+	colourDot: string;
+	sortOrder: number;
+	archived: boolean;
+}
+
 export interface Exercise {
 	id: string;
 	name: string;
