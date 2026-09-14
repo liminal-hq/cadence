@@ -216,6 +216,72 @@ describe('MockLoggingRepository', () => {
 			const names = exercises.map((e) => e.name);
 			expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)));
 		});
+
+		const sampleValues = () => ({
+			name: 'Cable Fly Variant',
+			category: 'chest',
+			metricProfile: 'weight-reps' as const,
+			note: 'Squeeze at the top',
+			url: 'https://example.com',
+			weightIncrementKg: 2.5,
+			restDefaultMs: 90_000,
+			graphDefaultMetric: 'estimated-1rm',
+		});
+
+		it('creates an exercise with every field round-tripped', async () => {
+			const created = await repo.createExercise(sampleValues());
+			expect(created.name).toBe('Cable Fly Variant');
+			expect(created.note).toBe('Squeeze at the top');
+			expect(created.restDefaultMs).toBe(90_000);
+			expect(created.archived).toBe(false);
+			expect(created.favourite).toBe(false);
+		});
+
+		it('rejects creating an exercise with an unknown metric profile', async () => {
+			await expect(
+				// @ts-expect-error deliberately invalid for the test
+				repo.createExercise({ ...sampleValues(), metricProfile: 'time-under-tension' }),
+			).rejects.toThrow();
+		});
+
+		it('rejects creating an exercise with an unknown graph default metric', async () => {
+			await expect(
+				repo.createExercise({ ...sampleValues(), graphDefaultMetric: 'one-rep-max' }),
+			).rejects.toThrow();
+		});
+
+		it('rejects creating an exercise with a case-insensitive duplicate name', async () => {
+			await expect(
+				repo.createExercise({ ...sampleValues(), name: 'bench press' }),
+			).rejects.toThrow();
+		});
+
+		it('updates an exercise in place, without tripping the duplicate-name guard on itself', async () => {
+			const created = await repo.createExercise(sampleValues());
+			const updated = await repo.updateExercise(created.id, {
+				...sampleValues(),
+				note: 'Updated cue',
+			});
+			expect(updated.note).toBe('Updated cue');
+		});
+
+		it('archives and unarchives an exercise', async () => {
+			const created = await repo.createExercise(sampleValues());
+			const archived = await repo.setExerciseArchived(created.id, true);
+			expect(archived.archived).toBe(true);
+			const restored = await repo.setExerciseArchived(created.id, false);
+			expect(restored.archived).toBe(false);
+		});
+
+		it('deletes an unreferenced exercise', async () => {
+			const created = await repo.createExercise(sampleValues());
+			await repo.deleteExercise(created.id);
+			await expect(repo.getExercise(created.id)).rejects.toThrow();
+		});
+
+		it('refuses to delete an exercise referenced by a workout', async () => {
+			await expect(repo.deleteExercise('ex-bench-press')).rejects.toThrow();
+		});
 	});
 
 	describe('workouts', () => {
@@ -723,6 +789,16 @@ describe('MockLoggingRepository', () => {
 			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
 			await repo.deleteCategory(created.id);
 			await expect(repo.getCategory(created.id)).rejects.toThrow();
+		});
+
+		it('reorders categories and rejects an incomplete or duplicated list', async () => {
+			const seeded = (await repo.listCategories()).map((c) => c.id);
+			const swapped = [seeded[1], seeded[0], ...seeded.slice(2)];
+			const reordered = await repo.reorderCategories(swapped);
+			expect(reordered.map((c) => c.id)).toEqual(swapped);
+
+			await expect(repo.reorderCategories([seeded[0]])).rejects.toThrow();
+			await expect(repo.reorderCategories([seeded[0], seeded[0]])).rejects.toThrow();
 		});
 	});
 

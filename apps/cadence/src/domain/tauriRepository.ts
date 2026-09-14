@@ -11,6 +11,7 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseValues,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -76,6 +77,22 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise> {
 		return call('update_exercise_favourite', { id: exerciseId, favourite });
+	}
+
+	async createExercise(values: ExerciseValues): Promise<Exercise> {
+		return call('create_exercise', { values });
+	}
+
+	async updateExercise(id: string, values: ExerciseValues): Promise<Exercise> {
+		return call('update_exercise', { id, values });
+	}
+
+	async setExerciseArchived(id: string, archived: boolean): Promise<Exercise> {
+		return call('set_exercise_archived', { id, archived });
+	}
+
+	async deleteExercise(id: string): Promise<void> {
+		return call('delete_exercise', { id });
 	}
 
 	async listSets(workoutExerciseId: string): Promise<SetEntry[]> {
@@ -415,6 +432,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async deleteCategory(id: string): Promise<void> {
 		return call('delete_category', { id });
+	}
+
+	async reorderCategories(orderedIds: string[]): Promise<Category[]> {
+		return call('reorder_categories', { orderedIds });
 	}
 }
 

@@ -9,6 +9,7 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseValues,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -36,6 +37,11 @@ export interface LoggingRepository {
 	/** The full library, name-ordered — backs the Add-exercise picker's browse/search/category views. */
 	listExercises(): Promise<Exercise[]>;
 	updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise>;
+	createExercise(values: ExerciseValues): Promise<Exercise>;
+	updateExercise(id: string, values: ExerciseValues): Promise<Exercise>;
+	setExerciseArchived(id: string, archived: boolean): Promise<Exercise>;
+	/** Rejects if any workout, routine, or goal still references this exercise — archive it instead. */
+	deleteExercise(id: string): Promise<void>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;
 	completeSet(setId: string): Promise<SetEntry>;
@@ -186,4 +192,5 @@ export interface LoggingRepository {
 	setCategoryArchived(id: string, archived: boolean): Promise<Category>;
 	/** Rejects if any exercise still references this category — reassign them first. */
 	deleteCategory(id: string): Promise<void>;
+	reorderCategories(orderedIds: string[]): Promise<Category[]>;
 }

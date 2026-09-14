@@ -9,7 +9,7 @@ use crate::domain::barbells::models::{BarbellConfig, NewBarbellConfig};
 use crate::domain::barbells::plates::PlateCalculationResult;
 use crate::domain::categories::models::Category;
 use crate::domain::error::Error;
-use crate::domain::exercises::models::Exercise;
+use crate::domain::exercises::models::{Exercise, ExerciseValues};
 use crate::domain::history::HistorySummary;
 use crate::domain::rest_timer::models::{RestTimerState, StartRestTimerOptions};
 use crate::domain::routines::models::{
@@ -82,6 +82,14 @@ pub async fn delete_category(state: State<'_, Coordinator>, id: String) -> Resul
     state.delete_category(&id).await
 }
 
+#[tauri::command]
+pub async fn reorder_categories(
+    state: State<'_, Coordinator>,
+    ordered_ids: Vec<String>,
+) -> Result<Vec<Category>, Error> {
+    state.reorder_categories(&ordered_ids).await
+}
+
 // ============ exercises ============
 
 #[tauri::command]
@@ -101,6 +109,37 @@ pub async fn update_exercise_favourite(
     favourite: bool,
 ) -> Result<Exercise, Error> {
     state.update_exercise_favourite(&id, favourite).await
+}
+
+#[tauri::command]
+pub async fn create_exercise(
+    state: State<'_, Coordinator>,
+    values: ExerciseValues,
+) -> Result<Exercise, Error> {
+    state.create_exercise(&values).await
+}
+
+#[tauri::command]
+pub async fn update_exercise(
+    state: State<'_, Coordinator>,
+    id: String,
+    values: ExerciseValues,
+) -> Result<Exercise, Error> {
+    state.update_exercise(&id, &values).await
+}
+
+#[tauri::command]
+pub async fn set_exercise_archived(
+    state: State<'_, Coordinator>,
+    id: String,
+    archived: bool,
+) -> Result<Exercise, Error> {
+    state.set_exercise_archived(&id, archived).await
+}
+
+#[tauri::command]
+pub async fn delete_exercise(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
+    state.delete_exercise(&id).await
 }
 
 // ============ workouts / workout-exercises ============

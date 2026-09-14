@@ -28,18 +28,38 @@ export interface Category {
 export interface Exercise {
 	id: string;
 	name: string;
-	/** Category id — see src/data/categoryColours.ts. */
+	/** Category id — see domain/repository.ts's listCategories(). */
 	category: string;
 	metricProfile: MetricProfile;
+	note?: string;
+	url?: string;
 	/** Configured stepper increments, used by StepperCluster. */
 	weightIncrementKg?: number;
 	repsIncrement?: number;
 	distanceIncrementKm?: number;
 	durationIncrementSec?: number;
+	restDefaultMs?: number;
+	/** One of history/computeGraphPoints.ts's GraphMetric keys — the graph tab's initial metric. */
+	graphDefaultMetric?: string;
 	/** Archived exercises keep their history but render italicised and can't be logged fresh. */
 	archived?: boolean;
 	/** P-44's star toggle in the exercise detail header. */
 	favourite?: boolean;
+}
+
+/** Fields a caller supplies when creating or editing an exercise — mirrors Exercise's own editable subset (id/archived/favourite are managed separately, by dedicated calls). */
+export interface ExerciseValues {
+	name: string;
+	category: string;
+	metricProfile: MetricProfile;
+	note?: string;
+	url?: string;
+	weightIncrementKg?: number;
+	repsIncrement?: number;
+	distanceIncrementKm?: number;
+	durationIncrementSec?: number;
+	restDefaultMs?: number;
+	graphDefaultMetric?: string;
 }
 
 export interface WorkoutExercise {

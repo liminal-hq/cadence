@@ -144,6 +144,40 @@ pub async fn recolour(
     get(conn, id).await
 }
 
+/// Rewrites every category's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `routines::sections::reorder`'s complete-permutation guard (a stranger id, a duplicate, or an omitted category are all rejected), since anything less would leave omitted rows at their stale position or collide two rows onto the same `sort_order`.
+pub async fn reorder(conn: &mut SqliteConnection, ordered_ids: &[String]) -> Result<Vec<Category>> {
+    let existing = list(conn).await?;
+    let mut remaining: std::collections::HashSet<&str> =
+        existing.iter().map(|c| c.id.as_str()).collect();
+    for id in ordered_ids {
+        if !remaining.remove(id.as_str()) {
+            return Err(Error::Validation(format!(
+                "category {id:?} does not exist, or is listed more than once"
+            )));
+        }
+    }
+    if !remaining.is_empty() {
+        return Err(Error::Validation(format!(
+            "reorder omits {} existing category(ies)",
+            remaining.len()
+        )));
+    }
+    let now = chrono::Utc::now().timestamp_millis();
+    for (index, id) in ordered_ids.iter().enumerate() {
+        let revision = crate::db::next_revision(conn).await?;
+        sqlx::query(
+            "UPDATE categories SET sort_order = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
+        )
+        .bind(index as i32 + 1)
+        .bind(now)
+        .bind(revision)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+    }
+    list(conn).await
+}
+
 /// Returns a validation error naming how many exercises still reference `id`, or `Ok(())` if none do. Shared by `set_archived` (only when archiving — unarchiving is always safe) and `delete`, since both are "this category is going away" operations SCREENS.md's P-35 requires exercises to be reassigned away from first.
 async fn reject_if_referenced(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let (exercise_count,): (i64,) =
@@ -335,5 +369,48 @@ mod tests {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
         delete(&mut conn, "no-such-category").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn reorder_rewrites_sort_order_to_match_the_given_order() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut ids: Vec<String> = list(&mut conn)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
+        ids.swap(0, 1);
+        let reordered = reorder(&mut conn, &ids).await.unwrap();
+        assert_eq!(
+            reordered.iter().map(|c| c.id.as_str()).collect::<Vec<_>>(),
+            ids.iter().map(String::as_str).collect::<Vec<_>>()
+        );
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_an_incomplete_list() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let err = reorder(&mut conn, &["chest".to_string()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_a_duplicate_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut ids: Vec<String> = list(&mut conn)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|c| c.id)
+            .collect();
+        ids[1] = ids[0].clone();
+        let err = reorder(&mut conn, &ids).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 }

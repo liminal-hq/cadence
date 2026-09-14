@@ -11,6 +11,7 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseValues,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -36,6 +37,9 @@ import {
 } from './seedData';
 
 const EPSILON = 0.001;
+
+const KNOWN_METRIC_PROFILES = new Set(['weight-reps', 'distance-duration']);
+const KNOWN_GRAPH_METRICS = new Set(['weight', 'estimated-1rm', 'volume', 'distance', 'pace']);
 
 interface PlateCombo {
 	total: number;
@@ -141,6 +145,63 @@ export class MockLoggingRepository implements LoggingRepository {
 		const updated = { ...existing, favourite };
 		this.exercises.set(exerciseId, updated);
 		return updated;
+	}
+
+	private validateExerciseValues(values: ExerciseValues) {
+		if (!KNOWN_METRIC_PROFILES.has(values.metricProfile)) {
+			throw new Error(`Unknown metric profile: ${values.metricProfile}`);
+		}
+		if (values.graphDefaultMetric && !KNOWN_GRAPH_METRICS.has(values.graphDefaultMetric)) {
+			throw new Error(`Unknown graph default metric: ${values.graphDefaultMetric}`);
+		}
+	}
+
+	private rejectDuplicateExerciseName(name: string, excludingId?: string) {
+		const collides = [...this.exercises.values()].some(
+			(e) => e.id !== excludingId && e.name.toLowerCase() === name.toLowerCase(),
+		);
+		if (collides) throw new Error(`An exercise named "${name}" already exists`);
+	}
+
+	async createExercise(values: ExerciseValues): Promise<Exercise> {
+		this.validateExerciseValues(values);
+		this.rejectDuplicateExerciseName(values.name);
+		const exercise: Exercise = {
+			...values,
+			id: newId('exercise'),
+			archived: false,
+			favourite: false,
+		};
+		this.exercises.set(exercise.id, exercise);
+		return exercise;
+	}
+
+	async updateExercise(id: string, values: ExerciseValues): Promise<Exercise> {
+		this.validateExerciseValues(values);
+		this.rejectDuplicateExerciseName(values.name, id);
+		const existing = await this.getExercise(id);
+		const updated: Exercise = { ...existing, ...values };
+		this.exercises.set(id, updated);
+		return updated;
+	}
+
+	async setExerciseArchived(id: string, archived: boolean): Promise<Exercise> {
+		const existing = await this.getExercise(id);
+		const updated = { ...existing, archived };
+		this.exercises.set(id, updated);
+		return updated;
+	}
+
+	async deleteExercise(id: string): Promise<void> {
+		const referenceCount =
+			[...this.workoutExercises.values()].filter((we) => we.exerciseId === id).length +
+			[...this.routineExercises.values()].filter((re) => re.exerciseId === id).length;
+		if (referenceCount > 0) {
+			throw new Error(
+				`Exercise ${id} is still referenced by ${referenceCount} record(s) — archive it instead`,
+			);
+		}
+		this.exercises.delete(id);
 	}
 
 	async getWorkoutExercise(id: string): Promise<WorkoutExercise> {
@@ -1032,6 +1093,23 @@ export class MockLoggingRepository implements LoggingRepository {
 			throw new Error(`Category ${id} still has exercises — reassign them first`);
 		}
 		this.categories.delete(id);
+	}
+
+	async reorderCategories(orderedIds: string[]): Promise<Category[]> {
+		const remaining = new Set(this.categories.keys());
+		for (const id of orderedIds) {
+			if (!remaining.delete(id)) {
+				throw new Error(`Category ${id} does not exist, or is listed more than once`);
+			}
+		}
+		if (remaining.size > 0) {
+			throw new Error(`Reorder omits ${remaining.size} existing category(ies)`);
+		}
+		orderedIds.forEach((id, index) => {
+			const category = this.categories.get(id);
+			if (category) this.categories.set(id, { ...category, sortOrder: index + 1 });
+		});
+		return this.listCategories();
 	}
 }
 

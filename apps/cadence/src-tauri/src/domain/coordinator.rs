@@ -16,7 +16,7 @@ use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
 use super::error::Result;
 use super::events::REST_TIMER_CHANGED;
-use super::exercises::models::Exercise;
+use super::exercises::models::{Exercise, ExerciseValues};
 use super::history::HistorySummary;
 use super::rest_timer::models::{RestTimerState, StartRestTimerOptions};
 use super::routines::models::{
@@ -108,6 +108,11 @@ impl<R: Runtime> Coordinator<R> {
         categories::repo::delete(&mut conn, id).await
     }
 
+    pub async fn reorder_categories(&self, ordered_ids: &[String]) -> Result<Vec<Category>> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::reorder(&mut conn, ordered_ids).await
+    }
+
     // ============ exercises ============
 
     pub async fn get_exercise(&self, id: &str) -> Result<Exercise> {
@@ -123,6 +128,26 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn update_exercise_favourite(&self, id: &str, favourite: bool) -> Result<Exercise> {
         let mut conn = self.pool.acquire().await?;
         exercises::repo::update_favourite(&mut conn, id, favourite).await
+    }
+
+    pub async fn create_exercise(&self, values: &ExerciseValues) -> Result<Exercise> {
+        let mut conn = self.pool.acquire().await?;
+        exercises::repo::create(&mut conn, values).await
+    }
+
+    pub async fn update_exercise(&self, id: &str, values: &ExerciseValues) -> Result<Exercise> {
+        let mut conn = self.pool.acquire().await?;
+        exercises::repo::update(&mut conn, id, values).await
+    }
+
+    pub async fn set_exercise_archived(&self, id: &str, archived: bool) -> Result<Exercise> {
+        let mut conn = self.pool.acquire().await?;
+        exercises::repo::set_archived(&mut conn, id, archived).await
+    }
+
+    pub async fn delete_exercise(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        exercises::repo::delete(&mut conn, id).await
     }
 
     // ============ workouts / workout-exercises ============

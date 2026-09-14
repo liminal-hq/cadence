@@ -5,4 +5,8 @@
  * `category` stay open `String`s (validated where written, not CHECK-constrained) so adding a
  * new profile or category is a Rust change, never a migration.
  */
-export type Exercise = { id: string, name: string, category: string, metricProfile: string, weightIncrementKg?: number, repsIncrement?: number, distanceIncrementKm?: number, durationIncrementSec?: number, archived: boolean, favourite: boolean, };
+export type Exercise = { id: string, name: string, category: string, metricProfile: string, note?: string, url?: string, weightIncrementKg?: number, repsIncrement?: number, distanceIncrementKm?: number, durationIncrementSec?: number, restDefaultMs?: number, 
+/**
+ * One of `history/computeGraphPoints.ts`'s `GraphMetric` keys (`"weight"`, `"estimated-1rm"`, `"volume"`, `"distance"`, `"pace"`) — validated against that set in the repo layer, not a DB `CHECK` constraint, matching `metric_profile`'s "open TEXT, Rust-validated" convention.
+ */
+graphDefaultMetric?: string, archived: boolean, favourite: boolean, };
