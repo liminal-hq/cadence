@@ -25,8 +25,7 @@ pub struct Workout {
     pub status: String,
     pub source: String,
     pub logged_by_watch: bool,
-    /// Set when this workout was created by materializing a routine section (SPEC.md 8.4) —
-    /// provenance only, per SPEC.md 10.2's "immutable with respect to already materialized sets."
+    /// Set when this workout was created by materializing a routine section (SPEC.md 8.4) — provenance only, per SPEC.md 10.2's "immutable with respect to already materialized sets."
     #[cfg_attr(test, ts(optional))]
     pub source_routine_id: Option<String>,
     #[cfg_attr(test, ts(optional))]

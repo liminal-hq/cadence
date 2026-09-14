@@ -8,7 +8,6 @@
  */
 export type SetEntry = { id: string, workoutExerciseId: string, order: number, status: string, weightKg?: number, reps?: number, distanceKm?: number, durationSec?: number, completedAt?: string, note?: string, 
 /**
- * Only ever populated by routine materialization today (SPEC.md 8.4's SetTemplate.set_label,
- * e.g. "warm-up" or "drop") — no logging-flow path writes it.
+ * Only ever populated by routine materialization today (SPEC.md 8.4's SetTemplate.set_label, e.g. "warm-up" or "drop") — no logging-flow path writes it.
  */
 setLabel?: string, isRecord: boolean, pendingSync: boolean, };
