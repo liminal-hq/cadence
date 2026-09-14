@@ -455,6 +455,66 @@ describe('MockLoggingRepository', () => {
 			await repo.deleteSetTemplate(template.id);
 			expect(await repo.listSetTemplates(exercise.id)).toEqual([]);
 		});
+
+		it('materializes a section into a real workout, resolving explicit and seeded templates', async () => {
+			// Seed history: a completed 82.5kg x 6 bench-press set in an earlier workout.
+			const historyWorkout = await repo.createWorkout('2026-09-01', 'Earlier session');
+			const historyExercise = await repo.addWorkoutExercise(historyWorkout.id, 'ex-bench-press');
+			await repo.logNewSet(historyExercise.id, { weightKg: 82.5, reps: 6 });
+
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			await repo.addSetTemplate(exercise.id, { weightKg: 60, reps: 10 });
+			await repo.addSetTemplate(exercise.id, { populationRule: 'seed-last-performance' });
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
+			expect(workout.date).toBe('2026-09-20');
+			expect(workout.title).toBe('Push day');
+			expect(workout.status).toBe('in-progress');
+
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			expect(workoutExercises).toHaveLength(1);
+			const sets = await repo.listSets(workoutExercises[0].id);
+			expect(sets).toHaveLength(2);
+			expect(sets[0]).toMatchObject({ weightKg: 60, reps: 10, status: 'planned' });
+			expect(sets[1]).toMatchObject({ weightKg: 82.5, reps: 6, status: 'planned' });
+		});
+
+		it('leaves a seeded template blank with no history', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-running');
+			await repo.addSetTemplate(exercise.id, { populationRule: 'seed-last-performance' });
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			const sets = await repo.listSets(workoutExercises[0].id);
+			expect(sets).toHaveLength(1);
+			expect(sets[0].weightKg).toBeUndefined();
+			expect(sets[0].reps).toBeUndefined();
+		});
+
+		it('only materializes the selected exercises and rebuilds superset grouping', async () => {
+			const routine = await repo.createRoutine('Superset A');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
+			const lateralRaise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
+			const tricepsPushdown = await repo.addRoutineExercise(section.id, 'ex-triceps-pushdown');
+			await repo.setRoutineExerciseSuperset(lateralRaise.id, superset.id, 1);
+			await repo.setRoutineExerciseSuperset(tricepsPushdown.id, superset.id, 2);
+			await repo.addRoutineExercise(section.id, 'ex-running');
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [
+				lateralRaise.id,
+				tricepsPushdown.id,
+			]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			expect(workoutExercises).toHaveLength(2);
+			expect(workoutExercises[0].supersetGroupId).toBeDefined();
+			expect(workoutExercises[0].supersetGroupId).toBe(workoutExercises[1].supersetGroupId);
+			expect(workoutExercises[0].supersetGroupId).not.toBe(superset.id);
+		});
 	});
 
 	describe('categories', () => {

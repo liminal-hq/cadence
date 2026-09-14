@@ -770,6 +770,98 @@ export class MockLoggingRepository implements LoggingRepository {
 		this.setTemplates.delete(id);
 	}
 
+	/** The most recent completed set for this exercise, across every workout — mirrors the Rust
+	 *  Coordinator's `sets::repo::most_recent_completed`. */
+	private mostRecentCompletedValues(
+		exerciseId: string,
+	): Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'> {
+		let best: SetEntry | undefined;
+		for (const we of this.workoutExercises.values()) {
+			if (we.exerciseId !== exerciseId) continue;
+			for (const set of this.sets.values()) {
+				if (set.workoutExerciseId !== we.id || set.status !== 'completed') continue;
+				if (!best || (set.completedAt ?? '') > (best.completedAt ?? '')) {
+					best = set;
+				}
+			}
+		}
+		if (!best) return {};
+		return {
+			weightKg: best.weightKg,
+			reps: best.reps,
+			distanceKm: best.distanceKm,
+			durationSec: best.durationSec,
+		};
+	}
+
+	async materializeRoutineSection(
+		routineSectionId: string,
+		targetDate: string,
+		selectedRoutineExerciseIds: string[],
+	): Promise<Workout> {
+		const section = await this.getRoutineSection(routineSectionId);
+		const routine = await this.getRoutine(section.routineId);
+		const selected = (await this.listRoutineExercises(routineSectionId)).filter((re) =>
+			selectedRoutineExerciseIds.includes(re.id),
+		);
+
+		const workout: Workout = {
+			id: newId('workout'),
+			date: targetDate,
+			title: routine.name,
+			status: 'in-progress',
+			source: 'manual',
+		};
+		this.workouts.set(workout.id, workout);
+
+		const supersetIdMap = new Map<string, string>();
+
+		for (const re of selected) {
+			let newSupersetId: string | undefined;
+			if (re.routineSupersetId) {
+				newSupersetId = supersetIdMap.get(re.routineSupersetId);
+				if (!newSupersetId) {
+					newSupersetId = newId('superset');
+					supersetIdMap.set(re.routineSupersetId, newSupersetId);
+				}
+			}
+
+			const newWorkoutExercise: WorkoutExercise = {
+				id: newId('we'),
+				exerciseId: re.exerciseId,
+				workoutId: workout.id,
+				workoutLabel: `${workout.title} · ${re.order} of ${selected.length}`,
+				order: re.order,
+				supersetGroupId: newSupersetId,
+				supersetPosition: re.supersetPosition,
+			};
+			this.workoutExercises.set(newWorkoutExercise.id, newWorkoutExercise);
+
+			const templates = await this.listSetTemplates(re.id);
+			for (const template of templates) {
+				const values =
+					template.populationRule === SEED_LAST_PERFORMANCE
+						? this.mostRecentCompletedValues(re.exerciseId)
+						: {
+								weightKg: template.weightKg,
+								reps: template.reps,
+								distanceKm: template.distanceKm,
+								durationSec: template.durationSec,
+							};
+				const set: SetEntry = {
+					id: newId('set'),
+					workoutExerciseId: newWorkoutExercise.id,
+					order: template.order,
+					status: 'planned',
+					...values,
+				};
+				this.sets.set(set.id, set);
+			}
+		}
+
+		return workout;
+	}
+
 	async getCategory(id: string): Promise<Category> {
 		const category = this.categories.get(id);
 		if (!category) throw new Error(`Unknown category: ${id}`);

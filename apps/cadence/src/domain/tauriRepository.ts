@@ -339,6 +339,18 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('delete_set_template', { id });
 	}
 
+	async materializeRoutineSection(
+		routineSectionId: string,
+		targetDate: string,
+		selectedRoutineExerciseIds: string[],
+	): Promise<Workout> {
+		return call('materialize_routine_section', {
+			routineSectionId,
+			targetDate,
+			selectedRoutineExerciseIds,
+		});
+	}
+
 	async getCategory(id: string): Promise<Category> {
 		return call('get_category', { id });
 	}
