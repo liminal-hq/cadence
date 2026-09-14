@@ -22,6 +22,7 @@ struct SetRow {
     duration_s: Option<i32>,
     completed_at_ms: Option<i64>,
     note: Option<String>,
+    set_label: Option<String>,
     pending_sync: i64,
 }
 
@@ -38,6 +39,7 @@ impl From<SetRow> for SetEntry {
             duration_sec: row.duration_s,
             completed_at: row.completed_at_ms.map(ms_to_iso),
             note: row.note,
+            set_label: row.set_label,
             is_record: false,
             pending_sync: row.pending_sync != 0,
         }
@@ -65,8 +67,8 @@ async fn parent_ids(
 pub async fn list(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Result<Vec<SetEntry>> {
     let rows: Vec<SetRow> = sqlx::query_as(
         "SELECT id, workout_exercise_id, sort_order, status, weight_g, reps, distance_m, \
-         duration_s, completed_at_ms, note, pending_sync FROM sets WHERE workout_exercise_id = ? \
-         ORDER BY sort_order",
+         duration_s, completed_at_ms, note, set_label, pending_sync FROM sets \
+         WHERE workout_exercise_id = ? ORDER BY sort_order",
     )
     .bind(workout_exercise_id)
     .fetch_all(&mut *conn)
@@ -77,7 +79,7 @@ pub async fn list(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Res
 async fn get(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
     let row: SetRow = sqlx::query_as(
         "SELECT id, workout_exercise_id, sort_order, status, weight_g, reps, distance_m, \
-         duration_s, completed_at_ms, note, pending_sync FROM sets WHERE id = ?",
+         duration_s, completed_at_ms, note, set_label, pending_sync FROM sets WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(&mut *conn)
@@ -286,16 +288,22 @@ struct MostRecentCompletedRow {
 /// routine materialization's "seed from most recent comparable performance" rule (SPEC.md 8.4).
 /// Ordered by `completed_at_ms`, not `created_at_ms`, since a set can be completed out of creation
 /// order (e.g. a batch-logged rest day).
+/// `on_or_before_date` excludes a completed set from a workout dated after it — materializing a
+/// backdated routine section must not seed from performance that, relative to the workout being
+/// created, hasn't happened yet.
 pub async fn most_recent_completed(
     conn: &mut SqliteConnection,
     exercise_id: &str,
+    on_or_before_date: &str,
 ) -> Result<Option<SetValues>> {
     let row: Option<MostRecentCompletedRow> = sqlx::query_as(
-        "SELECT weight_g, reps, distance_m, duration_s FROM sets \
-         WHERE exercise_id = ? AND status = 'completed' \
-         ORDER BY completed_at_ms DESC LIMIT 1",
+        "SELECT s.weight_g, s.reps, s.distance_m, s.duration_s FROM sets s \
+         JOIN workouts w ON w.id = s.workout_id \
+         WHERE s.exercise_id = ? AND s.status = 'completed' AND w.local_date <= ? \
+         ORDER BY s.completed_at_ms DESC LIMIT 1",
     )
     .bind(exercise_id)
+    .bind(on_or_before_date)
     .fetch_optional(&mut *conn)
     .await?;
     Ok(row.map(|row| SetValues {
@@ -465,6 +473,7 @@ mod tests {
             duration_sec: None,
             completed_at: None,
             note: None,
+            set_label: None,
             is_record: false,
             pending_sync: false,
         };
@@ -609,8 +618,8 @@ mod tests {
         let mut conn = pool.acquire().await.unwrap();
         let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
         // sets[1] is the later of the two completed sets (80kg x 9); sets[0] (80kg x 8) is
-        // earlier, and sets[2]/sets[3] are still planned.
-        let found = most_recent_completed(&mut conn, "ex-bench-press")
+        // earlier, and sets[2]/sets[3] are still planned. Both live in a "2026-09-09" workout.
+        let found = most_recent_completed(&mut conn, "ex-bench-press", "2026-09-09")
             .await
             .unwrap()
             .expect("a completed set exists");
@@ -619,10 +628,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn most_recent_completed_excludes_performance_after_the_given_date() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        seed_four_bench_press_sets(&mut conn).await;
+        // The seeded workout is dated "2026-09-09" — asking for performance on or before an
+        // earlier date must not seed from it.
+        let found = most_recent_completed(&mut conn, "ex-bench-press", "2026-09-01")
+            .await
+            .unwrap();
+        assert_eq!(found, None);
+    }
+
+    #[tokio::test]
     async fn most_recent_completed_is_none_with_no_history() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let found = most_recent_completed(&mut conn, "ex-running")
+        let found = most_recent_completed(&mut conn, "ex-running", "2026-09-09")
             .await
             .unwrap();
         assert_eq!(found, None);

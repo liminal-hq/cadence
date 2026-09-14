@@ -774,10 +774,15 @@ export class MockLoggingRepository implements LoggingRepository {
 	 *  Coordinator's `sets::repo::most_recent_completed`. */
 	private mostRecentCompletedValues(
 		exerciseId: string,
+		onOrBeforeDate: string,
 	): Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'> {
 		let best: SetEntry | undefined;
 		for (const we of this.workoutExercises.values()) {
 			if (we.exerciseId !== exerciseId) continue;
+			const owningWorkout = this.workouts.get(we.workoutId);
+			// A backdated materialization must not seed from performance that, relative to the
+			// workout being created, hasn't happened yet.
+			if (!owningWorkout || owningWorkout.date > onOrBeforeDate) continue;
 			for (const set of this.sets.values()) {
 				if (set.workoutExerciseId !== we.id || set.status !== 'completed') continue;
 				if (!best || (set.completedAt ?? '') > (best.completedAt ?? '')) {
@@ -811,6 +816,8 @@ export class MockLoggingRepository implements LoggingRepository {
 			title: routine.name,
 			status: 'in-progress',
 			source: 'manual',
+			sourceRoutineId: routine.id,
+			sourceRoutineName: routine.name,
 		};
 		this.workouts.set(workout.id, workout);
 
@@ -832,6 +839,7 @@ export class MockLoggingRepository implements LoggingRepository {
 				workoutId: workout.id,
 				workoutLabel: `${workout.title} · ${re.order} of ${selected.length}`,
 				order: re.order,
+				todayNote: re.note,
 				supersetGroupId: newSupersetId,
 				supersetPosition: re.supersetPosition,
 			};
@@ -841,7 +849,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			for (const template of templates) {
 				const values =
 					template.populationRule === SEED_LAST_PERFORMANCE
-						? this.mostRecentCompletedValues(re.exerciseId)
+						? this.mostRecentCompletedValues(re.exerciseId, targetDate)
 						: {
 								weightKg: template.weightKg,
 								reps: template.reps,
@@ -853,6 +861,7 @@ export class MockLoggingRepository implements LoggingRepository {
 					workoutExerciseId: newWorkoutExercise.id,
 					order: template.order,
 					status: 'planned',
+					setLabel: template.setLabel,
 					...values,
 				};
 				this.sets.set(set.id, set);

@@ -30,6 +30,10 @@ pub struct SetEntry {
     pub completed_at: Option<String>,
     #[cfg_attr(test, ts(optional))]
     pub note: Option<String>,
+    /// Only ever populated by routine materialization today (SPEC.md 8.4's SetTemplate.set_label,
+    /// e.g. "warm-up" or "drop") — no logging-flow path writes it.
+    #[cfg_attr(test, ts(optional))]
+    pub set_label: Option<String>,
     pub is_record: bool,
     pub pending_sync: bool,
 }

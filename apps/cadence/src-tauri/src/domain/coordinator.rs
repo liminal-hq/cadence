@@ -545,13 +545,14 @@ impl<R: Runtime> Coordinator<R> {
             let we_revision = crate::db::next_revision(&mut tx).await?;
             sqlx::query(
                 "INSERT INTO workout_exercises (id, workout_id, exercise_id, sort_order, \
-                 superset_id, superset_position, created_at_ms, updated_at_ms, revision) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                 today_note, superset_id, superset_position, created_at_ms, updated_at_ms, \
+                 revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(&new_we_id)
             .bind(&new_workout_id)
             .bind(&re.exercise_id)
             .bind(re.order)
+            .bind(&re.note)
             .bind(&new_superset_id)
             .bind(re.superset_position)
             .bind(now)
@@ -564,7 +565,7 @@ impl<R: Runtime> Coordinator<R> {
                 routines::set_templates::list_by_routine_exercise(&mut tx, &re.id).await?;
             for template in &templates {
                 let values = if template.population_rule.as_deref() == Some(SEED_LAST_PERFORMANCE) {
-                    sets::repo::most_recent_completed(&mut tx, &re.exercise_id)
+                    sets::repo::most_recent_completed(&mut tx, &re.exercise_id, target_date)
                         .await?
                         .unwrap_or_default()
                 } else {
@@ -579,9 +580,9 @@ impl<R: Runtime> Coordinator<R> {
                 let set_revision = crate::db::next_revision(&mut tx).await?;
                 sqlx::query(
                     "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, \
-                     sort_order, status, weight_g, reps, distance_m, duration_s, \
+                     sort_order, status, weight_g, reps, distance_m, duration_s, set_label, \
                      source_template_id, pending_sync, created_at_ms, updated_at_ms, revision) \
-                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
                 )
                 .bind(&set_id)
                 .bind(&new_workout_id)
@@ -592,6 +593,7 @@ impl<R: Runtime> Coordinator<R> {
                 .bind(values.reps)
                 .bind(values.distance_km.map(super::units::km_to_m))
                 .bind(values.duration_sec)
+                .bind(&template.set_label)
                 .bind(&template.id)
                 .bind(now)
                 .bind(now)
@@ -1353,6 +1355,11 @@ mod tests {
         assert_eq!(workout.title, "Push day");
         assert_eq!(workout.status, "in-progress");
         assert_eq!(workout.source, "manual");
+        assert_eq!(
+            workout.source_routine_id.as_deref(),
+            Some(routine.id.as_str())
+        );
+        assert_eq!(workout.source_routine_name.as_deref(), Some("Push day"));
 
         let workout_exercises = c
             .list_workout_exercises_by_workout(&workout.id)
@@ -1360,6 +1367,33 @@ mod tests {
             .unwrap();
         assert_eq!(workout_exercises.len(), 1);
         assert_eq!(workout_exercises[0].exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn materialize_copies_the_routine_exercises_note_onto_the_workout_exercise() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.update_routine_exercise_note(&re.id, Some("Pause reps"))
+            .await
+            .unwrap();
+
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(
+            workout_exercises[0].today_note.as_deref(),
+            Some("Pause reps")
+        );
     }
 
     #[tokio::test]
@@ -1396,6 +1430,7 @@ mod tests {
             &SetTemplateValues {
                 weight_kg: Some(60.0),
                 reps: Some(10),
+                set_label: Some("Warm-up".to_string()),
                 ..Default::default()
             },
         )
@@ -1424,10 +1459,66 @@ mod tests {
         assert_eq!(sets[0].weight_kg, Some(60.0));
         assert_eq!(sets[0].reps, Some(10));
         assert_eq!(sets[0].status, "planned");
+        assert_eq!(sets[0].set_label.as_deref(), Some("Warm-up"));
         // Seeded from the completed history set above, not the explicit 60kg/10 template.
         assert_eq!(sets[1].weight_kg, Some(82.5));
         assert_eq!(sets[1].reps, Some(6));
         assert_eq!(sets[1].status, "planned");
+    }
+
+    #[tokio::test]
+    async fn materialize_never_seeds_from_performance_after_the_target_date() {
+        let c = test_coordinator().await;
+        // A completed set dated *after* the backdated target below.
+        let later_workout = c
+            .create_workout("2026-09-15", "Later session")
+            .await
+            .unwrap();
+        let later_we = c
+            .add_workout_exercise(&later_workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.log_new_set(
+            &later_we.id,
+            &SetValues {
+                weight_kg: Some(90.0),
+                reps: Some(4),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.add_set_template(
+            &re.id,
+            &SetTemplateValues {
+                population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        // Backdated relative to the "later" performance above.
+        let workout = c
+            .materialize_routine_section(&section.id, "2026-09-01", std::slice::from_ref(&re.id))
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        let sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
+        assert_eq!(
+            sets[0].weight_kg, None,
+            "must not seed from future performance"
+        );
     }
 
     #[tokio::test]

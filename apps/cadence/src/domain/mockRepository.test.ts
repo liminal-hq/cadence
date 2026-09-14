@@ -472,6 +472,8 @@ describe('MockLoggingRepository', () => {
 			expect(workout.date).toBe('2026-09-20');
 			expect(workout.title).toBe('Push day');
 			expect(workout.status).toBe('in-progress');
+			expect(workout.sourceRoutineId).toBe(routine.id);
+			expect(workout.sourceRoutineName).toBe('Push day');
 
 			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
 			expect(workoutExercises).toHaveLength(1);
@@ -479,6 +481,43 @@ describe('MockLoggingRepository', () => {
 			expect(sets).toHaveLength(2);
 			expect(sets[0]).toMatchObject({ weightKg: 60, reps: 10, status: 'planned' });
 			expect(sets[1]).toMatchObject({ weightKg: 82.5, reps: 6, status: 'planned' });
+		});
+
+		it('never seeds from performance after the target date', async () => {
+			// seedData.ts's fixtures already give ex-bench-press earlier history, so this asserts
+			// the injected *future* value specifically never wins, rather than requiring a clean
+			// no-history exercise.
+			const laterWorkout = await repo.createWorkout('2026-09-15', 'Later session');
+			const laterExercise = await repo.addWorkoutExercise(laterWorkout.id, 'ex-bench-press');
+			await repo.logNewSet(laterExercise.id, { weightKg: 999, reps: 4 });
+
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			await repo.addSetTemplate(exercise.id, { populationRule: 'seed-last-performance' });
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-01', [exercise.id]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			const sets = await repo.listSets(workoutExercises[0].id);
+			expect(sets[0].weightKg).not.toBe(999);
+		});
+
+		it('copies the routine exercise note and set label onto the workout', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			await repo.updateRoutineExerciseNote(exercise.id, 'Pause reps');
+			await repo.addSetTemplate(exercise.id, {
+				weightKg: 60,
+				reps: 10,
+				setLabel: 'Warm-up',
+			});
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			expect(workoutExercises[0].todayNote).toBe('Pause reps');
+			const sets = await repo.listSets(workoutExercises[0].id);
+			expect(sets[0].setLabel).toBe('Warm-up');
 		});
 
 		it('leaves a seeded template blank with no history', async () => {

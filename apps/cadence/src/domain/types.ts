@@ -80,6 +80,8 @@ export interface SetEntry {
 	durationSec?: number;
 	completedAt?: string;
 	note?: string;
+	/** Only ever populated by routine materialization today (SPEC.md 8.4's set-template label, e.g. "warm-up" or "drop"). */
+	setLabel?: string;
 	isRecord?: boolean;
 	/** True while a watch-logged set hasn't merged back from the phone's perspective. */
 	pendingSync?: boolean;
@@ -185,6 +187,9 @@ export interface Workout {
 	source: WorkoutSource;
 	/** True when any set in this workout was logged from the paired watch. */
 	loggedByWatch?: boolean;
+	/** Set when this workout was created by materializing a routine section (SPEC.md 8.4) — provenance only. */
+	sourceRoutineId?: string;
+	sourceRoutineName?: string;
 	healthConnect?: WorkoutHealthConnectProvenance;
 }
 
