@@ -1,4 +1,4 @@
-// Row mapping and persistence for routine sections.
+// Row mapping and persistence for routine sections
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -55,8 +55,7 @@ pub async fn list_by_routine(
     Ok(rows.into_iter().map(RoutineSection::from).collect())
 }
 
-/// Appends at the end of the routine's existing sections — `MAX(sort_order)+1`, matching
-/// `workout_exercises::add`'s reasoning.
+/// Appends at the end of the routine's existing sections — `MAX(sort_order)+1`, matching `workout_exercises::add`'s reasoning.
 pub async fn add(
     conn: &mut SqliteConnection,
     routine_id: &str,
@@ -83,8 +82,7 @@ pub async fn add(
     get(conn, &id).await
 }
 
-/// A no-op if the section doesn't exist, otherwise records a tombstone. Its supersets/exercises/
-/// set-templates cascade via `ON DELETE CASCADE`.
+/// A no-op if the section doesn't exist, otherwise records a tombstone. Its supersets/exercises/set-templates cascade via `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let result = sqlx::query("DELETE FROM routine_sections WHERE id = ?")
         .bind(id)

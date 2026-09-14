@@ -368,6 +368,20 @@ describe('MockLoggingRepository', () => {
 			await repo.deleteRoutineSuperset(superset.id);
 			const reloaded = await repo.getRoutineExercise(exercise.id);
 			expect(reloaded.routineSupersetId).toBeUndefined();
+			expect(reloaded.supersetPosition).toBeUndefined();
+		});
+
+		it('rejects a superset from a different section', async () => {
+			const routineA = await repo.createRoutine('Push day');
+			const sectionA = await repo.addRoutineSection(routineA.id, 'A');
+			const routineB = await repo.createRoutine('Pull day');
+			const sectionB = await repo.addRoutineSection(routineB.id, 'A');
+			const supersetInB = await repo.createRoutineSuperset(sectionB.id, undefined, true, undefined);
+			const exerciseInA = await repo.addRoutineExercise(sectionA.id, 'ex-lateral-raise');
+
+			await expect(
+				repo.setRoutineExerciseSuperset(exerciseInA.id, supersetInB.id, 1),
+			).rejects.toThrow();
 		});
 
 		it('adds explicit-value and seeded set templates, rejecting an unknown population rule', async () => {
@@ -388,6 +402,19 @@ describe('MockLoggingRepository', () => {
 			await expect(
 				repo.addSetTemplate(exercise.id, { populationRule: 'made-up-rule' }),
 			).rejects.toThrow('made-up-rule');
+		});
+
+		it('rejects combining a population rule with an explicit value', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+
+			await expect(
+				repo.addSetTemplate(exercise.id, {
+					populationRule: 'seed-last-performance',
+					weightKg: 80,
+				}),
+			).rejects.toThrow();
 		});
 
 		it('removes a set template', async () => {

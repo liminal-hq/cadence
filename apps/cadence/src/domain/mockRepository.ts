@@ -697,6 +697,14 @@ export class MockLoggingRepository implements LoggingRepository {
 		supersetPosition: number | undefined,
 	): Promise<RoutineExercise> {
 		const existing = await this.getRoutineExercise(id);
+		if (routineSupersetId) {
+			const superset = await this.getRoutineSuperset(routineSupersetId);
+			if (superset.routineSectionId !== existing.routineSectionId) {
+				throw new Error(
+					`Routine superset ${routineSupersetId} belongs to a different section than routine exercise ${id}`,
+				);
+			}
+		}
 		const updated = { ...existing, routineSupersetId, supersetPosition };
 		this.routineExercises.set(id, updated);
 		return updated;
@@ -725,8 +733,20 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate> {
-		if (values.populationRule && values.populationRule !== SEED_LAST_PERFORMANCE) {
-			throw new Error(`Unknown set-template population rule: ${values.populationRule}`);
+		if (values.populationRule) {
+			if (values.populationRule !== SEED_LAST_PERFORMANCE) {
+				throw new Error(`Unknown set-template population rule: ${values.populationRule}`);
+			}
+			const hasExplicitValue =
+				values.weightKg !== undefined ||
+				values.reps !== undefined ||
+				values.distanceKm !== undefined ||
+				values.durationSec !== undefined;
+			if (hasExplicitValue) {
+				throw new Error(
+					"A set template can't combine a population rule with explicit target values",
+				);
+			}
 		}
 		const siblings = await this.listSetTemplates(routineExerciseId);
 		const nextOrder = siblings.reduce((max, t) => Math.max(max, t.order), 0) + 1;

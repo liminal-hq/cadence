@@ -1,4 +1,4 @@
-// Row mapping and persistence for routines (the top-level template entity).
+// Row mapping and persistence for routines (the top-level template entity)
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -42,8 +42,7 @@ pub async fn get(conn: &mut SqliteConnection, id: &str) -> Result<Routine> {
     Ok(row.into())
 }
 
-/// Every routine, archived or not — the routine list screen (P-30) is responsible for filtering,
-/// same division of labour as `exercises::repo::list` returning archived rows for its caller.
+/// Every routine, archived or not — the routine list screen (P-30) is responsible for filtering, same division of labour as `exercises::repo::list` returning archived rows for its caller.
 pub async fn list(conn: &mut SqliteConnection) -> Result<Vec<Routine>> {
     let rows: Vec<RoutineRow> = sqlx::query_as(
         "SELECT id, name, note, sort_order, archived FROM routines ORDER BY sort_order, id",
@@ -53,8 +52,7 @@ pub async fn list(conn: &mut SqliteConnection) -> Result<Vec<Routine>> {
     Ok(rows.into_iter().map(Routine::from).collect())
 }
 
-/// Appends at the end of the list — `MAX(sort_order)+1`, matching every other append-ordered
-/// table in this crate (a prior archive/delete can leave a gap `COUNT` would collide with).
+/// Appends at the end of the list — `MAX(sort_order)+1`, matching every other append-ordered table in this crate (a prior archive/delete can leave a gap `COUNT` would collide with).
 pub async fn create(conn: &mut SqliteConnection, name: &str) -> Result<Routine> {
     let existing = list(conn).await?;
     let next_order = existing.iter().map(|r| r.sort_order).max().unwrap_or(0) + 1;
@@ -145,8 +143,7 @@ pub async fn set_archived(
     get(conn, id).await
 }
 
-/// A no-op if the routine doesn't exist, otherwise records a tombstone. Its sections/supersets/
-/// routine-exercises/set-templates cascade via the schema's `ON DELETE CASCADE`.
+/// A no-op if the routine doesn't exist, otherwise records a tombstone. Its sections/supersets/routine-exercises/set-templates cascade via the schema's `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let result = sqlx::query("DELETE FROM routines WHERE id = ?")
         .bind(id)

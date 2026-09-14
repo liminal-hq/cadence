@@ -1,4 +1,4 @@
-// Row mapping and persistence for routine-authored superset templates.
+// Row mapping and persistence for routine-authored superset templates
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -71,16 +71,32 @@ pub async fn create(
     get(conn, &id).await
 }
 
-/// A no-op if the superset doesn't exist, otherwise records a tombstone. Member routine-exercises'
-/// `routine_superset_id` is cleared via `ON DELETE SET NULL`, not deleted.
+/// A no-op if the superset doesn't exist, otherwise records a tombstone. Member routine-exercises' `routine_superset_id` is cleared via `ON DELETE SET NULL`, but that alone leaves `superset_position` stale — cleared explicitly here, row by row, so each clear gets its own revision stamp like any other mutation.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
+    let member_ids: Vec<(String,)> =
+        sqlx::query_as("SELECT id FROM routine_exercises WHERE routine_superset_id = ?")
+            .bind(id)
+            .fetch_all(&mut *conn)
+            .await?;
+    let now = chrono::Utc::now().timestamp_millis();
+    for (exercise_id,) in &member_ids {
+        let revision = crate::db::next_revision(conn).await?;
+        sqlx::query(
+            "UPDATE routine_exercises SET superset_position = NULL, updated_at_ms = ?, \
+             revision = ? WHERE id = ?",
+        )
+        .bind(now)
+        .bind(revision)
+        .bind(exercise_id)
+        .execute(&mut *conn)
+        .await?;
+    }
     let result = sqlx::query("DELETE FROM routine_supersets WHERE id = ?")
         .bind(id)
         .execute(&mut *conn)
         .await?;
     if result.rows_affected() > 0 {
         let revision = crate::db::next_revision(conn).await?;
-        let now = chrono::Utc::now().timestamp_millis();
         crate::db::write_tombstone(conn, "routine_superset", id, revision, now).await?;
     }
     Ok(())

@@ -1,4 +1,4 @@
-// Row mapping and persistence for routine exercises (an exercise slot within a routine section).
+// Row mapping and persistence for routine exercises (an exercise slot within a routine section)
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -65,8 +65,7 @@ pub async fn list_by_section(
     Ok(rows.into_iter().map(RoutineExercise::from).collect())
 }
 
-/// Appends at the end of the section's existing exercises — `MAX(sort_order)+1`, matching
-/// `workout_exercises::add`'s reasoning.
+/// Appends at the end of the section's existing exercises — `MAX(sort_order)+1`, matching `workout_exercises::add`'s reasoning.
 pub async fn add(
     conn: &mut SqliteConnection,
     routine_section_id: &str,
@@ -93,14 +92,23 @@ pub async fn add(
     get(conn, &id).await
 }
 
-/// Assigns or clears this exercise's superset membership — `routine_superset_id: None` clears it
-/// (dissolving the group from this exercise's side), matching `superset_position` in lockstep.
+/// Assigns or clears this exercise's superset membership — `routine_superset_id: None` clears it (dissolving the group from this exercise's side), matching `superset_position` in lockstep. Rejects a superset that belongs to a different section: the foreign key alone would happily accept it, but a section-owned superset grouping exercises from another section (or another routine) would corrupt both display and per-section materialization.
 pub async fn set_superset(
     conn: &mut SqliteConnection,
     id: &str,
     routine_superset_id: Option<&str>,
     superset_position: Option<i32>,
 ) -> Result<RoutineExercise> {
+    let exercise = get(conn, id).await?;
+    if let Some(superset_id) = routine_superset_id {
+        let superset = super::supersets::get(conn, superset_id).await?;
+        if superset.routine_section_id != exercise.routine_section_id {
+            return Err(Error::Validation(format!(
+                "routine superset {superset_id:?} belongs to a different section than routine \
+                 exercise {id:?}"
+            )));
+        }
+    }
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
@@ -148,8 +156,7 @@ pub async fn update_note(
     get(conn, id).await
 }
 
-/// A no-op if the routine-exercise doesn't exist, otherwise records a tombstone. Its set templates
-/// cascade via `ON DELETE CASCADE`.
+/// A no-op if the routine-exercise doesn't exist, otherwise records a tombstone. Its set templates cascade via `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let result = sqlx::query("DELETE FROM routine_exercises WHERE id = ?")
         .bind(id)
@@ -234,6 +241,39 @@ mod tests {
             .unwrap();
         let reloaded = get(&mut conn, &exercise.id).await.unwrap();
         assert_eq!(reloaded.routine_superset_id, None);
+        // The FK's `ON DELETE SET NULL` only clears `routine_superset_id` — `superset_position`
+        // must be cleared explicitly, or a re-grouped exercise would inherit a stale position.
+        assert_eq!(reloaded.superset_position, None);
+    }
+
+    #[tokio::test]
+    async fn rejects_a_superset_from_a_different_section() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_a = a_section(&mut conn).await;
+        let routine_b = super::super::repo::create(&mut conn, "Pull day")
+            .await
+            .unwrap();
+        let section_b = super::super::sections::add(&mut conn, &routine_b.id, Some("A"))
+            .await
+            .unwrap();
+        let superset_in_b =
+            super::super::supersets::create(&mut conn, &section_b.id, None, true, None)
+                .await
+                .unwrap();
+        let exercise_in_a = add(&mut conn, &section_a, "ex-lateral-raise")
+            .await
+            .unwrap();
+
+        let err = set_superset(
+            &mut conn,
+            &exercise_in_a.id,
+            Some(&superset_in_b.id),
+            Some(1),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]

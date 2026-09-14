@@ -1,4 +1,4 @@
-// Row mapping and persistence for set templates (planned sets within a routine exercise).
+// Row mapping and persistence for set templates (planned sets within a routine exercise)
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -45,8 +45,7 @@ const SELECT_BY_ROUTINE_EXERCISE: &str = "SELECT id, routine_exercise_id, sort_o
      reps, distance_m, duration_s, population_rule, set_label FROM set_templates \
      WHERE routine_exercise_id = ? ORDER BY sort_order";
 
-/// The only rule this crate accepts today — kept as a function rather than inlined into `add` so
-/// the check has one call site as more rules are added later.
+/// The only rule this crate accepts today — kept as a function rather than inlined into `add` so the check has one call site as more rules are added later.
 fn validate_population_rule(rule: &str) -> Result<()> {
     if rule == SEED_LAST_PERFORMANCE {
         Ok(())
@@ -80,9 +79,7 @@ pub async fn list_by_routine_exercise(
     Ok(rows.into_iter().map(SetTemplate::from).collect())
 }
 
-/// Appends at the end of the routine exercise's existing templates — `MAX(sort_order)+1`, matching
-/// `sets::repo::add`'s reasoning. Rejects an unrecognized `population_rule` up front rather than
-/// persisting a value materialization could never act on.
+/// Appends at the end of the routine exercise's existing templates — `MAX(sort_order)+1`, matching `sets::repo::add`'s reasoning. Rejects an unrecognized `population_rule` up front rather than persisting a value materialization could never act on, and rejects supplying both a `population_rule` and any explicit target value, since the model treats them as mutually exclusive — persisting both would leave materialization unable to tell which one is authoritative.
 pub async fn add(
     conn: &mut SqliteConnection,
     routine_exercise_id: &str,
@@ -90,6 +87,16 @@ pub async fn add(
 ) -> Result<SetTemplate> {
     if let Some(rule) = &values.population_rule {
         validate_population_rule(rule)?;
+        let has_explicit_value = values.weight_kg.is_some()
+            || values.reps.is_some()
+            || values.distance_km.is_some()
+            || values.duration_sec.is_some();
+        if has_explicit_value {
+            return Err(Error::Validation(
+                "a set template can't combine a population rule with explicit target values"
+                    .to_string(),
+            ));
+        }
     }
     let siblings = list_by_routine_exercise(conn, routine_exercise_id).await?;
     let next_order = siblings.iter().map(|t| t.order).max().unwrap_or(0) + 1;
@@ -202,6 +209,25 @@ mod tests {
             &routine_exercise_id,
             &SetTemplateValues {
                 population_rule: Some("made-up-rule".to_string()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_combining_a_population_rule_with_an_explicit_value() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine_exercise_id = a_routine_exercise(&mut conn).await;
+        let err = add(
+            &mut conn,
+            &routine_exercise_id,
+            &SetTemplateValues {
+                population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
+                weight_kg: Some(80.0),
                 ..Default::default()
             },
         )
