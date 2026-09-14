@@ -3,10 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-// Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already
-// supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
-// Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent —
-// the lb-display variant is deferred app-wide until it's built there first.
+// Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
+// Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent — the lb-display variant is deferred app-wide until it's built there first.
 
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -141,15 +139,16 @@ interface AddTemplateFormProps {
 	}) => void;
 }
 
-/** A non-negative, finite target value — `integer` also rejects a fractional entry, since reps
- *  and whole seconds can't be materialized as a fraction. Returns `undefined` for both an empty
- *  field (no target given) and an invalid one (rejected rather than silently persisted). */
-function parseTarget(raw: string, { integer }: { integer: boolean } = { integer: false }) {
-	if (raw.trim() === '') return undefined;
+/** A non-negative, finite target value — `integer` also rejects a fractional entry, since reps and whole seconds can't be materialized as a fraction. `ok: true, value: undefined` means the field was left empty (no target given); `ok: false` means it was filled in with something invalid, which the caller must reject rather than silently persist as blank. */
+function parseTarget(
+	raw: string,
+	{ integer }: { integer: boolean } = { integer: false },
+): { ok: true; value: number | undefined } | { ok: false } {
+	if (raw.trim() === '') return { ok: true, value: undefined };
 	const value = Number(raw);
-	if (!Number.isFinite(value) || value < 0) return undefined;
-	if (integer && !Number.isInteger(value)) return undefined;
-	return value;
+	if (!Number.isFinite(value) || value < 0) return { ok: false };
+	if (integer && !Number.isInteger(value)) return { ok: false };
+	return { ok: true, value };
 }
 
 function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
@@ -158,6 +157,7 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 	const [reps, setReps] = useState('');
 	const [distanceKm, setDistanceKm] = useState('');
 	const [durationSec, setDurationSec] = useState('');
+	const [error, setError] = useState<string | null>(null);
 
 	function handleAdd() {
 		if (seeded) {
@@ -165,16 +165,23 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 			return;
 		}
 		if (metricProfile === 'weight-reps') {
-			onAdd({
-				weightKg: parseTarget(weightKg),
-				reps: parseTarget(reps, { integer: true }),
-			});
+			const weight = parseTarget(weightKg);
+			const repsResult = parseTarget(reps, { integer: true });
+			if (!weight.ok || !repsResult.ok) {
+				setError('Enter a non-negative number (whole number for reps).');
+				return;
+			}
+			onAdd({ weightKg: weight.value, reps: repsResult.value });
 		} else {
-			onAdd({
-				distanceKm: parseTarget(distanceKm),
-				durationSec: parseTarget(durationSec, { integer: true }),
-			});
+			const distance = parseTarget(distanceKm);
+			const duration = parseTarget(durationSec, { integer: true });
+			if (!distance.ok || !duration.ok) {
+				setError('Enter a non-negative number (whole number for seconds).');
+				return;
+			}
+			onAdd({ distanceKm: distance.value, durationSec: duration.value });
 		}
+		setError(null);
 		setWeightKg('');
 		setReps('');
 		setDistanceKm('');
@@ -204,6 +211,7 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 			<Button variant="tonal" onClick={handleAdd}>
 				Add set
 			</Button>
+			{error && <p className="routine-editor__template-error">{error}</p>}
 		</div>
 	);
 }

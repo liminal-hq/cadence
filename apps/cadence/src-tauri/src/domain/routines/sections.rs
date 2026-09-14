@@ -107,12 +107,7 @@ pub async fn rename(
     get(conn, id).await
 }
 
-/// Rewrites every named section's `sort_order` to its 1-indexed position in `ordered_ids`, so a
-/// caller (the routine editor's up/down reorder controls) can commit a whole new order in one
-/// call rather than a series of pairwise swaps. Requires `ordered_ids` to be a complete
-/// permutation of `routine_id`'s existing sections — rejecting a stranger id, a duplicate, or an
-/// omitted section — since anything less would leave omitted rows at their stale position or
-/// collide two rows onto the same `sort_order`.
+/// Rewrites every named section's `sort_order` to its 1-indexed position in `ordered_ids`, so a caller (the routine editor's up/down reorder controls) can commit a whole new order in one call rather than a series of pairwise swaps. Requires `ordered_ids` to be a complete permutation of `routine_id`'s existing sections — rejecting a stranger id, a duplicate, or an omitted section — since anything less would leave omitted rows at their stale position or collide two rows onto the same `sort_order`.
 pub async fn reorder(
     conn: &mut SqliteConnection,
     routine_id: &str,

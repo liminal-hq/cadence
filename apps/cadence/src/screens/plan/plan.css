@@ -170,3 +170,9 @@
 	font-size: var(--cadence-type-body-l-size);
 	color: var(--cadence-on-surface);
 }
+
+.routine-editor__template-error {
+	width: 100%;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-error);
+}

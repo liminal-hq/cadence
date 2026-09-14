@@ -169,9 +169,7 @@ pub async fn update_note(
     get(conn, id).await
 }
 
-/// Rewrites every named exercise's `sort_order` to its 1-indexed position in `ordered_ids` —
-/// mirrors `sections::reorder`'s reasoning and its complete-permutation guard (a stranger id, a
-/// duplicate, or an omitted exercise are all rejected).
+/// Rewrites every named exercise's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `sections::reorder`'s reasoning and its complete-permutation guard (a stranger id, a duplicate, or an omitted exercise are all rejected).
 pub async fn reorder(
     conn: &mut SqliteConnection,
     routine_section_id: &str,
