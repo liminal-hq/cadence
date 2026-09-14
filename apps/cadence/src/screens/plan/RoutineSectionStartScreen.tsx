@@ -52,7 +52,7 @@ interface ReviewState {
 	exercises: ReviewExercise[];
 }
 
-/** Mirrors the backend's `most_recent_completed` lookup (the same source `materializeRoutineSection` itself resolves against) closely enough for an advisory preview — the most recently completed set for this exercise on or before `targetDate`, across every workout. */
+/** Mirrors the backend's `most_recent_completed` lookup (the same source `materializeRoutineSection` itself resolves against) — the most recently completed set for this exercise on or before `targetDate`, across every eligible workout, preferring the owning workout's date over completion order (mirrors `mockRepository.ts`'s `mostRecentCompletedValues`). */
 async function resolveSeedPreview(
 	repository: LoggingRepository,
 	exerciseId: string,
@@ -60,15 +60,26 @@ async function resolveSeedPreview(
 ): Promise<SeedPreview | null> {
 	const history = await loadExerciseHistory(repository, exerciseId);
 	const onOrBefore = history.filter((entry) => entry.workout.date <= targetDate);
-	if (onOrBefore.length === 0) return null;
 
-	const completed = onOrBefore[0].sets
-		.filter((set) => set.status === 'completed')
-		.sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
-	if (completed.length === 0) return null;
-
-	const { weightKg, reps, distanceKm, durationSec } = completed[0];
-	return { weightKg, reps, distanceKm, durationSec };
+	let best: SeedPreview | undefined;
+	let bestDate: string | undefined;
+	let bestCompletedAt: string | undefined;
+	for (const entry of onOrBefore) {
+		for (const set of entry.sets) {
+			if (set.status !== 'completed') continue;
+			const isBetter =
+				!best ||
+				entry.workout.date > (bestDate ?? '') ||
+				(entry.workout.date === bestDate && (set.completedAt ?? '') > (bestCompletedAt ?? ''));
+			if (isBetter) {
+				const { weightKg, reps, distanceKm, durationSec } = set;
+				best = { weightKg, reps, distanceKm, durationSec };
+				bestDate = entry.workout.date;
+				bestCompletedAt = set.completedAt;
+			}
+		}
+	}
+	return best ?? null;
 }
 
 async function loadReviewState(
