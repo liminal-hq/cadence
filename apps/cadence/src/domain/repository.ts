@@ -127,11 +127,13 @@ export interface LoggingRepository {
 	getRoutineExercise(id: string): Promise<RoutineExercise>;
 	listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]>;
 	addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise>;
-	/** `routineSupersetId: undefined` dissolves this exercise's superset membership. */
+	/** `assignment: undefined` dissolves this exercise's superset membership; otherwise both the
+	 *  superset id and its 1-indexed position are required together — never one without the
+	 *  other, which would leave an ungrouped exercise with a stale position or a grouped one with
+	 *  none. */
 	setRoutineExerciseSuperset(
 		id: string,
-		routineSupersetId: string | undefined,
-		supersetPosition: number | undefined,
+		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
 	): Promise<RoutineExercise>;
 	updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise>;
 	deleteRoutineExercise(id: string): Promise<void>;

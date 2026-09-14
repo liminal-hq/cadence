@@ -693,19 +693,22 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async setRoutineExerciseSuperset(
 		id: string,
-		routineSupersetId: string | undefined,
-		supersetPosition: number | undefined,
+		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
 	): Promise<RoutineExercise> {
 		const existing = await this.getRoutineExercise(id);
-		if (routineSupersetId) {
-			const superset = await this.getRoutineSuperset(routineSupersetId);
+		if (assignment) {
+			const superset = await this.getRoutineSuperset(assignment.routineSupersetId);
 			if (superset.routineSectionId !== existing.routineSectionId) {
 				throw new Error(
-					`Routine superset ${routineSupersetId} belongs to a different section than routine exercise ${id}`,
+					`Routine superset ${assignment.routineSupersetId} belongs to a different section than routine exercise ${id}`,
 				);
 			}
 		}
-		const updated = { ...existing, routineSupersetId, supersetPosition };
+		const updated = {
+			...existing,
+			routineSupersetId: assignment?.routineSupersetId,
+			supersetPosition: assignment?.supersetPosition,
+		};
 		this.routineExercises.set(id, updated);
 		return updated;
 	}

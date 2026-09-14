@@ -361,7 +361,10 @@ describe('MockLoggingRepository', () => {
 			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
 
-			const grouped = await repo.setRoutineExerciseSuperset(exercise.id, superset.id, 1);
+			const grouped = await repo.setRoutineExerciseSuperset(exercise.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 1,
+			});
 			expect(grouped.routineSupersetId).toBe(superset.id);
 			expect(grouped.supersetPosition).toBe(1);
 
@@ -369,6 +372,21 @@ describe('MockLoggingRepository', () => {
 			const reloaded = await repo.getRoutineExercise(exercise.id);
 			expect(reloaded.routineSupersetId).toBeUndefined();
 			expect(reloaded.supersetPosition).toBeUndefined();
+		});
+
+		it('clears a routine exercise superset', async () => {
+			const routine = await repo.createRoutine('Superset A');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
+			await repo.setRoutineExerciseSuperset(exercise.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 1,
+			});
+
+			const cleared = await repo.setRoutineExerciseSuperset(exercise.id, undefined);
+			expect(cleared.routineSupersetId).toBeUndefined();
+			expect(cleared.supersetPosition).toBeUndefined();
 		});
 
 		it('rejects a superset from a different section', async () => {
@@ -380,7 +398,10 @@ describe('MockLoggingRepository', () => {
 			const exerciseInA = await repo.addRoutineExercise(sectionA.id, 'ex-lateral-raise');
 
 			await expect(
-				repo.setRoutineExerciseSuperset(exerciseInA.id, supersetInB.id, 1),
+				repo.setRoutineExerciseSuperset(exerciseInA.id, {
+					routineSupersetId: supersetInB.id,
+					supersetPosition: 1,
+				}),
 			).rejects.toThrow();
 		});
 

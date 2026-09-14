@@ -92,13 +92,19 @@ pub async fn add(
     get(conn, &id).await
 }
 
-/// Assigns or clears this exercise's superset membership — `routine_superset_id: None` clears it (dissolving the group from this exercise's side), matching `superset_position` in lockstep. Rejects a superset that belongs to a different section: the foreign key alone would happily accept it, but a section-owned superset grouping exercises from another section (or another routine) would corrupt both display and per-section materialization.
+/// Assigns or clears this exercise's superset membership — `routine_superset_id`/`superset_position` are both `Some` (assigning) or both `None` (dissolving the group), never one of each, so a display or materialization read never finds an ungrouped exercise with a stale position or a grouped one with none. Rejects a superset that belongs to a different section: the foreign key alone would happily accept it, but a section-owned superset grouping exercises from another section (or another routine) would corrupt both display and per-section materialization.
 pub async fn set_superset(
     conn: &mut SqliteConnection,
     id: &str,
     routine_superset_id: Option<&str>,
     superset_position: Option<i32>,
 ) -> Result<RoutineExercise> {
+    if routine_superset_id.is_some() != superset_position.is_some() {
+        return Err(Error::Validation(
+            "routine_superset_id and superset_position must be assigned or cleared together"
+                .to_string(),
+        ));
+    }
     let exercise = get(conn, id).await?;
     if let Some(superset_id) = routine_superset_id {
         let superset = super::supersets::get(conn, superset_id).await?;
@@ -244,6 +250,37 @@ mod tests {
         // The FK's `ON DELETE SET NULL` only clears `routine_superset_id` — `superset_position`
         // must be cleared explicitly, or a re-grouped exercise would inherit a stale position.
         assert_eq!(reloaded.superset_position, None);
+    }
+
+    #[tokio::test]
+    async fn rejects_assigning_a_superset_id_without_a_position() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let superset = super::super::supersets::create(&mut conn, &section_id, None, true, None)
+            .await
+            .unwrap();
+        let exercise = add(&mut conn, &section_id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let err = set_superset(&mut conn, &exercise.id, Some(&superset.id), None)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_position_without_a_superset_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let exercise = add(&mut conn, &section_id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let err = set_superset(&mut conn, &exercise.id, None, Some(1))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]

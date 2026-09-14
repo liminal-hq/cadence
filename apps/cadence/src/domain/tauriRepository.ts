@@ -309,10 +309,13 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async setRoutineExerciseSuperset(
 		id: string,
-		routineSupersetId: string | undefined,
-		supersetPosition: number | undefined,
+		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
 	): Promise<RoutineExercise> {
-		return call('set_routine_exercise_superset', { id, routineSupersetId, supersetPosition });
+		return call('set_routine_exercise_superset', {
+			id,
+			routineSupersetId: assignment?.routineSupersetId,
+			supersetPosition: assignment?.supersetPosition,
+		});
 	}
 
 	async updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise> {
