@@ -169,6 +169,38 @@ pub async fn update_note(
     get(conn, id).await
 }
 
+/// Rewrites every named exercise's `sort_order` to its 1-indexed position in `ordered_ids` —
+/// mirrors `sections::reorder`'s reasoning and its reject-a-stranger-id guard.
+pub async fn reorder(
+    conn: &mut SqliteConnection,
+    routine_section_id: &str,
+    ordered_ids: &[String],
+) -> Result<Vec<RoutineExercise>> {
+    let existing = list_by_section(conn, routine_section_id).await?;
+    for id in ordered_ids {
+        if !existing.iter().any(|e| &e.id == id) {
+            return Err(Error::Validation(format!(
+                "routine exercise {id:?} does not belong to section {routine_section_id:?}"
+            )));
+        }
+    }
+    let now = chrono::Utc::now().timestamp_millis();
+    for (index, id) in ordered_ids.iter().enumerate() {
+        let revision = crate::db::next_revision(conn).await?;
+        sqlx::query(
+            "UPDATE routine_exercises SET sort_order = ?, updated_at_ms = ?, revision = ? \
+             WHERE id = ?",
+        )
+        .bind(index as i32 + 1)
+        .bind(now)
+        .bind(revision)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+    }
+    list_by_section(conn, routine_section_id).await
+}
+
 /// A no-op if the routine-exercise doesn't exist, otherwise records a tombstone. Its set templates cascade via `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let result = sqlx::query("DELETE FROM routine_exercises WHERE id = ?")
@@ -349,6 +381,47 @@ mod tests {
         assert_eq!(noted.note.as_deref(), Some("Incline treadmill"));
         let cleared = update_note(&mut conn, &exercise.id, None).await.unwrap();
         assert_eq!(cleared.note, None);
+    }
+
+    #[tokio::test]
+    async fn reorder_rewrites_sort_order_to_match_the_given_order() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let a = add(&mut conn, &section_id, "ex-bench-press").await.unwrap();
+        let b = add(&mut conn, &section_id, "ex-running").await.unwrap();
+        let c = add(&mut conn, &section_id, "ex-goblet-squat")
+            .await
+            .unwrap();
+
+        let reordered = reorder(
+            &mut conn,
+            &section_id,
+            &[c.id.clone(), a.id.clone(), b.id.clone()],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            reordered.iter().map(|e| e.id.as_str()).collect::<Vec<_>>(),
+            vec![c.id.as_str(), a.id.as_str(), b.id.as_str()]
+        );
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_an_exercise_from_another_section() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let other_section_id = a_section(&mut conn).await;
+        let a = add(&mut conn, &section_id, "ex-bench-press").await.unwrap();
+        let stranger = add(&mut conn, &other_section_id, "ex-running")
+            .await
+            .unwrap();
+
+        let err = reorder(&mut conn, &section_id, &[a.id.clone(), stranger.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]

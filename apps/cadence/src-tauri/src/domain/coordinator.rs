@@ -377,6 +377,15 @@ impl<R: Runtime> Coordinator<R> {
         routines::sections::add(&mut conn, routine_id, name).await
     }
 
+    pub async fn reorder_routine_sections(
+        &self,
+        routine_id: &str,
+        ordered_ids: &[String],
+    ) -> Result<Vec<RoutineSection>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::reorder(&mut conn, routine_id, ordered_ids).await
+    }
+
     pub async fn delete_routine_section(&self, id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         routines::sections::delete(&mut conn, id).await
@@ -424,6 +433,15 @@ impl<R: Runtime> Coordinator<R> {
     ) -> Result<RoutineExercise> {
         let mut conn = self.pool.acquire().await?;
         routines::routine_exercises::add(&mut conn, routine_section_id, exercise_id).await
+    }
+
+    pub async fn reorder_routine_exercises(
+        &self,
+        routine_section_id: &str,
+        ordered_ids: &[String],
+    ) -> Result<Vec<RoutineExercise>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::reorder(&mut conn, routine_section_id, ordered_ids).await
     }
 
     pub async fn set_routine_exercise_superset(

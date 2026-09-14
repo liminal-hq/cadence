@@ -82,6 +82,41 @@ pub async fn add(
     get(conn, &id).await
 }
 
+/// Rewrites every named section's `sort_order` to its 1-indexed position in `ordered_ids`, so a
+/// caller (the routine editor's up/down reorder controls) can commit a whole new order in one
+/// call rather than a series of pairwise swaps. Rejects an id that isn't actually a section of
+/// `routine_id` — silently reordering a stranger's section would let one routine's edit corrupt
+/// another's display order.
+pub async fn reorder(
+    conn: &mut SqliteConnection,
+    routine_id: &str,
+    ordered_ids: &[String],
+) -> Result<Vec<RoutineSection>> {
+    let existing = list_by_routine(conn, routine_id).await?;
+    for id in ordered_ids {
+        if !existing.iter().any(|s| &s.id == id) {
+            return Err(Error::Validation(format!(
+                "routine section {id:?} does not belong to routine {routine_id:?}"
+            )));
+        }
+    }
+    let now = chrono::Utc::now().timestamp_millis();
+    for (index, id) in ordered_ids.iter().enumerate() {
+        let revision = crate::db::next_revision(conn).await?;
+        sqlx::query(
+            "UPDATE routine_sections SET sort_order = ?, updated_at_ms = ?, revision = ? \
+             WHERE id = ?",
+        )
+        .bind(index as i32 + 1)
+        .bind(now)
+        .bind(revision)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+    }
+    list_by_routine(conn, routine_id).await
+}
+
 /// A no-op if the section doesn't exist, otherwise records a tombstone. Its supersets/exercises/set-templates cascade via `ON DELETE CASCADE`.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let result = sqlx::query("DELETE FROM routine_sections WHERE id = ?")
@@ -129,6 +164,49 @@ mod tests {
             sections.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
             vec![a.id.as_str(), b.id.as_str()]
         );
+    }
+
+    #[tokio::test]
+    async fn reorder_rewrites_sort_order_to_match_the_given_order() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine = super::super::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let a = add(&mut conn, &routine.id, Some("A")).await.unwrap();
+        let b = add(&mut conn, &routine.id, Some("B")).await.unwrap();
+        let c = add(&mut conn, &routine.id, Some("C")).await.unwrap();
+
+        let reordered = reorder(
+            &mut conn,
+            &routine.id,
+            &[b.id.clone(), c.id.clone(), a.id.clone()],
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            reordered.iter().map(|s| s.id.as_str()).collect::<Vec<_>>(),
+            vec![b.id.as_str(), c.id.as_str(), a.id.as_str()]
+        );
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_a_section_from_another_routine() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine = super::super::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let other_routine = super::super::repo::create(&mut conn, "Pull day")
+            .await
+            .unwrap();
+        let a = add(&mut conn, &routine.id, Some("A")).await.unwrap();
+        let stranger = add(&mut conn, &other_routine.id, Some("X")).await.unwrap();
+
+        let err = reorder(&mut conn, &routine.id, &[a.id.clone(), stranger.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]

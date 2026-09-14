@@ -277,6 +277,17 @@ pub async fn add_routine_section(
 }
 
 #[tauri::command]
+pub async fn reorder_routine_sections(
+    state: State<'_, Coordinator>,
+    routine_id: String,
+    ordered_ids: Vec<String>,
+) -> Result<Vec<RoutineSection>, Error> {
+    state
+        .reorder_routine_sections(&routine_id, &ordered_ids)
+        .await
+}
+
+#[tauri::command]
 pub async fn delete_routine_section(
     state: State<'_, Coordinator>,
     id: String,
@@ -342,6 +353,17 @@ pub async fn add_routine_exercise(
 ) -> Result<RoutineExercise, Error> {
     state
         .add_routine_exercise(&routine_section_id, &exercise_id)
+        .await
+}
+
+#[tauri::command]
+pub async fn reorder_routine_exercises(
+    state: State<'_, Coordinator>,
+    routine_section_id: String,
+    ordered_ids: Vec<String>,
+) -> Result<Vec<RoutineExercise>, Error> {
+    state
+        .reorder_routine_exercises(&routine_section_id, &ordered_ids)
         .await
 }
 
