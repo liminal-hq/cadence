@@ -82,6 +82,31 @@ pub async fn add(
     get(conn, &id).await
 }
 
+pub async fn rename(
+    conn: &mut SqliteConnection,
+    id: &str,
+    name: Option<&str>,
+) -> Result<RoutineSection> {
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE routine_sections SET name = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
+    )
+    .bind(name)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(Error::NotFound {
+            entity: "routine section",
+            id: id.to_string(),
+        });
+    }
+    get(conn, id).await
+}
+
 /// Rewrites every named section's `sort_order` to its 1-indexed position in `ordered_ids`, so a
 /// caller (the routine editor's up/down reorder controls) can commit a whole new order in one
 /// call rather than a series of pairwise swaps. Rejects an id that isn't actually a section of
@@ -135,6 +160,22 @@ pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
 mod tests {
     use super::*;
     use crate::db::init_test_pool;
+
+    #[tokio::test]
+    async fn renames_and_clears_a_sections_name() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine = super::super::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let section = add(&mut conn, &routine.id, Some("Warm-up")).await.unwrap();
+        let renamed = rename(&mut conn, &section.id, Some("Main lifts"))
+            .await
+            .unwrap();
+        assert_eq!(renamed.name.as_deref(), Some("Main lifts"));
+        let cleared = rename(&mut conn, &section.id, None).await.unwrap();
+        assert_eq!(cleared.name, None);
+    }
 
     #[tokio::test]
     async fn adds_sections_appending_at_the_end_of_the_order() {

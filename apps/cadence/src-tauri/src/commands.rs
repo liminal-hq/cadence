@@ -277,6 +277,15 @@ pub async fn add_routine_section(
 }
 
 #[tauri::command]
+pub async fn rename_routine_section(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: Option<String>,
+) -> Result<RoutineSection, Error> {
+    state.rename_routine_section(&id, name.as_deref()).await
+}
+
+#[tauri::command]
 pub async fn reorder_routine_sections(
     state: State<'_, Coordinator>,
     routine_id: String,

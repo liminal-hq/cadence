@@ -114,6 +114,7 @@ export interface LoggingRepository {
 	getRoutineSection(id: string): Promise<RoutineSection>;
 	listRoutineSections(routineId: string): Promise<RoutineSection[]>;
 	addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection>;
+	renameRoutineSection(id: string, name: string | undefined): Promise<RoutineSection>;
 	/** Rewrites every named section's order to its position in `orderedIds`. */
 	reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]>;
 	deleteRoutineSection(id: string): Promise<void>;

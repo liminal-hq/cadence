@@ -75,6 +75,7 @@ pub fn run() {
             commands::get_routine_section,
             commands::list_routine_sections,
             commands::add_routine_section,
+            commands::rename_routine_section,
             commands::reorder_routine_sections,
             commands::delete_routine_section,
             commands::get_routine_superset,

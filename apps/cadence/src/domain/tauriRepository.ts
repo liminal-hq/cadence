@@ -275,6 +275,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('add_routine_section', { routineId, name });
 	}
 
+	async renameRoutineSection(id: string, name: string | undefined): Promise<RoutineSection> {
+		return call('rename_routine_section', { id, name });
+	}
+
 	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
 		return call('reorder_routine_sections', { routineId, orderedIds });
 	}

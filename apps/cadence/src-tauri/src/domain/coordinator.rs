@@ -377,6 +377,15 @@ impl<R: Runtime> Coordinator<R> {
         routines::sections::add(&mut conn, routine_id, name).await
     }
 
+    pub async fn rename_routine_section(
+        &self,
+        id: &str,
+        name: Option<&str>,
+    ) -> Result<RoutineSection> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::rename(&mut conn, id, name).await
+    }
+
     pub async fn reorder_routine_sections(
         &self,
         routine_id: &str,

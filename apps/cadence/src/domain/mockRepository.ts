@@ -619,6 +619,13 @@ export class MockLoggingRepository implements LoggingRepository {
 		return created;
 	}
 
+	async renameRoutineSection(id: string, name: string | undefined): Promise<RoutineSection> {
+		const existing = await this.getRoutineSection(id);
+		const updated = { ...existing, name };
+		this.routineSections.set(id, updated);
+		return updated;
+	}
+
 	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
 		const existing = await this.listRoutineSections(routineId);
 		for (const id of orderedIds) {
