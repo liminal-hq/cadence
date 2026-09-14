@@ -21,6 +21,10 @@ import { HistoryHubScreen } from './screens/history/HistoryHubScreen';
 import { WorkoutDetailScreen } from './screens/history/WorkoutDetailScreen';
 import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
+import { RoutineDetailScreen } from './screens/plan/RoutineDetailScreen';
+import { RoutineEditorScreen } from './screens/plan/RoutineEditorScreen';
+import { AppBar } from './components/ui/AppBar/AppBar';
+import { ComingSoon } from './screens/ComingSoon';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
@@ -34,6 +38,7 @@ import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
 import { resolvePlatform } from './platform';
+import './screens/screens.css';
 import './App.css';
 
 function RootLayout() {
@@ -143,6 +148,44 @@ const exerciseDetailRoute = createRoute({
 	component: ExerciseDetailRoute,
 });
 
+function RoutineDetailRoute() {
+	const { routineId } = routineDetailRoute.useParams();
+	return <RoutineDetailScreen routineId={routineId} />;
+}
+
+const routineDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine/$routineId',
+	component: RoutineDetailRoute,
+});
+
+function RoutineEditorRoute() {
+	const { routineId } = routineEditorRoute.useParams();
+	return <RoutineEditorScreen routineId={routineId} />;
+}
+
+const routineEditorRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine/$routineId/edit',
+	component: RoutineEditorRoute,
+});
+
+/** Placeholder for P-20's materialization review — the routine detail screen's "Start" action
+ *  already links here; the real screen lands in a later PR, same "wired but not built" pattern
+ *  as settingsStubRoute. */
+const routineSectionStartRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine-section/$routineSectionId/start',
+	component: () => (
+		<div className="screen-shell">
+			<AppBar title="Start routine" size="medium" back={{ to: '/plan' }} />
+			<div className="screen-shell__content">
+				<ComingSoon screen="Routine materialization review" />
+			</div>
+		</div>
+	),
+});
+
 const settingsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/settings',
@@ -226,6 +269,9 @@ const routeTree = rootRoute.addChildren([
 	activeWorkoutRoute,
 	workoutDetailRoute,
 	exerciseDetailRoute,
+	routineDetailRoute,
+	routineEditorRoute,
+	routineSectionStartRoute,
 	settingsRoute,
 	settingsUnitsRoute,
 	settingsTimersRoute,
