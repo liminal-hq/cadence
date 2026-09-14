@@ -114,6 +114,8 @@ export interface LoggingRepository {
 	getRoutineSection(id: string): Promise<RoutineSection>;
 	listRoutineSections(routineId: string): Promise<RoutineSection[]>;
 	addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection>;
+	/** Rewrites every named section's order to its position in `orderedIds`. */
+	reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]>;
 	deleteRoutineSection(id: string): Promise<void>;
 
 	getRoutineSuperset(id: string): Promise<RoutineSuperset>;
@@ -128,6 +130,11 @@ export interface LoggingRepository {
 	getRoutineExercise(id: string): Promise<RoutineExercise>;
 	listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]>;
 	addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise>;
+	/** Rewrites every named exercise's order to its position in `orderedIds`. */
+	reorderRoutineExercises(
+		routineSectionId: string,
+		orderedIds: string[],
+	): Promise<RoutineExercise[]>;
 	/** `assignment: undefined` dissolves this exercise's superset membership; otherwise both the superset id and its 1-indexed position are required together — never one without the other, which would leave an ungrouped exercise with a stale position or a grouped one with none. */
 	setRoutineExerciseSuperset(
 		id: string,

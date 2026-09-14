@@ -619,6 +619,20 @@ export class MockLoggingRepository implements LoggingRepository {
 		return created;
 	}
 
+	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
+		const existing = await this.listRoutineSections(routineId);
+		for (const id of orderedIds) {
+			if (!existing.some((s) => s.id === id)) {
+				throw new Error(`Routine section ${id} does not belong to routine ${routineId}`);
+			}
+		}
+		orderedIds.forEach((id, index) => {
+			const section = this.routineSections.get(id);
+			if (section) this.routineSections.set(id, { ...section, sortOrder: index + 1 });
+		});
+		return this.listRoutineSections(routineId);
+	}
+
 	async deleteRoutineSection(id: string): Promise<void> {
 		this.routineSections.delete(id);
 		for (const exercise of [...this.routineExercises.values()].filter(
@@ -692,6 +706,23 @@ export class MockLoggingRepository implements LoggingRepository {
 		};
 		this.routineExercises.set(created.id, created);
 		return created;
+	}
+
+	async reorderRoutineExercises(
+		routineSectionId: string,
+		orderedIds: string[],
+	): Promise<RoutineExercise[]> {
+		const existing = await this.listRoutineExercises(routineSectionId);
+		for (const id of orderedIds) {
+			if (!existing.some((e) => e.id === id)) {
+				throw new Error(`Routine exercise ${id} does not belong to section ${routineSectionId}`);
+			}
+		}
+		orderedIds.forEach((id, index) => {
+			const exercise = this.routineExercises.get(id);
+			if (exercise) this.routineExercises.set(id, { ...exercise, order: index + 1 });
+		});
+		return this.listRoutineExercises(routineSectionId);
 	}
 
 	async setRoutineExerciseSuperset(

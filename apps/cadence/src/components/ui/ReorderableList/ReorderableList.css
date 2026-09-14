@@ -1,0 +1,21 @@
+.ui-reorderable-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+}
+
+.ui-reorderable-list__row {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.ui-reorderable-list__content {
+	flex: 1;
+	min-width: 0;
+}
+
+.ui-reorderable-list__controls {
+	display: flex;
+	flex-direction: column;
+}

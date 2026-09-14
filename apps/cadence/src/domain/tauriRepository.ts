@@ -275,6 +275,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('add_routine_section', { routineId, name });
 	}
 
+	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
+		return call('reorder_routine_sections', { routineId, orderedIds });
+	}
+
 	async deleteRoutineSection(id: string): Promise<void> {
 		return call('delete_routine_section', { id });
 	}
@@ -306,6 +310,13 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise> {
 		return call('add_routine_exercise', { routineSectionId, exerciseId });
+	}
+
+	async reorderRoutineExercises(
+		routineSectionId: string,
+		orderedIds: string[],
+	): Promise<RoutineExercise[]> {
+		return call('reorder_routine_exercises', { routineSectionId, orderedIds });
 	}
 
 	async setRoutineExerciseSuperset(
