@@ -842,6 +842,152 @@ describe('MockLoggingRepository', () => {
 		});
 	});
 
+	describe('exercise goals', () => {
+		const sampleValues = () => ({
+			exerciseId: 'ex-bench-press',
+			title: 'Bench 100kg',
+			targetWeightKg: 100,
+			targetReps: 1,
+			startDate: '2026-01-01',
+			targetDate: '2026-12-31',
+		});
+
+		it('creates a goal with every field round-tripped', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			expect(created.title).toBe('Bench 100kg');
+			expect(created.targetWeightKg).toBe(100);
+			expect(created.achievedAt).toBeUndefined();
+			expect(created.archived).toBe(false);
+		});
+
+		it('lists goals for an exercise only', async () => {
+			await repo.createExerciseGoal(sampleValues());
+			await repo.createExerciseGoal({ ...sampleValues(), exerciseId: 'ex-running' });
+
+			const goals = await repo.listExerciseGoals('ex-bench-press');
+			expect(goals).toHaveLength(1);
+			expect(goals[0].exerciseId).toBe('ex-bench-press');
+		});
+
+		it('updates a goal in place', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			const updated = await repo.updateExerciseGoal(created.id, {
+				...sampleValues(),
+				title: 'Bench 110kg',
+			});
+			expect(updated.title).toBe('Bench 110kg');
+		});
+
+		it('sets and clears achieved', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			const achieved = await repo.setExerciseGoalAchieved(created.id, true);
+			expect(achieved.achievedAt).toBeDefined();
+			const cleared = await repo.setExerciseGoalAchieved(created.id, false);
+			expect(cleared.achievedAt).toBeUndefined();
+		});
+
+		it('archives and unarchives a goal', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			const archived = await repo.setExerciseGoalArchived(created.id, true);
+			expect(archived.archived).toBe(true);
+			const restored = await repo.setExerciseGoalArchived(created.id, false);
+			expect(restored.archived).toBe(false);
+		});
+
+		it('deletes a goal', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			await repo.deleteExerciseGoal(created.id);
+			await expect(repo.getExerciseGoal(created.id)).rejects.toThrow();
+		});
+	});
+
+	describe('measurements', () => {
+		it('lists the seeded measurement suggestions archived by default', async () => {
+			const definitions = await repo.listMeasurementDefinitions();
+			expect(definitions).toHaveLength(7);
+			expect(definitions.every((d) => d.archived)).toBe(true);
+			expect(definitions[0].id).toBe('bodyweight');
+		});
+
+		it('creates a definition appending at the end of the order', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			expect(created.sortOrder).toBe(7);
+			expect(created.archived).toBe(false);
+		});
+
+		it('updates a definition in place', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			const updated = await repo.updateMeasurementDefinition(
+				created.id,
+				'Forearm circumference',
+				'cm',
+			);
+			expect(updated.name).toBe('Forearm circumference');
+		});
+
+		it('archives and unarchives a definition', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			const archived = await repo.setMeasurementDefinitionArchived(created.id, true);
+			expect(archived.archived).toBe(true);
+			const restored = await repo.setMeasurementDefinitionArchived(created.id, false);
+			expect(restored.archived).toBe(false);
+		});
+
+		it('reorders definitions and rejects an incomplete or duplicated list', async () => {
+			const seeded = (await repo.listMeasurementDefinitions()).map((d) => d.id);
+			const swapped = [seeded[1], seeded[0], ...seeded.slice(2)];
+			const reordered = await repo.reorderMeasurementDefinitions(swapped);
+			expect(reordered.map((d) => d.id)).toEqual(swapped);
+
+			await expect(repo.reorderMeasurementDefinitions([seeded[0]])).rejects.toThrow();
+			await expect(repo.reorderMeasurementDefinitions([seeded[0], seeded[0]])).rejects.toThrow();
+		});
+
+		it('deletes a definition and cascades its records', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			await repo.createMeasurementRecord(created.id, '2026-09-14', 30, undefined);
+			await repo.deleteMeasurementDefinition(created.id);
+			await expect(repo.getMeasurementDefinition(created.id)).rejects.toThrow();
+			expect(await repo.listMeasurementRecords(created.id)).toEqual([]);
+		});
+
+		it('creates a record with value round-tripped', async () => {
+			const created = await repo.createMeasurementRecord(
+				'bodyweight',
+				'2026-09-14',
+				82.5,
+				'morning',
+			);
+			expect(created.date).toBe('2026-09-14');
+			expect(created.value).toBe(82.5);
+			expect(created.note).toBe('morning');
+		});
+
+		it('lists records for a definition in date order', async () => {
+			await repo.createMeasurementRecord('bodyweight', '2026-09-10', 83, undefined);
+			await repo.createMeasurementRecord('bodyweight', '2026-09-05', 84, undefined);
+			await repo.createMeasurementRecord('body-fat', '2026-09-05', 18, undefined);
+
+			const records = await repo.listMeasurementRecords('bodyweight');
+			expect(records.map((r) => r.date)).toEqual(['2026-09-05', '2026-09-10']);
+		});
+
+		it('updates and deletes a record', async () => {
+			const created = await repo.createMeasurementRecord(
+				'bodyweight',
+				'2026-09-14',
+				82.5,
+				undefined,
+			);
+			const updated = await repo.updateMeasurementRecord(created.id, '2026-09-15', 82, 'fixed');
+			expect(updated.date).toBe('2026-09-15');
+			expect(updated.value).toBe(82);
+
+			await repo.deleteMeasurementRecord(created.id);
+			await expect(repo.getMeasurementRecord(created.id)).rejects.toThrow();
+		});
+	});
+
 	describe('calculatePlates', () => {
 		it('finds an exact loadable combination', async () => {
 			const olympic = BARBELL_CONFIGS.find((b) => b.id === 'barbell-olympic')!;

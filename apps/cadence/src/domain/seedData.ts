@@ -9,6 +9,7 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	MeasurementDefinition,
 	SetEntry,
 	Settings,
 	Workout,
@@ -89,6 +90,19 @@ export const CATEGORIES: Category[] = [
 		sortOrder: 7,
 		archived: false,
 	},
+];
+
+// Mirrors 0005_measurement_suggestions.sql's INSERT INTO measurement_definitions exactly (same
+// ids/names/units/order) — all archived (disabled) by default, per SPEC.md 8.8's "all definitions
+// remain editable" reading.
+export const MEASUREMENT_DEFINITIONS: MeasurementDefinition[] = [
+	{ id: 'bodyweight', name: 'Bodyweight', unit: 'kg', sortOrder: 0, archived: true },
+	{ id: 'body-fat', name: 'Body fat', unit: '%', sortOrder: 1, archived: true },
+	{ id: 'waist', name: 'Waist', unit: 'cm', sortOrder: 2, archived: true },
+	{ id: 'hips', name: 'Hips', unit: 'cm', sortOrder: 3, archived: true },
+	{ id: 'chest-circumference', name: 'Chest', unit: 'cm', sortOrder: 4, archived: true },
+	{ id: 'bicep', name: 'Bicep', unit: 'cm', sortOrder: 5, archived: true },
+	{ id: 'thigh', name: 'Thigh', unit: 'cm', sortOrder: 6, archived: true },
 ];
 
 export const EXERCISES: Exercise[] = [

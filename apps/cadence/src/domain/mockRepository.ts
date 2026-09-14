@@ -11,7 +11,11 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseGoal,
+	ExerciseGoalValues,
 	ExerciseValues,
+	MeasurementDefinition,
+	MeasurementRecord,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -31,6 +35,7 @@ import {
 	CATEGORIES,
 	DEFAULT_SETTINGS,
 	EXERCISES,
+	MEASUREMENT_DEFINITIONS,
 	SETS,
 	WORKOUT_EXERCISES,
 	WORKOUTS,
@@ -129,6 +134,9 @@ export class MockLoggingRepository implements LoggingRepository {
 	private routineExercises = new Map<string, RoutineExercise>();
 	private setTemplates = new Map<string, SetTemplate>();
 	private categories = new Map(CATEGORIES.map((c) => [c.id, { ...c }]));
+	private exerciseGoals = new Map<string, ExerciseGoal>();
+	private measurementDefinitions = new Map(MEASUREMENT_DEFINITIONS.map((d) => [d.id, { ...d }]));
+	private measurementRecords = new Map<string, MeasurementRecord>();
 
 	async getExercise(id: string): Promise<Exercise> {
 		const exercise = this.exercises.get(id);
@@ -1156,6 +1164,167 @@ export class MockLoggingRepository implements LoggingRepository {
 			if (category) this.categories.set(id, { ...category, sortOrder: index + 1 });
 		});
 		return this.listCategories();
+	}
+
+	async getExerciseGoal(id: string): Promise<ExerciseGoal> {
+		const goal = this.exerciseGoals.get(id);
+		if (!goal) throw new Error(`Unknown exercise goal: ${id}`);
+		return goal;
+	}
+
+	async listExerciseGoals(exerciseId: string): Promise<ExerciseGoal[]> {
+		return [...this.exerciseGoals.values()].filter((g) => g.exerciseId === exerciseId);
+	}
+
+	async createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		const goal: ExerciseGoal = { ...values, id: newId('goal'), archived: false };
+		this.exerciseGoals.set(goal.id, goal);
+		return goal;
+	}
+
+	async updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		const existing = await this.getExerciseGoal(id);
+		const updated: ExerciseGoal = { ...existing, ...values };
+		this.exerciseGoals.set(id, updated);
+		return updated;
+	}
+
+	async setExerciseGoalAchieved(id: string, achieved: boolean): Promise<ExerciseGoal> {
+		const existing = await this.getExerciseGoal(id);
+		const updated: ExerciseGoal = {
+			...existing,
+			achievedAt: achieved ? new Date().toISOString() : undefined,
+		};
+		this.exerciseGoals.set(id, updated);
+		return updated;
+	}
+
+	async setExerciseGoalArchived(id: string, archived: boolean): Promise<ExerciseGoal> {
+		const existing = await this.getExerciseGoal(id);
+		const updated = { ...existing, archived };
+		this.exerciseGoals.set(id, updated);
+		return updated;
+	}
+
+	async deleteExerciseGoal(id: string): Promise<void> {
+		this.exerciseGoals.delete(id);
+	}
+
+	async getMeasurementDefinition(id: string): Promise<MeasurementDefinition> {
+		const definition = this.measurementDefinitions.get(id);
+		if (!definition) throw new Error(`Unknown measurement definition: ${id}`);
+		return definition;
+	}
+
+	async listMeasurementDefinitions(): Promise<MeasurementDefinition[]> {
+		return [...this.measurementDefinitions.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+	}
+
+	async createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition> {
+		const existing = await this.listMeasurementDefinitions();
+		const nextOrder = existing.length > 0 ? Math.max(...existing.map((d) => d.sortOrder)) + 1 : 0;
+		const definition: MeasurementDefinition = {
+			id: newId('measurement-def'),
+			name,
+			unit,
+			sortOrder: nextOrder,
+			archived: false,
+		};
+		this.measurementDefinitions.set(definition.id, definition);
+		return definition;
+	}
+
+	async updateMeasurementDefinition(
+		id: string,
+		name: string,
+		unit: string,
+	): Promise<MeasurementDefinition> {
+		const existing = await this.getMeasurementDefinition(id);
+		const updated = { ...existing, name, unit };
+		this.measurementDefinitions.set(id, updated);
+		return updated;
+	}
+
+	async setMeasurementDefinitionArchived(
+		id: string,
+		archived: boolean,
+	): Promise<MeasurementDefinition> {
+		const existing = await this.getMeasurementDefinition(id);
+		const updated = { ...existing, archived };
+		this.measurementDefinitions.set(id, updated);
+		return updated;
+	}
+
+	async reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]> {
+		const remaining = new Set(this.measurementDefinitions.keys());
+		for (const id of orderedIds) {
+			if (!remaining.delete(id)) {
+				throw new Error(`Measurement definition ${id} does not exist, or is listed more than once`);
+			}
+		}
+		if (remaining.size > 0) {
+			throw new Error(`Reorder omits ${remaining.size} existing definition(s)`);
+		}
+		orderedIds.forEach((id, index) => {
+			const definition = this.measurementDefinitions.get(id);
+			if (definition) this.measurementDefinitions.set(id, { ...definition, sortOrder: index + 1 });
+		});
+		return this.listMeasurementDefinitions();
+	}
+
+	async deleteMeasurementDefinition(id: string): Promise<void> {
+		this.measurementDefinitions.delete(id);
+		for (const record of [...this.measurementRecords.values()].filter(
+			(r) => r.definitionId === id,
+		)) {
+			this.measurementRecords.delete(record.id);
+		}
+	}
+
+	async getMeasurementRecord(id: string): Promise<MeasurementRecord> {
+		const record = this.measurementRecords.get(id);
+		if (!record) throw new Error(`Unknown measurement record: ${id}`);
+		return record;
+	}
+
+	async listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]> {
+		return [...this.measurementRecords.values()]
+			.filter((r) => r.definitionId === definitionId)
+			.sort((a, b) => a.date.localeCompare(b.date) || a.recordedAt.localeCompare(b.recordedAt));
+	}
+
+	async createMeasurementRecord(
+		definitionId: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord> {
+		const record: MeasurementRecord = {
+			id: newId('measurement-record'),
+			definitionId,
+			date,
+			recordedAt: new Date().toISOString(),
+			value,
+			note,
+		};
+		this.measurementRecords.set(record.id, record);
+		return record;
+	}
+
+	async updateMeasurementRecord(
+		id: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord> {
+		const existing = await this.getMeasurementRecord(id);
+		const updated = { ...existing, date, value, note };
+		this.measurementRecords.set(id, updated);
+		return updated;
+	}
+
+	async deleteMeasurementRecord(id: string): Promise<void> {
+		this.measurementRecords.delete(id);
 	}
 }
 

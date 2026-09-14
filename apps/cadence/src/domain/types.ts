@@ -278,3 +278,49 @@ export interface SetTemplateValues {
 	populationRule?: string;
 	setLabel?: string;
 }
+
+/** A target attached to an exercise (SPEC.md 8.8). Whether the target has actually been reached is computed over logged history, not stored — achievedAt is a manual toggle, distinct from that calculation. */
+export interface ExerciseGoal {
+	id: string;
+	exerciseId: string;
+	title: string;
+	targetWeightKg?: number;
+	targetReps?: number;
+	targetDistanceKm?: number;
+	targetDurationSec?: number;
+	startDate?: string;
+	targetDate?: string;
+	achievedAt?: string;
+	archived: boolean;
+}
+
+/** Fields a caller supplies when creating or editing a goal. */
+export interface ExerciseGoalValues {
+	exerciseId: string;
+	title: string;
+	targetWeightKg?: number;
+	targetReps?: number;
+	targetDistanceKm?: number;
+	targetDurationSec?: number;
+	startDate?: string;
+	targetDate?: string;
+}
+
+/** A user-owned (or built-in-but-editable) measurement kind (SPEC.md 8.8). `archived` doubles as the enabled state. */
+export interface MeasurementDefinition {
+	id: string;
+	name: string;
+	unit: string;
+	sortOrder: number;
+	archived: boolean;
+}
+
+/** One logged value for a MeasurementDefinition — a distinct entity from a goal. */
+export interface MeasurementRecord {
+	id: string;
+	definitionId: string;
+	date: string;
+	recordedAt: string;
+	value: number;
+	note?: string;
+}

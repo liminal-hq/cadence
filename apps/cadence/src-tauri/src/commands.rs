@@ -10,7 +10,9 @@ use crate::domain::barbells::plates::PlateCalculationResult;
 use crate::domain::categories::models::Category;
 use crate::domain::error::Error;
 use crate::domain::exercises::models::{Exercise, ExerciseValues};
+use crate::domain::goals::models::{ExerciseGoal, ExerciseGoalValues};
 use crate::domain::history::HistorySummary;
+use crate::domain::measurements::models::{MeasurementDefinition, MeasurementRecord};
 use crate::domain::rest_timer::models::{RestTimerState, StartRestTimerOptions};
 use crate::domain::routines::models::{
     Routine, RoutineExercise, RoutineSection, RoutineSuperset, SetTemplate, SetTemplateValues,
@@ -140,6 +142,177 @@ pub async fn set_exercise_archived(
 #[tauri::command]
 pub async fn delete_exercise(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
     state.delete_exercise(&id).await
+}
+
+// ============ goals ============
+
+#[tauri::command]
+pub async fn get_exercise_goal(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<ExerciseGoal, Error> {
+    state.get_exercise_goal(&id).await
+}
+
+#[tauri::command]
+pub async fn list_exercise_goals(
+    state: State<'_, Coordinator>,
+    exercise_id: String,
+) -> Result<Vec<ExerciseGoal>, Error> {
+    state.list_exercise_goals(&exercise_id).await
+}
+
+#[tauri::command]
+pub async fn create_exercise_goal(
+    state: State<'_, Coordinator>,
+    values: ExerciseGoalValues,
+) -> Result<ExerciseGoal, Error> {
+    state.create_exercise_goal(&values).await
+}
+
+#[tauri::command]
+pub async fn update_exercise_goal(
+    state: State<'_, Coordinator>,
+    id: String,
+    values: ExerciseGoalValues,
+) -> Result<ExerciseGoal, Error> {
+    state.update_exercise_goal(&id, &values).await
+}
+
+#[tauri::command]
+pub async fn set_exercise_goal_achieved(
+    state: State<'_, Coordinator>,
+    id: String,
+    achieved: bool,
+) -> Result<ExerciseGoal, Error> {
+    state.set_exercise_goal_achieved(&id, achieved).await
+}
+
+#[tauri::command]
+pub async fn set_exercise_goal_archived(
+    state: State<'_, Coordinator>,
+    id: String,
+    archived: bool,
+) -> Result<ExerciseGoal, Error> {
+    state.set_exercise_goal_archived(&id, archived).await
+}
+
+#[tauri::command]
+pub async fn delete_exercise_goal(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
+    state.delete_exercise_goal(&id).await
+}
+
+// ============ measurements ============
+
+#[tauri::command]
+pub async fn get_measurement_definition(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<MeasurementDefinition, Error> {
+    state.get_measurement_definition(&id).await
+}
+
+#[tauri::command]
+pub async fn list_measurement_definitions(
+    state: State<'_, Coordinator>,
+) -> Result<Vec<MeasurementDefinition>, Error> {
+    state.list_measurement_definitions().await
+}
+
+#[tauri::command]
+pub async fn create_measurement_definition(
+    state: State<'_, Coordinator>,
+    name: String,
+    unit: String,
+) -> Result<MeasurementDefinition, Error> {
+    state.create_measurement_definition(&name, &unit).await
+}
+
+#[tauri::command]
+pub async fn update_measurement_definition(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: String,
+    unit: String,
+) -> Result<MeasurementDefinition, Error> {
+    state.update_measurement_definition(&id, &name, &unit).await
+}
+
+#[tauri::command]
+pub async fn set_measurement_definition_archived(
+    state: State<'_, Coordinator>,
+    id: String,
+    archived: bool,
+) -> Result<MeasurementDefinition, Error> {
+    state
+        .set_measurement_definition_archived(&id, archived)
+        .await
+}
+
+#[tauri::command]
+pub async fn reorder_measurement_definitions(
+    state: State<'_, Coordinator>,
+    ordered_ids: Vec<String>,
+) -> Result<Vec<MeasurementDefinition>, Error> {
+    state.reorder_measurement_definitions(&ordered_ids).await
+}
+
+#[tauri::command]
+pub async fn delete_measurement_definition(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_measurement_definition(&id).await
+}
+
+#[tauri::command]
+pub async fn get_measurement_record(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<MeasurementRecord, Error> {
+    state.get_measurement_record(&id).await
+}
+
+#[tauri::command]
+pub async fn list_measurement_records(
+    state: State<'_, Coordinator>,
+    definition_id: String,
+) -> Result<Vec<MeasurementRecord>, Error> {
+    state.list_measurement_records(&definition_id).await
+}
+
+#[tauri::command]
+pub async fn create_measurement_record(
+    state: State<'_, Coordinator>,
+    definition_id: String,
+    date: String,
+    value: f64,
+    note: Option<String>,
+) -> Result<MeasurementRecord, Error> {
+    state
+        .create_measurement_record(&definition_id, &date, value, note.as_deref())
+        .await
+}
+
+#[tauri::command]
+pub async fn update_measurement_record(
+    state: State<'_, Coordinator>,
+    id: String,
+    date: String,
+    value: f64,
+    note: Option<String>,
+) -> Result<MeasurementRecord, Error> {
+    state
+        .update_measurement_record(&id, &date, value, note.as_deref())
+        .await
+}
+
+#[tauri::command]
+pub async fn delete_measurement_record(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_measurement_record(&id).await
 }
 
 // ============ workouts / workout-exercises ============

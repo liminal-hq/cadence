@@ -9,7 +9,11 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseGoal,
+	ExerciseGoalValues,
 	ExerciseValues,
+	MeasurementDefinition,
+	MeasurementRecord,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -193,4 +197,43 @@ export interface LoggingRepository {
 	/** Rejects if any exercise still references this category — reassign them first. */
 	deleteCategory(id: string): Promise<void>;
 	reorderCategories(orderedIds: string[]): Promise<Category[]>;
+
+	getExerciseGoal(id: string): Promise<ExerciseGoal>;
+	listExerciseGoals(exerciseId: string): Promise<ExerciseGoal[]>;
+	createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal>;
+	updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal>;
+	/** A manual toggle, not inferred from history — see the note on ExerciseGoal.achievedAt. */
+	setExerciseGoalAchieved(id: string, achieved: boolean): Promise<ExerciseGoal>;
+	setExerciseGoalArchived(id: string, archived: boolean): Promise<ExerciseGoal>;
+	deleteExerciseGoal(id: string): Promise<void>;
+
+	getMeasurementDefinition(id: string): Promise<MeasurementDefinition>;
+	/** Every definition, archived (disabled) or not — the measurement tracker (P-49) filters to enabled-only. */
+	listMeasurementDefinitions(): Promise<MeasurementDefinition[]>;
+	createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition>;
+	updateMeasurementDefinition(
+		id: string,
+		name: string,
+		unit: string,
+	): Promise<MeasurementDefinition>;
+	setMeasurementDefinitionArchived(id: string, archived: boolean): Promise<MeasurementDefinition>;
+	reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]>;
+	/** A no-op guard doesn't apply here — deleting a definition cascades to its records, matching the schema's own ON DELETE CASCADE; archiving is the reversible alternative. */
+	deleteMeasurementDefinition(id: string): Promise<void>;
+
+	getMeasurementRecord(id: string): Promise<MeasurementRecord>;
+	listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]>;
+	createMeasurementRecord(
+		definitionId: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord>;
+	updateMeasurementRecord(
+		id: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord>;
+	deleteMeasurementRecord(id: string): Promise<void>;
 }

@@ -11,7 +11,11 @@ import type {
 	BarbellConfig,
 	Category,
 	Exercise,
+	ExerciseGoal,
+	ExerciseGoalValues,
 	ExerciseValues,
+	MeasurementDefinition,
+	MeasurementRecord,
 	PlateCalculationResult,
 	RestTimerState,
 	Routine,
@@ -436,6 +440,99 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async reorderCategories(orderedIds: string[]): Promise<Category[]> {
 		return call('reorder_categories', { orderedIds });
+	}
+
+	async getExerciseGoal(id: string): Promise<ExerciseGoal> {
+		return call('get_exercise_goal', { id });
+	}
+
+	async listExerciseGoals(exerciseId: string): Promise<ExerciseGoal[]> {
+		return call('list_exercise_goals', { exerciseId });
+	}
+
+	async createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		return call('create_exercise_goal', { values });
+	}
+
+	async updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		return call('update_exercise_goal', { id, values });
+	}
+
+	async setExerciseGoalAchieved(id: string, achieved: boolean): Promise<ExerciseGoal> {
+		return call('set_exercise_goal_achieved', { id, achieved });
+	}
+
+	async setExerciseGoalArchived(id: string, archived: boolean): Promise<ExerciseGoal> {
+		return call('set_exercise_goal_archived', { id, archived });
+	}
+
+	async deleteExerciseGoal(id: string): Promise<void> {
+		return call('delete_exercise_goal', { id });
+	}
+
+	async getMeasurementDefinition(id: string): Promise<MeasurementDefinition> {
+		return call('get_measurement_definition', { id });
+	}
+
+	async listMeasurementDefinitions(): Promise<MeasurementDefinition[]> {
+		return call('list_measurement_definitions');
+	}
+
+	async createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition> {
+		return call('create_measurement_definition', { name, unit });
+	}
+
+	async updateMeasurementDefinition(
+		id: string,
+		name: string,
+		unit: string,
+	): Promise<MeasurementDefinition> {
+		return call('update_measurement_definition', { id, name, unit });
+	}
+
+	async setMeasurementDefinitionArchived(
+		id: string,
+		archived: boolean,
+	): Promise<MeasurementDefinition> {
+		return call('set_measurement_definition_archived', { id, archived });
+	}
+
+	async reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]> {
+		return call('reorder_measurement_definitions', { orderedIds });
+	}
+
+	async deleteMeasurementDefinition(id: string): Promise<void> {
+		return call('delete_measurement_definition', { id });
+	}
+
+	async getMeasurementRecord(id: string): Promise<MeasurementRecord> {
+		return call('get_measurement_record', { id });
+	}
+
+	async listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]> {
+		return call('list_measurement_records', { definitionId });
+	}
+
+	async createMeasurementRecord(
+		definitionId: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord> {
+		return call('create_measurement_record', { definitionId, date, value, note });
+	}
+
+	async updateMeasurementRecord(
+		id: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+	): Promise<MeasurementRecord> {
+		return call('update_measurement_record', { id, date, value, note });
+	}
+
+	async deleteMeasurementRecord(id: string): Promise<void> {
+		return call('delete_measurement_record', { id });
 	}
 }
 

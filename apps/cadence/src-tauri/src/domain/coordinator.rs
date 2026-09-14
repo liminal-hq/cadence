@@ -17,7 +17,9 @@ use super::categories::models::Category;
 use super::error::Result;
 use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::{Exercise, ExerciseValues};
+use super::goals::models::{ExerciseGoal, ExerciseGoalValues};
 use super::history::HistorySummary;
+use super::measurements::models::{MeasurementDefinition, MeasurementRecord};
 use super::rest_timer::models::{RestTimerState, StartRestTimerOptions};
 use super::routines::models::{
     Routine, RoutineExercise, RoutineSection, RoutineSuperset, SetTemplate, SetTemplateValues,
@@ -28,7 +30,8 @@ use super::settings::models::{Settings, SettingsPatch};
 use super::units::kg_to_g;
 use super::workouts::models::{Workout, WorkoutExercise};
 use super::{
-    barbells, categories, exercises, history, rest_timer, routines, sets, settings, workouts,
+    barbells, categories, exercises, goals, history, measurements, rest_timer, routines, sets,
+    settings, workouts,
 };
 
 /// Everything the plain per-entity repo functions deliberately don't do. This is the one piece of
@@ -148,6 +151,148 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn delete_exercise(&self, id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         exercises::repo::delete(&mut conn, id).await
+    }
+
+    // ============ goals ============
+
+    pub async fn get_exercise_goal(&self, id: &str) -> Result<ExerciseGoal> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::get(&mut conn, id).await
+    }
+
+    pub async fn list_exercise_goals(&self, exercise_id: &str) -> Result<Vec<ExerciseGoal>> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::list_by_exercise(&mut conn, exercise_id).await
+    }
+
+    pub async fn create_exercise_goal(&self, values: &ExerciseGoalValues) -> Result<ExerciseGoal> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::create(&mut conn, values).await
+    }
+
+    pub async fn update_exercise_goal(
+        &self,
+        id: &str,
+        values: &ExerciseGoalValues,
+    ) -> Result<ExerciseGoal> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::update(&mut conn, id, values).await
+    }
+
+    pub async fn set_exercise_goal_achieved(
+        &self,
+        id: &str,
+        achieved: bool,
+    ) -> Result<ExerciseGoal> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::set_achieved(&mut conn, id, achieved).await
+    }
+
+    pub async fn set_exercise_goal_archived(
+        &self,
+        id: &str,
+        archived: bool,
+    ) -> Result<ExerciseGoal> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::set_archived(&mut conn, id, archived).await
+    }
+
+    pub async fn delete_exercise_goal(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        goals::repo::delete(&mut conn, id).await
+    }
+
+    // ============ measurements ============
+
+    pub async fn get_measurement_definition(&self, id: &str) -> Result<MeasurementDefinition> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::get(&mut conn, id).await
+    }
+
+    pub async fn list_measurement_definitions(&self) -> Result<Vec<MeasurementDefinition>> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::list(&mut conn).await
+    }
+
+    pub async fn create_measurement_definition(
+        &self,
+        name: &str,
+        unit: &str,
+    ) -> Result<MeasurementDefinition> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::create(&mut conn, name, unit).await
+    }
+
+    pub async fn update_measurement_definition(
+        &self,
+        id: &str,
+        name: &str,
+        unit: &str,
+    ) -> Result<MeasurementDefinition> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::update(&mut conn, id, name, unit).await
+    }
+
+    pub async fn set_measurement_definition_archived(
+        &self,
+        id: &str,
+        archived: bool,
+    ) -> Result<MeasurementDefinition> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::set_archived(&mut conn, id, archived).await
+    }
+
+    pub async fn reorder_measurement_definitions(
+        &self,
+        ordered_ids: &[String],
+    ) -> Result<Vec<MeasurementDefinition>> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::reorder(&mut conn, ordered_ids).await
+    }
+
+    pub async fn delete_measurement_definition(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::definitions::delete(&mut conn, id).await
+    }
+
+    pub async fn get_measurement_record(&self, id: &str) -> Result<MeasurementRecord> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::records::get(&mut conn, id).await
+    }
+
+    pub async fn list_measurement_records(
+        &self,
+        definition_id: &str,
+    ) -> Result<Vec<MeasurementRecord>> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::records::list_by_definition(&mut conn, definition_id).await
+    }
+
+    pub async fn create_measurement_record(
+        &self,
+        definition_id: &str,
+        date: &str,
+        value: f64,
+        note: Option<&str>,
+    ) -> Result<MeasurementRecord> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::records::create(&mut conn, definition_id, date, value, note).await
+    }
+
+    pub async fn update_measurement_record(
+        &self,
+        id: &str,
+        date: &str,
+        value: f64,
+        note: Option<&str>,
+    ) -> Result<MeasurementRecord> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::records::update(&mut conn, id, date, value, note).await
+    }
+
+    pub async fn delete_measurement_record(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        measurements::records::delete(&mut conn, id).await
     }
 
     // ============ workouts / workout-exercises ============
