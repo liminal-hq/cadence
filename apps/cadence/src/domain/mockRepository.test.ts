@@ -528,6 +528,22 @@ describe('MockLoggingRepository', () => {
 			expect(sets[0]).toMatchObject({ weightKg: 82.5, reps: 6 });
 		});
 
+		it('honours the reviewed order over the routines own order', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const bench = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			const running = await repo.addRoutineExercise(section.id, 'ex-running');
+
+			// The routine's own order has bench first, but the review screen lets a user reorder
+			// before starting — here the caller reviews running first.
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [
+				running.id,
+				bench.id,
+			]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			expect(workoutExercises.map((we) => we.exerciseId)).toEqual(['ex-running', 'ex-bench-press']);
+		});
+
 		it('copies the routine exercise note and set label onto the workout', async () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');

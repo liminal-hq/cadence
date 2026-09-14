@@ -813,9 +813,14 @@ export class MockLoggingRepository implements LoggingRepository {
 	): Promise<Workout> {
 		const section = await this.getRoutineSection(routineSectionId);
 		const routine = await this.getRoutine(section.routineId);
-		const selected = (await this.listRoutineExercises(routineSectionId)).filter((re) =>
-			selectedRoutineExerciseIds.includes(re.id),
+		// Ordered by the caller's selectedRoutineExerciseIds — the reviewed order from the
+		// materialization review screen — not the routine's own order.
+		const byId = new Map(
+			(await this.listRoutineExercises(routineSectionId)).map((re) => [re.id, re]),
 		);
+		const selected = selectedRoutineExerciseIds
+			.map((id) => byId.get(id))
+			.filter((re): re is RoutineExercise => re != null);
 
 		const workout: Workout = {
 			id: newId('workout'),

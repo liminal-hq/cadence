@@ -474,12 +474,19 @@ impl<R: Runtime> Coordinator<R> {
 
         let section = routines::sections::get(&mut tx, routine_section_id).await?;
         let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
-        let selected: Vec<RoutineExercise> =
+        // Ordered by the caller's `selected_routine_exercise_ids`, not the routine's own order —
+        // that array is the reviewed order from the materialization review screen, so it must
+        // drive the new workout's exercise order, not just filter membership.
+        let by_id: HashMap<String, RoutineExercise> =
             routines::routine_exercises::list_by_section(&mut tx, routine_section_id)
                 .await?
                 .into_iter()
-                .filter(|re| selected_routine_exercise_ids.contains(&re.id))
+                .map(|re| (re.id.clone(), re))
                 .collect();
+        let selected: Vec<RoutineExercise> = selected_routine_exercise_ids
+            .iter()
+            .filter_map(|id| by_id.get(id).cloned())
+            .collect();
 
         let now = chrono::Utc::now().timestamp_millis();
         let new_workout_id = uuid::Uuid::new_v4().to_string();
@@ -1610,6 +1617,38 @@ mod tests {
             .unwrap();
         assert_eq!(workout_exercises.len(), 1);
         assert_eq!(workout_exercises[0].exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn materialize_honours_the_reviewed_order_over_the_routines_own_order() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let bench = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+        let running = c
+            .add_routine_exercise(&section.id, "ex-running")
+            .await
+            .unwrap();
+
+        // The review screen lets a user reorder before starting — the routine's own order has
+        // bench first, but the caller here reviews running first.
+        let workout = c
+            .materialize_routine_section(
+                &section.id,
+                "2026-09-20",
+                &[running.id.clone(), bench.id.clone()],
+            )
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises[0].exercise_id, "ex-running");
+        assert_eq!(workout_exercises[1].exercise_id, "ex-bench-press");
     }
 
     #[tokio::test]
