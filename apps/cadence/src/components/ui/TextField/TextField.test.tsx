@@ -27,4 +27,11 @@ describe('TextField', () => {
 		render(<TextField label="Name" value="" onChange={() => {}} disabled />);
 		expect(screen.getByLabelText('Name')).toBeDisabled();
 	});
+
+	it('calls onBlur when the control loses focus', () => {
+		const onBlur = vi.fn();
+		render(<TextField label="Name" value="Push day" onChange={() => {}} onBlur={onBlur} />);
+		fireEvent.blur(screen.getByLabelText('Name'));
+		expect(onBlur).toHaveBeenCalled();
+	});
 });

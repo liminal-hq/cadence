@@ -1,6 +1,8 @@
 // P-32 Routine editor — name/notes, sections, exercise ordering, and the set-template editor.
 // Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already
 // supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
+// Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent —
+// the lb-display variant is deferred app-wide until it's built there first.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -74,12 +76,20 @@ async function loadEditorState(
 	return { routine, sections: sectionStates };
 }
 
+const MISSING_VALUE = '—';
+
 function templateLabel(template: SetTemplate, metricProfile: MetricProfile): string {
 	if (template.populationRule === SEED_LAST_PERFORMANCE) return 'Seeded from last performance';
 	if (metricProfile === 'weight-reps') {
-		return `${formatNumber(template.weightKg ?? 0)} kg × ${template.reps ?? 0}`;
+		const weight =
+			template.weightKg == null ? MISSING_VALUE : `${formatNumber(template.weightKg)} kg`;
+		const reps = template.reps == null ? MISSING_VALUE : template.reps;
+		return `${weight} × ${reps}`;
 	}
-	return `${formatNumber(template.distanceKm ?? 0)} km · ${template.durationSec ?? 0}s`;
+	const distance =
+		template.distanceKm == null ? MISSING_VALUE : `${formatNumber(template.distanceKm)} km`;
+	const duration = template.durationSec == null ? MISSING_VALUE : `${template.durationSec}s`;
+	return `${distance} · ${duration}`;
 }
 
 interface ExercisePickerProps {
@@ -191,6 +201,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	const navigate = useNavigate();
 	const [state, setState] = useState<EditorState | null>(null);
 	const [pickerForSectionId, setPickerForSectionId] = useState<string | null>(null);
+	const [sectionPendingDelete, setSectionPendingDelete] = useState<EditorSection | null>(null);
 
 	const reload = useCallback(() => {
 		loadEditorState(repository, routineId).then(setState);
@@ -219,6 +230,15 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 			sectionId,
 			next.map((e) => e.routineExercise.id),
 		);
+		reload();
+	}
+
+	async function handleDeleteSection(editorSection: EditorSection) {
+		if (editorSection.exercises.length > 0) {
+			setSectionPendingDelete(editorSection);
+			return;
+		}
+		await repository.deleteRoutineSection(editorSection.section.id);
 		reload();
 	}
 
@@ -269,19 +289,16 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 										});
 									}}
 									onKeyDown={(event) => {
-										if (event.key !== 'Enter') return;
-										const input = event.target as HTMLInputElement;
-										repository.renameRoutineSection(section.id, input.value || undefined);
-										input.blur();
+										if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
 									}}
+									onBlur={() =>
+										repository.renameRoutineSection(section.id, section.name || undefined)
+									}
 								/>
 								<IconButton
 									icon="delete"
 									label="Delete section"
-									onClick={async () => {
-										await repository.deleteRoutineSection(section.id);
-										reload();
-									}}
+									onClick={() => handleDeleteSection({ section, exercises })}
 								/>
 							</div>
 
@@ -356,6 +373,38 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 					}}
 				/>
 			)}
+
+			<Dialog
+				open={sectionPendingDelete != null}
+				onClose={() => setSectionPendingDelete(null)}
+				headline="Delete this section?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => setSectionPendingDelete(null)}>
+							Cancel
+						</Button>
+						<Button
+							variant="filled"
+							tone="error"
+							onClick={async () => {
+								if (!sectionPendingDelete) return;
+								await repository.deleteRoutineSection(sectionPendingDelete.section.id);
+								setSectionPendingDelete(null);
+								reload();
+							}}
+						>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<p>
+					This removes {sectionPendingDelete?.exercises.length ?? 0} exercise
+					{sectionPendingDelete?.exercises.length === 1 ? '' : 's'} and all of their set templates
+					from this routine.
+				</p>
+			</Dialog>
 		</div>
 	);
 }

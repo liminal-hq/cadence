@@ -21,6 +21,7 @@ export interface TextFieldProps {
 	autoFocus?: boolean;
 	disabled?: boolean;
 	onKeyDown?: (event: KeyboardEvent<HTMLInputElement>) => void;
+	onBlur?: () => void;
 }
 
 export function TextField({
@@ -35,6 +36,7 @@ export function TextField({
 	autoFocus = false,
 	disabled = false,
 	onKeyDown,
+	onBlur,
 }: TextFieldProps) {
 	function handleChange(event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
 		onChange(event.target.value);
@@ -49,6 +51,7 @@ export function TextField({
 					value={value}
 					placeholder={placeholder}
 					onChange={handleChange}
+					onBlur={onBlur}
 					autoFocus={autoFocus}
 					disabled={disabled}
 					rows={3}
@@ -59,6 +62,7 @@ export function TextField({
 					value={value}
 					placeholder={placeholder}
 					onChange={handleChange}
+					onBlur={onBlur}
 					autoFocus={autoFocus}
 					disabled={disabled}
 					type={type}
