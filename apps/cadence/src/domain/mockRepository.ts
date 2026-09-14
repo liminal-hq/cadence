@@ -834,16 +834,24 @@ export class MockLoggingRepository implements LoggingRepository {
 		this.workouts.set(workout.id, workout);
 
 		const supersetIdMap = new Map<string, string>();
+		// Positions are recomputed densely among only the *selected* members of each superset, in
+		// reviewed order — carrying over a member's original supersetPosition verbatim would leave
+		// gaps or an out-of-range position once an earlier member is deselected.
+		const supersetPositionCounters = new Map<string, number>();
 
 		for (const [index, re] of selected.entries()) {
 			const newOrder = index + 1;
 			let newSupersetId: string | undefined;
+			let newSupersetPosition: number | undefined;
 			if (re.routineSupersetId) {
 				newSupersetId = supersetIdMap.get(re.routineSupersetId);
 				if (!newSupersetId) {
 					newSupersetId = newId('superset');
 					supersetIdMap.set(re.routineSupersetId, newSupersetId);
 				}
+				const position = (supersetPositionCounters.get(re.routineSupersetId) ?? 0) + 1;
+				supersetPositionCounters.set(re.routineSupersetId, position);
+				newSupersetPosition = position;
 			}
 
 			const newWorkoutExercise: WorkoutExercise = {
@@ -854,7 +862,7 @@ export class MockLoggingRepository implements LoggingRepository {
 				order: newOrder,
 				todayNote: re.note,
 				supersetGroupId: newSupersetId,
-				supersetPosition: re.supersetPosition,
+				supersetPosition: newSupersetPosition,
 			};
 			this.workoutExercises.set(newWorkoutExercise.id, newWorkoutExercise);
 
@@ -875,6 +883,7 @@ export class MockLoggingRepository implements LoggingRepository {
 					order: template.order,
 					status: 'planned',
 					setLabel: template.setLabel,
+					sourceTemplateId: template.id,
 					...values,
 				};
 				this.sets.set(set.id, set);

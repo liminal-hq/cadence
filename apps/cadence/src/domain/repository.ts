@@ -139,7 +139,7 @@ export interface LoggingRepository {
 	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;
 	addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate>;
 	deleteSetTemplate(id: string): Promise<void>;
-	/** Materializes a routine section into a real, editable workout (SPEC.md 8.4) — only the exercises named in `selectedRoutineExerciseIds` are carried over, in their original relative order, with each set template resolved (explicit values copied as-is; `"seed-last-performance"` resolved against the exercise's most recent completed set, left blank with no history) and superset grouping remapped onto the new workout. */
+	/** Materializes a routine section into a real, editable workout (SPEC.md 8.4) — only the exercises named in `selectedRoutineExerciseIds` are carried over, in the order the caller supplies (the reviewed order from the P-20 review screen, not necessarily the routine's own order), with each set template resolved (explicit values copied as-is; `"seed-last-performance"` resolved against the exercise's most recent completed set, left blank with no history) and superset grouping remapped onto the new workout, positions renumbered among the selected members of each group. */
 	materializeRoutineSection(
 		routineSectionId: string,
 		targetDate: string,

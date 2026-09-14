@@ -544,12 +544,42 @@ describe('MockLoggingRepository', () => {
 			expect(workoutExercises.map((we) => we.exerciseId)).toEqual(['ex-running', 'ex-bench-press']);
 		});
 
+		it('renumbers superset positions among selected members only', async () => {
+			const routine = await repo.createRoutine('Superset A');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
+			const lateralRaise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
+			const tricepsPushdown = await repo.addRoutineExercise(section.id, 'ex-triceps-pushdown');
+			const facePull = await repo.addRoutineExercise(section.id, 'ex-face-pull');
+			await repo.setRoutineExerciseSuperset(lateralRaise.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 1,
+			});
+			await repo.setRoutineExerciseSuperset(tricepsPushdown.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 2,
+			});
+			await repo.setRoutineExerciseSuperset(facePull.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 3,
+			});
+
+			// Deselecting the first member must renumber the rest to 1/2, not keep their original
+			// (now out-of-range) positions of 2/3.
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [
+				tricepsPushdown.id,
+				facePull.id,
+			]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			expect(workoutExercises.map((we) => we.supersetPosition)).toEqual([1, 2]);
+		});
+
 		it('copies the routine exercise note and set label onto the workout', async () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
 			await repo.updateRoutineExerciseNote(exercise.id, 'Pause reps');
-			await repo.addSetTemplate(exercise.id, {
+			const template = await repo.addSetTemplate(exercise.id, {
 				weightKg: 60,
 				reps: 10,
 				setLabel: 'Warm-up',
@@ -560,6 +590,7 @@ describe('MockLoggingRepository', () => {
 			expect(workoutExercises[0].todayNote).toBe('Pause reps');
 			const sets = await repo.listSets(workoutExercises[0].id);
 			expect(sets[0].setLabel).toBe('Warm-up');
+			expect(sets[0].sourceTemplateId).toBe(template.id);
 		});
 
 		it('leaves a seeded template blank with no history', async () => {

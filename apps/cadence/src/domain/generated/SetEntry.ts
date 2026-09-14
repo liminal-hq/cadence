@@ -10,4 +10,8 @@ export type SetEntry = { id: string, workoutExerciseId: string, order: number, s
 /**
  * Only ever populated by routine materialization today (SPEC.md 8.4's SetTemplate.set_label, e.g. "warm-up" or "drop") — no logging-flow path writes it.
  */
-setLabel?: string, isRecord: boolean, pendingSync: boolean, };
+setLabel?: string, 
+/**
+ * The `SetTemplate` this set was materialized from (SPEC.md 8.4's provenance requirement) — `None` for any set logged directly rather than via a routine.
+ */
+sourceTemplateId?: string, isRecord: boolean, pendingSync: boolean, };

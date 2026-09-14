@@ -237,14 +237,25 @@ impl<R: Runtime> Coordinator<R> {
                     if let Some(existing) = superset_id_map.get(old_superset_id) {
                         Some(existing.clone())
                     } else {
+                        let (colour, auto_advance, rest_ms): (Option<String>, i64, Option<i64>) =
+                            sqlx::query_as(
+                                "SELECT colour, auto_advance, rest_ms FROM supersets WHERE id = ?",
+                            )
+                            .bind(old_superset_id)
+                            .fetch_one(&mut *tx)
+                            .await?;
                         let new_id = uuid::Uuid::new_v4().to_string();
                         let revision = crate::db::next_revision(&mut tx).await?;
                         sqlx::query(
-                            "INSERT INTO supersets (id, workout_id, created_at_ms, \
-                             updated_at_ms, revision) VALUES (?, ?, ?, ?, ?)",
+                            "INSERT INTO supersets (id, workout_id, colour, auto_advance, \
+                             rest_ms, created_at_ms, updated_at_ms, revision) \
+                             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         )
                         .bind(&new_id)
                         .bind(&new_workout_id)
+                        .bind(&colour)
+                        .bind(auto_advance != 0)
+                        .bind(rest_ms)
                         .bind(now)
                         .bind(now)
                         .bind(revision)
@@ -463,7 +474,7 @@ impl<R: Runtime> Coordinator<R> {
         routines::set_templates::delete(&mut conn, id).await
     }
 
-    /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed materialization" step) — only the exercises named in `selected_routine_exercise_ids` are carried over (in their original relative order, densely renumbered), each set template resolved into a real planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the exercise's most recent completed set, or left blank with no fallback value when there's no history yet), and superset grouping remapped into new workout-level supersets exactly like `duplicate_workout` remaps them — a routine section's own superset-membership invariant (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here belongs to this same section.
+    /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed materialization" step) — only the exercises named in `selected_routine_exercise_ids` are carried over, in the order the caller supplies (the reviewed order from the P-20 review screen, not the routine's own order), densely renumbered; each set template resolved into a real planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the exercise's most recent completed set, or left blank with no fallback value when there's no history yet); and superset grouping remapped into new workout-level supersets exactly like `duplicate_workout` remaps them, with each group's `superset_position` also densely renumbered among only its selected members — a routine section's own superset-membership invariant (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here belongs to this same section.
     pub async fn materialize_routine_section(
         &self,
         routine_section_id: &str,
@@ -508,14 +519,18 @@ impl<R: Runtime> Coordinator<R> {
         .await?;
 
         let mut superset_id_map: HashMap<String, String> = HashMap::new();
+        // Positions are recomputed densely among only the *selected* members of each superset, in
+        // reviewed order — carrying over a member's original `superset_position` verbatim would
+        // leave gaps or an out-of-range position once an earlier member is deselected.
+        let mut superset_position_counters: HashMap<String, i32> = HashMap::new();
 
         for (index, re) in selected.iter().enumerate() {
             let new_order = index as i32 + 1;
-            let new_superset_id = match &re.routine_superset_id {
-                None => None,
+            let (new_superset_id, new_superset_position) = match &re.routine_superset_id {
+                None => (None, None),
                 Some(old_superset_id) => {
-                    if let Some(existing) = superset_id_map.get(old_superset_id) {
-                        Some(existing.clone())
+                    let new_id = if let Some(existing) = superset_id_map.get(old_superset_id) {
+                        existing.clone()
                     } else {
                         let routine_superset =
                             routines::supersets::get(&mut tx, old_superset_id).await?;
@@ -537,8 +552,13 @@ impl<R: Runtime> Coordinator<R> {
                         .execute(&mut *tx)
                         .await?;
                         superset_id_map.insert(old_superset_id.clone(), new_id.clone());
-                        Some(new_id)
-                    }
+                        new_id
+                    };
+                    let position = superset_position_counters
+                        .entry(old_superset_id.clone())
+                        .or_insert(0);
+                    *position += 1;
+                    (Some(new_id), Some(*position))
                 }
             };
 
@@ -555,7 +575,7 @@ impl<R: Runtime> Coordinator<R> {
             .bind(new_order)
             .bind(&re.note)
             .bind(&new_superset_id)
-            .bind(re.superset_position)
+            .bind(new_superset_position)
             .bind(now)
             .bind(now)
             .bind(we_revision)
@@ -1352,6 +1372,50 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn duplicate_workout_preserves_superset_colour_auto_advance_and_rest() {
+        let c = test_coordinator().await;
+        let source = c.create_workout("2026-09-09", "Superset A").await.unwrap();
+        let lateral_raise = c
+            .add_workout_exercise(&source.id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        {
+            let mut conn = c.pool.acquire().await.unwrap();
+            sqlx::query(
+                "INSERT INTO supersets (id, workout_id, colour, auto_advance, rest_ms, \
+                 created_at_ms, updated_at_ms, revision) VALUES ('ss-2', ?, '#ff0000', 0, 45000, \
+                 0, 0, 1)",
+            )
+            .bind(&source.id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+            sqlx::query("UPDATE workout_exercises SET superset_id = 'ss-2', superset_position = 1 WHERE id = ?")
+                .bind(&lateral_raise.id)
+                .execute(&mut *conn)
+                .await
+                .unwrap();
+        }
+
+        let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&duplicated.id)
+            .await
+            .unwrap();
+        let new_superset_id = workout_exercises[0].superset_group_id.as_deref().unwrap();
+        let mut conn = c.pool.acquire().await.unwrap();
+        let (colour, auto_advance, rest_ms): (Option<String>, i64, Option<i64>) =
+            sqlx::query_as("SELECT colour, auto_advance, rest_ms FROM supersets WHERE id = ?")
+                .bind(new_superset_id)
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        assert_eq!(colour.as_deref(), Some("#ff0000"));
+        assert_eq!(auto_advance, 0);
+        assert_eq!(rest_ms, Some(45000));
+    }
+
+    #[tokio::test]
     async fn delete_all_history_also_resets_the_rest_timer() {
         let c = test_coordinator().await;
         c.start_rest_timer(60_000, &StartRestTimerOptions::default())
@@ -1462,26 +1526,28 @@ mod tests {
             .add_routine_exercise(&section.id, "ex-bench-press")
             .await
             .unwrap();
-        c.add_set_template(
-            &re.id,
-            &SetTemplateValues {
-                weight_kg: Some(60.0),
-                reps: Some(10),
-                set_label: Some("Warm-up".to_string()),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
-        c.add_set_template(
-            &re.id,
-            &SetTemplateValues {
-                population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
+        let explicit_template = c
+            .add_set_template(
+                &re.id,
+                &SetTemplateValues {
+                    weight_kg: Some(60.0),
+                    reps: Some(10),
+                    set_label: Some("Warm-up".to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        let seeded_template = c
+            .add_set_template(
+                &re.id,
+                &SetTemplateValues {
+                    population_rule: Some(SEED_LAST_PERFORMANCE.to_string()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
 
         let workout = c
             .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
@@ -1497,10 +1563,18 @@ mod tests {
         assert_eq!(sets[0].reps, Some(10));
         assert_eq!(sets[0].status, "planned");
         assert_eq!(sets[0].set_label.as_deref(), Some("Warm-up"));
+        assert_eq!(
+            sets[0].source_template_id.as_deref(),
+            Some(explicit_template.id.as_str())
+        );
         // Seeded from the completed history set above, not the explicit 60kg/10 template.
         assert_eq!(sets[1].weight_kg, Some(82.5));
         assert_eq!(sets[1].reps, Some(6));
         assert_eq!(sets[1].status, "planned");
+        assert_eq!(
+            sets[1].source_template_id.as_deref(),
+            Some(seeded_template.id.as_str())
+        );
     }
 
     #[tokio::test]
@@ -1701,6 +1775,57 @@ mod tests {
             group_ids[0], superset.id,
             "must not point at the routine-level superset"
         );
+        assert_eq!(workout_exercises[0].superset_size, Some(2));
+    }
+
+    #[tokio::test]
+    async fn materialize_renumbers_superset_positions_among_selected_members_only() {
+        let c = test_coordinator().await;
+        let routine = c.create_routine("Superset A").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let superset = c
+            .create_routine_superset(&section.id, Some("#ffcc00"), true, Some(60_000))
+            .await
+            .unwrap();
+        let lateral_raise = c
+            .add_routine_exercise(&section.id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let triceps_pushdown = c
+            .add_routine_exercise(&section.id, "ex-triceps-pushdown")
+            .await
+            .unwrap();
+        let face_pull = c
+            .add_routine_exercise(&section.id, "ex-face-pull")
+            .await
+            .unwrap();
+        c.set_routine_exercise_superset(&lateral_raise.id, Some(&superset.id), Some(1))
+            .await
+            .unwrap();
+        c.set_routine_exercise_superset(&triceps_pushdown.id, Some(&superset.id), Some(2))
+            .await
+            .unwrap();
+        c.set_routine_exercise_superset(&face_pull.id, Some(&superset.id), Some(3))
+            .await
+            .unwrap();
+
+        // The review deselects the first member — the remaining two must renumber to 1/2, not
+        // keep their original (now out-of-range) positions of 2/3.
+        let workout = c
+            .materialize_routine_section(
+                &section.id,
+                "2026-09-20",
+                &[triceps_pushdown.id.clone(), face_pull.id.clone()],
+            )
+            .await
+            .unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&workout.id)
+            .await
+            .unwrap();
+        assert_eq!(workout_exercises.len(), 2);
+        assert_eq!(workout_exercises[0].superset_position, Some(1));
+        assert_eq!(workout_exercises[1].superset_position, Some(2));
         assert_eq!(workout_exercises[0].superset_size, Some(2));
     }
 }

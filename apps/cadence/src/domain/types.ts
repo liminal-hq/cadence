@@ -82,6 +82,8 @@ export interface SetEntry {
 	note?: string;
 	/** Only ever populated by routine materialization today (SPEC.md 8.4's set-template label, e.g. "warm-up" or "drop"). */
 	setLabel?: string;
+	/** The SetTemplate this set was materialized from (SPEC.md 8.4's provenance requirement) — undefined for any set logged directly rather than via a routine. */
+	sourceTemplateId?: string;
 	isRecord?: boolean;
 	/** True while a watch-logged set hasn't merged back from the phone's perspective. */
 	pendingSync?: boolean;

@@ -23,6 +23,7 @@ struct SetRow {
     completed_at_ms: Option<i64>,
     note: Option<String>,
     set_label: Option<String>,
+    source_template_id: Option<String>,
     pending_sync: i64,
 }
 
@@ -40,6 +41,7 @@ impl From<SetRow> for SetEntry {
             completed_at: row.completed_at_ms.map(ms_to_iso),
             note: row.note,
             set_label: row.set_label,
+            source_template_id: row.source_template_id,
             is_record: false,
             pending_sync: row.pending_sync != 0,
         }
@@ -67,7 +69,7 @@ async fn parent_ids(
 pub async fn list(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Result<Vec<SetEntry>> {
     let rows: Vec<SetRow> = sqlx::query_as(
         "SELECT id, workout_exercise_id, sort_order, status, weight_g, reps, distance_m, \
-         duration_s, completed_at_ms, note, set_label, pending_sync FROM sets \
+         duration_s, completed_at_ms, note, set_label, source_template_id, pending_sync FROM sets \
          WHERE workout_exercise_id = ? ORDER BY sort_order",
     )
     .bind(workout_exercise_id)
@@ -79,7 +81,8 @@ pub async fn list(conn: &mut SqliteConnection, workout_exercise_id: &str) -> Res
 async fn get(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
     let row: SetRow = sqlx::query_as(
         "SELECT id, workout_exercise_id, sort_order, status, weight_g, reps, distance_m, \
-         duration_s, completed_at_ms, note, set_label, pending_sync FROM sets WHERE id = ?",
+         duration_s, completed_at_ms, note, set_label, source_template_id, pending_sync FROM sets \
+         WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(&mut *conn)
@@ -471,6 +474,7 @@ mod tests {
             completed_at: None,
             note: None,
             set_label: None,
+            source_template_id: None,
             is_record: false,
             pending_sync: false,
         };
