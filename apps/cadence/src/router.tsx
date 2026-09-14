@@ -28,6 +28,8 @@ import { ExerciseLibraryScreen } from './screens/exercises/ExerciseLibraryScreen
 import { ExerciseEditorScreen } from './screens/exercises/ExerciseEditorScreen';
 import { CategoryEditorScreen } from './screens/exercises/CategoryEditorScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
+import { MeasurementTrackerScreen } from './screens/measurements/MeasurementTrackerScreen';
+import { MeasurementDetailScreen } from './screens/measurements/MeasurementDetailScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
@@ -183,6 +185,23 @@ const routineSectionStartRoute = createRoute({
 	component: RoutineSectionStartRoute,
 });
 
+const measurementTrackerRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/measurements',
+	component: MeasurementTrackerScreen,
+});
+
+function MeasurementDetailRoute() {
+	const { definitionId } = measurementDetailRoute.useParams();
+	return <MeasurementDetailScreen definitionId={definitionId} />;
+}
+
+const measurementDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/measurements/$definitionId',
+	component: MeasurementDetailRoute,
+});
+
 const exerciseLibraryRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/exercise-library',
@@ -304,6 +323,8 @@ const routeTree = rootRoute.addChildren([
 	routineDetailRoute,
 	routineEditorRoute,
 	routineSectionStartRoute,
+	measurementTrackerRoute,
+	measurementDetailRoute,
 	exerciseLibraryRoute,
 	exerciseEditorNewRoute,
 	exerciseEditorEditRoute,
