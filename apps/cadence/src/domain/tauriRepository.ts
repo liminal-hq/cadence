@@ -486,8 +486,9 @@ export class TauriLoggingRepository implements LoggingRepository {
 		id: string,
 		name: string,
 		unit: string,
+		goal?: number,
 	): Promise<MeasurementDefinition> {
-		return call('update_measurement_definition', { id, name, unit });
+		return call('update_measurement_definition', { id, name, unit, goal });
 	}
 
 	async setMeasurementDefinitionArchived(

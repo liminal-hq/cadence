@@ -234,8 +234,11 @@ pub async fn update_measurement_definition(
     id: String,
     name: String,
     unit: String,
+    goal: Option<f64>,
 ) -> Result<MeasurementDefinition, Error> {
-    state.update_measurement_definition(&id, &name, &unit).await
+    state
+        .update_measurement_definition(&id, &name, &unit, goal)
+        .await
 }
 
 #[tauri::command]

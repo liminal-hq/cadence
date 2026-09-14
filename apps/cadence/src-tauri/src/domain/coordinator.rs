@@ -228,9 +228,10 @@ impl<R: Runtime> Coordinator<R> {
         id: &str,
         name: &str,
         unit: &str,
+        goal: Option<f64>,
     ) -> Result<MeasurementDefinition> {
         let mut conn = self.pool.acquire().await?;
-        measurements::definitions::update(&mut conn, id, name, unit).await
+        measurements::definitions::update(&mut conn, id, name, unit, goal).await
     }
 
     pub async fn set_measurement_definition_archived(

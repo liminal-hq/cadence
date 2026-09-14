@@ -311,6 +311,7 @@ export interface MeasurementDefinition {
 	id: string;
 	name: string;
 	unit: string;
+	goal?: number;
 	sortOrder: number;
 	archived: boolean;
 }

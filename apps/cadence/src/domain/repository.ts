@@ -211,10 +211,12 @@ export interface LoggingRepository {
 	/** Every definition, archived (disabled) or not — the measurement tracker (P-49) filters to enabled-only. */
 	listMeasurementDefinitions(): Promise<MeasurementDefinition[]>;
 	createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition>;
+	/** Rejects a unit change once the definition has recorded values — see the Rust repo's own doc comment for why. */
 	updateMeasurementDefinition(
 		id: string,
 		name: string,
 		unit: string,
+		goal?: number,
 	): Promise<MeasurementDefinition>;
 	setMeasurementDefinitionArchived(id: string, archived: boolean): Promise<MeasurementDefinition>;
 	reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]>;

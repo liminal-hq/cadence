@@ -3,4 +3,4 @@
 /**
  * A user-owned (or built-in-but-editable) measurement kind — SPEC.md 8.8: "name, unit, optional goal, enabled state, and order." `archived` doubles as the "enabled state": an archived definition is disabled, matching every other entity in this crate's archive convention rather than introducing a second boolean.
  */
-export type MeasurementDefinition = { id: string, name: string, unit: string, sortOrder: number, archived: boolean, };
+export type MeasurementDefinition = { id: string, name: string, unit: string, goal?: number, sortOrder: number, archived: boolean, };

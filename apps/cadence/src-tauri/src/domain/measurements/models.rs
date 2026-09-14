@@ -14,6 +14,8 @@ pub struct MeasurementDefinition {
     pub id: String,
     pub name: String,
     pub unit: String,
+    #[cfg_attr(test, ts(optional))]
+    pub goal: Option<f64>,
     pub sort_order: i32,
     pub archived: bool,
 }

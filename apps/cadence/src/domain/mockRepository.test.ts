@@ -921,8 +921,16 @@ describe('MockLoggingRepository', () => {
 				created.id,
 				'Forearm circumference',
 				'cm',
+				35,
 			);
 			expect(updated.name).toBe('Forearm circumference');
+			expect(updated.goal).toBe(35);
+		});
+
+		it('rejects a unit change once the definition has recorded values', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			await repo.createMeasurementRecord(created.id, '2026-09-14', 30, undefined);
+			await expect(repo.updateMeasurementDefinition(created.id, 'Forearm', 'in')).rejects.toThrow();
 		});
 
 		it('archives and unarchives a definition', async () => {

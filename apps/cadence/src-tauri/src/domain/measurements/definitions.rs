@@ -7,12 +7,14 @@ use sqlx::{FromRow, SqliteConnection};
 
 use super::models::MeasurementDefinition;
 use crate::domain::error::{Error, Result};
+use crate::domain::units::{milli_to_unit, unit_to_milli};
 
 #[derive(FromRow)]
 struct DefinitionRow {
     id: String,
     name: String,
     unit: String,
+    goal_milli: Option<i64>,
     sort_order: i32,
     archived: i64,
 }
@@ -23,18 +25,18 @@ impl From<DefinitionRow> for MeasurementDefinition {
             id: row.id,
             name: row.name,
             unit: row.unit,
+            goal: row.goal_milli.map(milli_to_unit),
             sort_order: row.sort_order,
             archived: row.archived != 0,
         }
     }
 }
 
-const SELECT_BY_ID: &str =
-    "SELECT id, name, unit, sort_order, archived FROM measurement_definitions WHERE id = ?";
+const SELECT_BY_ID: &str = "SELECT id, name, unit, goal_milli, sort_order, archived \
+     FROM measurement_definitions WHERE id = ?";
 
-const SELECT_ALL: &str =
-    "SELECT id, name, unit, sort_order, archived FROM measurement_definitions \
-     ORDER BY sort_order, id";
+const SELECT_ALL: &str = "SELECT id, name, unit, goal_milli, sort_order, archived \
+     FROM measurement_definitions ORDER BY sort_order, id";
 
 pub async fn get(conn: &mut SqliteConnection, id: &str) -> Result<MeasurementDefinition> {
     let row: DefinitionRow = sqlx::query_as(SELECT_BY_ID)
@@ -80,20 +82,36 @@ pub async fn create(
     get(conn, &id).await
 }
 
+/// Rejects a unit change once records exist — `measurement_records.value_milli` stores a bare value with no per-record unit, so silently reinterpreting it under a new unit (e.g. kg becoming lb) would make every past record's displayed value wrong.
 pub async fn update(
     conn: &mut SqliteConnection,
     id: &str,
     name: &str,
     unit: &str,
+    goal: Option<f64>,
 ) -> Result<MeasurementDefinition> {
+    let current = get(conn, id).await?;
+    if current.unit != unit {
+        let (record_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM measurement_records WHERE definition_id = ?")
+                .bind(id)
+                .fetch_one(&mut *conn)
+                .await?;
+        if record_count > 0 {
+            return Err(Error::Validation(format!(
+                "measurement definition {id:?} has recorded values and can't change unit"
+            )));
+        }
+    }
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
-        "UPDATE measurement_definitions SET name = ?, unit = ?, updated_at_ms = ?, revision = ? \
-         WHERE id = ?",
+        "UPDATE measurement_definitions SET name = ?, unit = ?, goal_milli = ?, \
+         updated_at_ms = ?, revision = ? WHERE id = ?",
     )
     .bind(name)
     .bind(unit)
+    .bind(goal.map(unit_to_milli))
     .bind(now)
     .bind(revision)
     .bind(id)
@@ -224,10 +242,56 @@ mod tests {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
         let created = create(&mut conn, "Forearm", "cm").await.unwrap();
-        let updated = update(&mut conn, &created.id, "Forearm circumference", "cm")
+        let updated = update(
+            &mut conn,
+            &created.id,
+            "Forearm circumference",
+            "cm",
+            Some(35.0),
+        )
+        .await
+        .unwrap();
+        assert_eq!(updated.name, "Forearm circumference");
+        assert_eq!(updated.goal, Some(35.0));
+    }
+
+    #[tokio::test]
+    async fn update_can_clear_a_goal() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "Forearm", "cm").await.unwrap();
+        update(&mut conn, &created.id, "Forearm", "cm", Some(35.0))
             .await
             .unwrap();
-        assert_eq!(updated.name, "Forearm circumference");
+        let cleared = update(&mut conn, &created.id, "Forearm", "cm", None)
+            .await
+            .unwrap();
+        assert_eq!(cleared.goal, None);
+    }
+
+    #[tokio::test]
+    async fn update_rejects_a_unit_change_once_records_exist() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "Forearm", "cm").await.unwrap();
+        super::super::records::create(&mut conn, &created.id, "2026-09-14", 30.0, None)
+            .await
+            .unwrap();
+        let err = update(&mut conn, &created.id, "Forearm", "in", None)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn update_allows_a_unit_change_before_any_records_exist() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "Forearm", "cm").await.unwrap();
+        let updated = update(&mut conn, &created.id, "Forearm", "in", None)
+            .await
+            .unwrap();
+        assert_eq!(updated.unit, "in");
     }
 
     #[tokio::test]

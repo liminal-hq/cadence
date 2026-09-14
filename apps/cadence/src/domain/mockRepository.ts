@@ -1238,9 +1238,18 @@ export class MockLoggingRepository implements LoggingRepository {
 		id: string,
 		name: string,
 		unit: string,
+		goal?: number,
 	): Promise<MeasurementDefinition> {
 		const existing = await this.getMeasurementDefinition(id);
-		const updated = { ...existing, name, unit };
+		if (existing.unit !== unit) {
+			const hasRecords = [...this.measurementRecords.values()].some(
+				(record) => record.definitionId === id,
+			);
+			if (hasRecords) {
+				throw new Error(`Measurement definition ${id} has recorded values and can't change unit`);
+			}
+		}
+		const updated = { ...existing, name, unit, goal };
 		this.measurementDefinitions.set(id, updated);
 		return updated;
 	}
