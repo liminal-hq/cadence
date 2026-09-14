@@ -425,6 +425,14 @@ describe('MockLoggingRepository', () => {
 			).rejects.toThrow('made-up-rule');
 		});
 
+		it('rejects an empty-string population rule the same as an unknown one', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+
+			await expect(repo.addSetTemplate(exercise.id, { populationRule: '' })).rejects.toThrow();
+		});
+
 		it('rejects combining a population rule with an explicit value', async () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');

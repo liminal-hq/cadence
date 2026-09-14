@@ -736,7 +736,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate> {
-		if (values.populationRule) {
+		if (values.populationRule !== undefined) {
 			if (values.populationRule !== SEED_LAST_PERFORMANCE) {
 				throw new Error(`Unknown set-template population rule: ${values.populationRule}`);
 			}

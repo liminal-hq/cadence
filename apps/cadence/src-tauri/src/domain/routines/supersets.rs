@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use sqlx::{FromRow, SqliteConnection};
+use sqlx::{Connection, FromRow, SqliteConnection};
 
 use super::models::RoutineSuperset;
 use crate::domain::error::{Error, Result};
@@ -73,14 +73,19 @@ pub async fn create(
 
 /// A no-op if the superset doesn't exist, otherwise records a tombstone. Member routine-exercises' `routine_superset_id` is cleared via `ON DELETE SET NULL`, but that alone leaves `superset_position` stale — cleared explicitly here, row by row, so each clear gets its own revision stamp like any other mutation.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
+    // A transaction on this same connection, not just sequential statements: a concurrent
+    // `set_superset` assigning a new member between the SELECT below and the DELETE would
+    // otherwise land outside this snapshot, leaving that member's `superset_position` populated
+    // once the FK's `ON DELETE SET NULL` clears its `routine_superset_id`.
+    let mut tx = conn.begin().await?;
     let member_ids: Vec<(String,)> =
         sqlx::query_as("SELECT id FROM routine_exercises WHERE routine_superset_id = ?")
             .bind(id)
-            .fetch_all(&mut *conn)
+            .fetch_all(&mut *tx)
             .await?;
     let now = chrono::Utc::now().timestamp_millis();
     for (exercise_id,) in &member_ids {
-        let revision = crate::db::next_revision(conn).await?;
+        let revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "UPDATE routine_exercises SET superset_position = NULL, updated_at_ms = ?, \
              revision = ? WHERE id = ?",
@@ -88,17 +93,18 @@ pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
         .bind(now)
         .bind(revision)
         .bind(exercise_id)
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
     }
     let result = sqlx::query("DELETE FROM routine_supersets WHERE id = ?")
         .bind(id)
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
     if result.rows_affected() > 0 {
-        let revision = crate::db::next_revision(conn).await?;
-        crate::db::write_tombstone(conn, "routine_superset", id, revision, now).await?;
+        let revision = crate::db::next_revision(&mut tx).await?;
+        crate::db::write_tombstone(&mut tx, "routine_superset", id, revision, now).await?;
     }
+    tx.commit().await?;
     Ok(())
 }
 

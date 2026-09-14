@@ -192,8 +192,7 @@ export interface RoutineSection {
 	sortOrder: number;
 }
 
-/** A routine-authored superset template; materialization copies these into a workout-level
- *  superset, matching how a SetTemplate materializes into a Set. */
+/** A routine-authored superset template; materialization copies these into a workout-level superset, matching how a SetTemplate materializes into a Set. */
 export interface RoutineSuperset {
 	id: string;
 	routineSectionId: string;
@@ -217,8 +216,7 @@ export interface RoutineExercise {
 /** The only `populationRule` value shipped in v1 — more may be added later. */
 export const SEED_LAST_PERFORMANCE = 'seed-last-performance' as const;
 
-/** A planned set within a routine exercise — either explicit target values, or a rule to seed
- *  values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). */
+/** A planned set within a routine exercise — either explicit target values, or a rule to seed values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). */
 export interface SetTemplate {
 	id: string;
 	routineExerciseId: string;

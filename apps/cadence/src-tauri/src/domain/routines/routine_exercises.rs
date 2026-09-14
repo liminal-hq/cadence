@@ -105,6 +105,13 @@ pub async fn set_superset(
                 .to_string(),
         ));
     }
+    if let Some(position) = superset_position {
+        if position < 1 {
+            return Err(Error::Validation(format!(
+                "superset_position must be a positive, 1-indexed position, got {position}"
+            )));
+        }
+    }
     let exercise = get(conn, id).await?;
     if let Some(superset_id) = routine_superset_id {
         let superset = super::supersets::get(conn, superset_id).await?;
@@ -278,6 +285,23 @@ mod tests {
             .await
             .unwrap();
         let err = set_superset(&mut conn, &exercise.id, None, Some(1))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_non_positive_superset_position() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let superset = super::super::supersets::create(&mut conn, &section_id, None, true, None)
+            .await
+            .unwrap();
+        let exercise = add(&mut conn, &section_id, "ex-lateral-raise")
+            .await
+            .unwrap();
+        let err = set_superset(&mut conn, &exercise.id, Some(&superset.id), Some(0))
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
