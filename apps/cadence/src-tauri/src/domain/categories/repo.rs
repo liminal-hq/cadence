@@ -1,4 +1,4 @@
-// Row mapping and persistence for exercise categories.
+// Row mapping and persistence for exercise categories
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -51,18 +51,13 @@ pub async fn get(conn: &mut SqliteConnection, id: &str) -> Result<Category> {
     Ok(row.into())
 }
 
-/// Every category, archived or not — the category editor (P-35) is responsible for filtering,
-/// same division of labour as `exercises::repo::list`.
+/// Every category, archived or not — the category editor (P-35) is responsible for filtering, same division of labour as `exercises::repo::list`.
 pub async fn list(conn: &mut SqliteConnection) -> Result<Vec<Category>> {
     let rows: Vec<CategoryRow> = sqlx::query_as(SELECT_ALL).fetch_all(conn).await?;
     Ok(rows.into_iter().map(Category::from).collect())
 }
 
-/// The id is a lowercase, hyphenated slug derived from `name` at the call site (Coordinator), not
-/// a random UUID — every other entity in this crate uses opaque UUIDs, but categories are already
-/// referenced by human-legible slugs (`"chest"`, `"back"`, ...) throughout the seeded exercise
-/// library and the frontend's `CATEGORY_COLOURS` map, so a freshly created category keeps that
-/// convention rather than introducing a second addressing scheme.
+/// The id is a lowercase, hyphenated slug derived from `name` at the call site (Coordinator), not a random UUID — every other entity in this crate uses opaque UUIDs, but categories are already referenced by human-legible slugs (`"chest"`, `"back"`, ...) throughout the seeded exercise library and the frontend's `CATEGORY_COLOURS` map, so a freshly created category keeps that convention rather than introducing a second addressing scheme.
 pub async fn create(
     conn: &mut SqliteConnection,
     id: &str,
@@ -174,10 +169,7 @@ pub async fn set_archived(
     get(conn, id).await
 }
 
-/// Rejects deleting a category any exercise still references, rather than letting the database's
-/// own foreign-key constraint surface as an opaque `Db` error — P-35's "reassign exercises before
-/// archival/deletion" means the caller is expected to move exercises to another category (or
-/// archive the category instead) before this can succeed.
+/// Rejects deleting a category any exercise still references, rather than letting the database's own foreign-key constraint surface as an opaque `Db` error — P-35's "reassign exercises before archival/deletion" means the caller is expected to move exercises to another category (or archive the category instead) before this can succeed.
 pub async fn delete(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let (exercise_count,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM exercises WHERE category_id = ?")
