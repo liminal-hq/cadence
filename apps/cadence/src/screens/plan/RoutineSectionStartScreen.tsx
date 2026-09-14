@@ -1,10 +1,9 @@
-// P-20 Routine materialization review — reached from a routine section's "Start" action (Plan)
-// or, in future work, from Today/Quick start. Lets the user include/exclude and reorder exercises
-// and see each set template's resolved target before committing; the actual creation is a single
-// `materializeRoutineSection` call, so a cancelled review leaves no unwanted sets behind.
+// P-20 Routine materialization review — pick, reorder, and preview a section's exercises before committing
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
+
+// Reached from a routine section's "Start" action (Plan) or, in future work, from Today/Quick start. The actual creation is a single `materializeRoutineSection` call, so a cancelled review leaves no unwanted sets behind.
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -53,9 +52,7 @@ interface ReviewState {
 	exercises: ReviewExercise[];
 }
 
-/** Mirrors the backend's `most_recent_completed` lookup (the same source `materializeRoutineSection`
- *  itself resolves against) closely enough for an advisory preview — the most recently completed
- *  set for this exercise on or before `targetDate`, across every workout. */
+/** Mirrors the backend's `most_recent_completed` lookup (the same source `materializeRoutineSection` itself resolves against) closely enough for an advisory preview — the most recently completed set for this exercise on or before `targetDate`, across every workout. */
 async function resolveSeedPreview(
 	repository: LoggingRepository,
 	exerciseId: string,
