@@ -501,8 +501,14 @@ describe('MockLoggingRepository', () => {
 			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
 			const lateralRaise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
 			const tricepsPushdown = await repo.addRoutineExercise(section.id, 'ex-triceps-pushdown');
-			await repo.setRoutineExerciseSuperset(lateralRaise.id, superset.id, 1);
-			await repo.setRoutineExerciseSuperset(tricepsPushdown.id, superset.id, 2);
+			await repo.setRoutineExerciseSuperset(lateralRaise.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 1,
+			});
+			await repo.setRoutineExerciseSuperset(tricepsPushdown.id, {
+				routineSupersetId: superset.id,
+				supersetPosition: 2,
+			});
 			await repo.addRoutineExercise(section.id, 'ex-running');
 
 			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [
