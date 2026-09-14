@@ -176,3 +176,30 @@
 	font-size: var(--cadence-type-body-m-size);
 	color: var(--cadence-error);
 }
+
+.routine-review-row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3);
+}
+
+.routine-review-row--excluded {
+	opacity: 0.5;
+}
+
+.routine-review-row__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-1);
+}
+
+.routine-review-row__name {
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-review-row__target {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}

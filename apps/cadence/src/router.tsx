@@ -23,8 +23,7 @@ import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
 import { RoutineDetailScreen } from './screens/plan/RoutineDetailScreen';
 import { RoutineEditorScreen } from './screens/plan/RoutineEditorScreen';
-import { AppBar } from './components/ui/AppBar/AppBar';
-import { ComingSoon } from './screens/ComingSoon';
+import { RoutineSectionStartScreen } from './screens/plan/RoutineSectionStartScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
@@ -170,20 +169,15 @@ const routineEditorRoute = createRoute({
 	component: RoutineEditorRoute,
 });
 
-/** Placeholder for P-20's materialization review — the routine detail screen's "Start" action
- *  already links here; the real screen lands in a later PR, same "wired but not built" pattern
- *  as settingsStubRoute. */
+function RoutineSectionStartRoute() {
+	const { routineSectionId } = routineSectionStartRoute.useParams();
+	return <RoutineSectionStartScreen routineSectionId={routineSectionId} />;
+}
+
 const routineSectionStartRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/plan/routine-section/$routineSectionId/start',
-	component: () => (
-		<div className="screen-shell">
-			<AppBar title="Start routine" size="medium" back={{ to: '/plan' }} />
-			<div className="screen-shell__content">
-				<ComingSoon screen="Routine materialization review" />
-			</div>
-		</div>
-	),
+	component: RoutineSectionStartRoute,
 });
 
 const settingsRoute = createRoute({
