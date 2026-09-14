@@ -519,8 +519,9 @@ export class TauriLoggingRepository implements LoggingRepository {
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord> {
-		return call('create_measurement_record', { definitionId, date, value, note });
+		return call('create_measurement_record', { definitionId, date, value, note, recordedAt });
 	}
 
 	async updateMeasurementRecord(
@@ -528,8 +529,9 @@ export class TauriLoggingRepository implements LoggingRepository {
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord> {
-		return call('update_measurement_record', { id, date, value, note });
+		return call('update_measurement_record', { id, date, value, note, recordedAt });
 	}
 
 	async deleteMeasurementRecord(id: string): Promise<void> {

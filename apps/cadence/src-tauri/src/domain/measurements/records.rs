@@ -7,7 +7,7 @@ use sqlx::{FromRow, SqliteConnection};
 
 use super::models::MeasurementRecord;
 use crate::domain::error::{Error, Result};
-use crate::domain::units::{milli_to_unit, ms_to_iso, unit_to_milli};
+use crate::domain::units::{iso_to_ms, milli_to_unit, ms_to_iso, unit_to_milli};
 
 #[derive(FromRow)]
 struct RecordRow {
@@ -63,15 +63,18 @@ pub async fn list_by_definition(
     Ok(rows.into_iter().map(MeasurementRecord::from).collect())
 }
 
+/// `recorded_at` is the actual instant the reading happened, distinct from `created_at_ms`'s row-insertion bookkeeping — `None` defaults to now, but a backfilled or retroactively-entered reading can supply its own instant so it doesn't appear to have happened at entry time and so same-day readings stay orderable (SPEC.md 8.8's "optional time").
 pub async fn create(
     conn: &mut SqliteConnection,
     definition_id: &str,
     date: &str,
     value: f64,
     note: Option<&str>,
+    recorded_at: Option<&str>,
 ) -> Result<MeasurementRecord> {
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
+    let recorded_at_ms = recorded_at.map(iso_to_ms).transpose()?.unwrap_or(now);
     let revision = crate::db::next_revision(conn).await?;
     sqlx::query(
         "INSERT INTO measurement_records (id, definition_id, local_date, recorded_at_ms, \
@@ -81,7 +84,7 @@ pub async fn create(
     .bind(&id)
     .bind(definition_id)
     .bind(date)
-    .bind(now)
+    .bind(recorded_at_ms)
     .bind(unit_to_milli(value))
     .bind(note)
     .bind(now)
@@ -98,16 +101,21 @@ pub async fn update(
     date: &str,
     value: f64,
     note: Option<&str>,
+    recorded_at: Option<&str>,
 ) -> Result<MeasurementRecord> {
     let now = chrono::Utc::now().timestamp_millis();
+    // A caller correcting a backfilled instant passes `recorded_at`; otherwise `COALESCE` leaves the row's existing `recorded_at_ms` untouched rather than resetting it to the edit time.
+    let recorded_at_ms = recorded_at.map(iso_to_ms).transpose()?;
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
         "UPDATE measurement_records SET local_date = ?, value_milli = ?, note = ?, \
-         updated_at_ms = ?, revision = ? WHERE id = ?",
+         recorded_at_ms = COALESCE(?, recorded_at_ms), updated_at_ms = ?, revision = ? \
+         WHERE id = ?",
     )
     .bind(date)
     .bind(unit_to_milli(value))
     .bind(note)
+    .bind(recorded_at_ms)
     .bind(now)
     .bind(revision)
     .bind(id)
@@ -145,12 +153,56 @@ mod tests {
     async fn creates_a_record_with_value_round_tripped() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let created = create(&mut conn, "bodyweight", "2026-09-14", 82.5, Some("morning"))
-            .await
-            .unwrap();
+        let created = create(
+            &mut conn,
+            "bodyweight",
+            "2026-09-14",
+            82.5,
+            Some("morning"),
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(created.date, "2026-09-14");
         assert_eq!(created.value, 82.5);
         assert_eq!(created.note.as_deref(), Some("morning"));
+    }
+
+    #[tokio::test]
+    async fn creates_a_backfilled_record_with_its_own_recorded_instant() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(
+            &mut conn,
+            "bodyweight",
+            "2026-09-01",
+            80.0,
+            None,
+            Some("2026-09-01T07:00:00Z"),
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.recorded_at, "2026-09-01T07:00:00.000Z");
+    }
+
+    #[tokio::test]
+    async fn update_without_a_recorded_at_leaves_the_existing_instant_untouched() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(
+            &mut conn,
+            "bodyweight",
+            "2026-09-01",
+            80.0,
+            None,
+            Some("2026-09-01T07:00:00Z"),
+        )
+        .await
+        .unwrap();
+        let updated = update(&mut conn, &created.id, "2026-09-02", 81.0, None, None)
+            .await
+            .unwrap();
+        assert_eq!(updated.recorded_at, "2026-09-01T07:00:00.000Z");
     }
 
     #[tokio::test]
@@ -165,13 +217,13 @@ mod tests {
     async fn lists_records_for_a_definition_in_date_order() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        create(&mut conn, "bodyweight", "2026-09-10", 83.0, None)
+        create(&mut conn, "bodyweight", "2026-09-10", 83.0, None, None)
             .await
             .unwrap();
-        create(&mut conn, "bodyweight", "2026-09-05", 84.0, None)
+        create(&mut conn, "bodyweight", "2026-09-05", 84.0, None, None)
             .await
             .unwrap();
-        create(&mut conn, "body-fat", "2026-09-05", 18.0, None)
+        create(&mut conn, "body-fat", "2026-09-05", 18.0, None, None)
             .await
             .unwrap();
 
@@ -185,12 +237,19 @@ mod tests {
     async fn updates_a_record_in_place() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let created = create(&mut conn, "bodyweight", "2026-09-14", 82.5, None)
+        let created = create(&mut conn, "bodyweight", "2026-09-14", 82.5, None, None)
             .await
             .unwrap();
-        let updated = update(&mut conn, &created.id, "2026-09-15", 82.0, Some("fixed"))
-            .await
-            .unwrap();
+        let updated = update(
+            &mut conn,
+            &created.id,
+            "2026-09-15",
+            82.0,
+            Some("fixed"),
+            None,
+        )
+        .await
+        .unwrap();
         assert_eq!(updated.date, "2026-09-15");
         assert_eq!(updated.value, 82.0);
         assert_eq!(updated.note.as_deref(), Some("fixed"));
@@ -200,7 +259,7 @@ mod tests {
     async fn rejects_updating_an_unknown_record() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let err = update(&mut conn, "no-such-record", "2026-09-14", 1.0, None)
+        let err = update(&mut conn, "no-such-record", "2026-09-14", 1.0, None, None)
             .await
             .unwrap_err();
         assert!(matches!(err, Error::NotFound { .. }));
@@ -210,7 +269,7 @@ mod tests {
     async fn deletes_a_record_and_records_a_tombstone() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
-        let created = create(&mut conn, "bodyweight", "2026-09-14", 82.5, None)
+        let created = create(&mut conn, "bodyweight", "2026-09-14", 82.5, None, None)
             .await
             .unwrap();
         delete(&mut conn, &created.id).await.unwrap();

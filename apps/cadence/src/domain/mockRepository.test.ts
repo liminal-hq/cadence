@@ -933,6 +933,14 @@ describe('MockLoggingRepository', () => {
 			await expect(repo.updateMeasurementDefinition(created.id, 'Forearm', 'in')).rejects.toThrow();
 		});
 
+		it('rejects a unit change once a goal is set', async () => {
+			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
+			await repo.updateMeasurementDefinition(created.id, 'Forearm', 'cm', 35);
+			await expect(
+				repo.updateMeasurementDefinition(created.id, 'Forearm', 'in', 35),
+			).rejects.toThrow();
+		});
+
 		it('archives and unarchives a definition', async () => {
 			const created = await repo.createMeasurementDefinition('Forearm', 'cm');
 			const archived = await repo.setMeasurementDefinitionArchived(created.id, true);

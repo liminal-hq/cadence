@@ -225,17 +225,21 @@ export interface LoggingRepository {
 
 	getMeasurementRecord(id: string): Promise<MeasurementRecord>;
 	listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]>;
+	/** `recordedAt` is the actual instant the reading happened, for a backfilled or retroactive entry — omitted, it defaults to now. */
 	createMeasurementRecord(
 		definitionId: string,
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord>;
+	/** Omitting `recordedAt` leaves the record's existing recorded instant untouched. */
 	updateMeasurementRecord(
 		id: string,
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord>;
 	deleteMeasurementRecord(id: string): Promise<void>;
 }

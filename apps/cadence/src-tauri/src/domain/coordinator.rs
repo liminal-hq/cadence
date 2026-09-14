@@ -275,9 +275,11 @@ impl<R: Runtime> Coordinator<R> {
         date: &str,
         value: f64,
         note: Option<&str>,
+        recorded_at: Option<&str>,
     ) -> Result<MeasurementRecord> {
         let mut conn = self.pool.acquire().await?;
-        measurements::records::create(&mut conn, definition_id, date, value, note).await
+        measurements::records::create(&mut conn, definition_id, date, value, note, recorded_at)
+            .await
     }
 
     pub async fn update_measurement_record(
@@ -286,9 +288,10 @@ impl<R: Runtime> Coordinator<R> {
         date: &str,
         value: f64,
         note: Option<&str>,
+        recorded_at: Option<&str>,
     ) -> Result<MeasurementRecord> {
         let mut conn = self.pool.acquire().await?;
-        measurements::records::update(&mut conn, id, date, value, note).await
+        measurements::records::update(&mut conn, id, date, value, note, recorded_at).await
     }
 
     pub async fn delete_measurement_record(&self, id: &str) -> Result<()> {

@@ -291,9 +291,16 @@ pub async fn create_measurement_record(
     date: String,
     value: f64,
     note: Option<String>,
+    recorded_at: Option<String>,
 ) -> Result<MeasurementRecord, Error> {
     state
-        .create_measurement_record(&definition_id, &date, value, note.as_deref())
+        .create_measurement_record(
+            &definition_id,
+            &date,
+            value,
+            note.as_deref(),
+            recorded_at.as_deref(),
+        )
         .await
 }
 
@@ -304,9 +311,10 @@ pub async fn update_measurement_record(
     date: String,
     value: f64,
     note: Option<String>,
+    recorded_at: Option<String>,
 ) -> Result<MeasurementRecord, Error> {
     state
-        .update_measurement_record(&id, &date, value, note.as_deref())
+        .update_measurement_record(&id, &date, value, note.as_deref(), recorded_at.as_deref())
         .await
 }
 

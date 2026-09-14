@@ -1242,6 +1242,9 @@ export class MockLoggingRepository implements LoggingRepository {
 	): Promise<MeasurementDefinition> {
 		const existing = await this.getMeasurementDefinition(id);
 		if (existing.unit !== unit) {
+			if (existing.goal != null) {
+				throw new Error(`Measurement definition ${id} has a goal set and can't change unit`);
+			}
 			const hasRecords = [...this.measurementRecords.values()].some(
 				(record) => record.definitionId === id,
 			);
@@ -1307,12 +1310,13 @@ export class MockLoggingRepository implements LoggingRepository {
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord> {
 		const record: MeasurementRecord = {
 			id: newId('measurement-record'),
 			definitionId,
 			date,
-			recordedAt: new Date().toISOString(),
+			recordedAt: recordedAt ?? new Date().toISOString(),
 			value,
 			note,
 		};
@@ -1325,9 +1329,16 @@ export class MockLoggingRepository implements LoggingRepository {
 		date: string,
 		value: number,
 		note: string | undefined,
+		recordedAt?: string,
 	): Promise<MeasurementRecord> {
 		const existing = await this.getMeasurementRecord(id);
-		const updated = { ...existing, date, value, note };
+		const updated = {
+			...existing,
+			date,
+			value,
+			note,
+			recordedAt: recordedAt ?? existing.recordedAt,
+		};
 		this.measurementRecords.set(id, updated);
 		return updated;
 	}

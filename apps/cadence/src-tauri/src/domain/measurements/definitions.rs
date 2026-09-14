@@ -82,7 +82,7 @@ pub async fn create(
     get(conn, &id).await
 }
 
-/// Rejects a unit change once records exist — `measurement_records.value_milli` stores a bare value with no per-record unit, so silently reinterpreting it under a new unit (e.g. kg becoming lb) would make every past record's displayed value wrong.
+/// Rejects a unit change once records exist, or once the definition already carries a goal — both `measurement_records.value_milli` and `measurement_definitions.goal_milli` store a bare value with no unit of their own, so silently reinterpreting either under a new unit (e.g. kg becoming lb) would make its displayed value wrong.
 pub async fn update(
     conn: &mut SqliteConnection,
     id: &str,
@@ -92,6 +92,11 @@ pub async fn update(
 ) -> Result<MeasurementDefinition> {
     let current = get(conn, id).await?;
     if current.unit != unit {
+        if current.goal.is_some() {
+            return Err(Error::Validation(format!(
+                "measurement definition {id:?} has a goal set and can't change unit"
+            )));
+        }
         let (record_count,): (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM measurement_records WHERE definition_id = ?")
                 .bind(id)
@@ -274,7 +279,7 @@ mod tests {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
         let created = create(&mut conn, "Forearm", "cm").await.unwrap();
-        super::super::records::create(&mut conn, &created.id, "2026-09-14", 30.0, None)
+        super::super::records::create(&mut conn, &created.id, "2026-09-14", 30.0, None, None)
             .await
             .unwrap();
         let err = update(&mut conn, &created.id, "Forearm", "in", None)
@@ -292,6 +297,20 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(updated.unit, "in");
+    }
+
+    #[tokio::test]
+    async fn update_rejects_a_unit_change_once_a_goal_is_set() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "Forearm", "cm").await.unwrap();
+        update(&mut conn, &created.id, "Forearm", "cm", Some(35.0))
+            .await
+            .unwrap();
+        let err = update(&mut conn, &created.id, "Forearm", "in", Some(35.0))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]
