@@ -1,6 +1,4 @@
-// P-44 Exercise detail — the durable analytical home for one exercise, reachable from both
-// History (P-42/P-43 drill-down) and Logging's exercise screen. All five tabs stay visible even
-// with no data, per the design's "so nothing unlocks later" intent — Goals is a placeholder.
+// P-44 Exercise detail — the durable analytical home for one exercise, reachable from both History (P-42/P-43 drill-down) and Logging's exercise screen. All five tabs stay visible even with no data, per the design's "so nothing unlocks later" intent.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -113,7 +111,7 @@ export function ExerciseDetailScreen({
 				{tab === 'stats' && (
 					<ExerciseStatsTab history={history} metricProfile={exercise.metricProfile} />
 				)}
-				{tab === 'goals' && <ExerciseGoalsTab />}
+				{tab === 'goals' && <ExerciseGoalsTab exercise={exercise} history={history} />}
 			</div>
 		</div>
 	);

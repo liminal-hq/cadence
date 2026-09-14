@@ -14,7 +14,7 @@ export interface TextFieldProps {
 	placeholder?: string;
 	/** Renders a <textarea> instead of a single-line <input>. */
 	multiline?: boolean;
-	type?: 'text' | 'number';
+	type?: 'text' | 'number' | 'date';
 	min?: number;
 	step?: number;
 	autoFocus?: boolean;
