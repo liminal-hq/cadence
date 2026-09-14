@@ -15,6 +15,7 @@ pub mod events;
 pub mod units;
 
 pub mod barbells;
+pub mod categories;
 pub mod exercises;
 pub mod history;
 pub mod rest_timer;

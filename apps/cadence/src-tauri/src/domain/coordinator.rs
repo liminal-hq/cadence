@@ -13,6 +13,7 @@ use tokio::task::JoinHandle;
 
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
+use super::categories::models::Category;
 use super::error::Result;
 use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::Exercise;
@@ -25,7 +26,9 @@ use super::sets::models::{SetEntry, SetValues};
 use super::settings::models::{Settings, SettingsPatch};
 use super::units::kg_to_g;
 use super::workouts::models::{Workout, WorkoutExercise};
-use super::{barbells, exercises, history, rest_timer, routines, sets, settings, workouts};
+use super::{
+    barbells, categories, exercises, history, rest_timer, routines, sets, settings, workouts,
+};
 
 /// Everything the plain per-entity repo functions deliberately don't do. This is the one piece of
 /// the crate that needs an `AppHandle` (to emit events) and is generic over the Tauri runtime so
@@ -44,6 +47,64 @@ impl<R: Runtime> Coordinator<R> {
             app,
             scheduled_elapse: Mutex::new(None),
         }
+    }
+
+    // ============ categories ============
+
+    pub async fn get_category(&self, id: &str) -> Result<Category> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::get(&mut conn, id).await
+    }
+
+    pub async fn list_categories(&self) -> Result<Vec<Category>> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::list(&mut conn).await
+    }
+
+    pub async fn create_category(
+        &self,
+        id: &str,
+        name: &str,
+        colour_background: &str,
+        colour_text: &str,
+        colour_dot: &str,
+    ) -> Result<Category> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::create(
+            &mut conn,
+            id,
+            name,
+            colour_background,
+            colour_text,
+            colour_dot,
+        )
+        .await
+    }
+
+    pub async fn rename_category(&self, id: &str, name: &str) -> Result<Category> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::rename(&mut conn, id, name).await
+    }
+
+    pub async fn recolour_category(
+        &self,
+        id: &str,
+        colour_background: &str,
+        colour_text: &str,
+        colour_dot: &str,
+    ) -> Result<Category> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::recolour(&mut conn, id, colour_background, colour_text, colour_dot).await
+    }
+
+    pub async fn set_category_archived(&self, id: &str, archived: bool) -> Result<Category> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::set_archived(&mut conn, id, archived).await
+    }
+
+    pub async fn delete_category(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        categories::repo::delete(&mut conn, id).await
     }
 
     // ============ exercises ============

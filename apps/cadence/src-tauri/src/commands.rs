@@ -7,6 +7,7 @@ use tauri::State;
 
 use crate::domain::barbells::models::{BarbellConfig, NewBarbellConfig};
 use crate::domain::barbells::plates::PlateCalculationResult;
+use crate::domain::categories::models::Category;
 use crate::domain::error::Error;
 use crate::domain::exercises::models::Exercise;
 use crate::domain::history::HistorySummary;
@@ -18,6 +19,68 @@ use crate::domain::sets::models::{SetEntry, SetValues};
 use crate::domain::settings::models::{Settings, SettingsPatch};
 use crate::domain::workouts::models::{Workout, WorkoutExercise};
 use crate::domain::Coordinator;
+
+// ============ categories ============
+
+#[tauri::command]
+pub async fn get_category(state: State<'_, Coordinator>, id: String) -> Result<Category, Error> {
+    state.get_category(&id).await
+}
+
+#[tauri::command]
+pub async fn list_categories(state: State<'_, Coordinator>) -> Result<Vec<Category>, Error> {
+    state.list_categories().await
+}
+
+#[tauri::command]
+pub async fn create_category(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: String,
+    colour_background: String,
+    colour_text: String,
+    colour_dot: String,
+) -> Result<Category, Error> {
+    state
+        .create_category(&id, &name, &colour_background, &colour_text, &colour_dot)
+        .await
+}
+
+#[tauri::command]
+pub async fn rename_category(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: String,
+) -> Result<Category, Error> {
+    state.rename_category(&id, &name).await
+}
+
+#[tauri::command]
+pub async fn recolour_category(
+    state: State<'_, Coordinator>,
+    id: String,
+    colour_background: String,
+    colour_text: String,
+    colour_dot: String,
+) -> Result<Category, Error> {
+    state
+        .recolour_category(&id, &colour_background, &colour_text, &colour_dot)
+        .await
+}
+
+#[tauri::command]
+pub async fn set_category_archived(
+    state: State<'_, Coordinator>,
+    id: String,
+    archived: bool,
+) -> Result<Category, Error> {
+    state.set_category_archived(&id, archived).await
+}
+
+#[tauri::command]
+pub async fn delete_category(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
+    state.delete_category(&id).await
+}
 
 // ============ exercises ============
 

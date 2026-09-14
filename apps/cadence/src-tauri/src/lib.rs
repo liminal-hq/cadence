@@ -44,6 +44,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_category,
+            commands::list_categories,
+            commands::create_category,
+            commands::rename_category,
+            commands::recolour_category,
+            commands::set_category_archived,
+            commands::delete_category,
             commands::get_exercise,
             commands::list_exercises,
             commands::update_exercise_favourite,
