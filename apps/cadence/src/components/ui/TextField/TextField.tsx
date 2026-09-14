@@ -1,5 +1,4 @@
-// M3-ish labeled text field — a single-line input or multi-line textarea, replacing the
-// ad hoc <label>/<input> pairs BarbellEditorScreen hand-rolled before this existed
+// M3-ish labeled text field — a single-line input or multi-line textarea
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

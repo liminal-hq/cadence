@@ -355,6 +355,31 @@ describe('MockLoggingRepository', () => {
 			expect(second.order).toBe(2);
 		});
 
+		it('reorders routine sections and rejects an incomplete or duplicated list', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const a = await repo.addRoutineSection(routine.id, 'A');
+			const b = await repo.addRoutineSection(routine.id, 'B');
+
+			const reordered = await repo.reorderRoutineSections(routine.id, [b.id, a.id]);
+			expect(reordered.map((s) => s.id)).toEqual([b.id, a.id]);
+
+			await expect(repo.reorderRoutineSections(routine.id, [a.id, a.id])).rejects.toThrow();
+			await expect(repo.reorderRoutineSections(routine.id, [a.id])).rejects.toThrow();
+		});
+
+		it('reorders routine exercises and rejects an incomplete or duplicated list', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const a = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			const b = await repo.addRoutineExercise(section.id, 'ex-running');
+
+			const reordered = await repo.reorderRoutineExercises(section.id, [b.id, a.id]);
+			expect(reordered.map((e) => e.id)).toEqual([b.id, a.id]);
+
+			await expect(repo.reorderRoutineExercises(section.id, [a.id, a.id])).rejects.toThrow();
+			await expect(repo.reorderRoutineExercises(section.id, [a.id])).rejects.toThrow();
+		});
+
 		it('assigns and clears a routine exercise superset, and dissolves membership when the superset is deleted', async () => {
 			const routine = await repo.createRoutine('Superset A');
 			const section = await repo.addRoutineSection(routine.id, 'A');

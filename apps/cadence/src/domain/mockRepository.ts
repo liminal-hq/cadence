@@ -628,10 +628,18 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
 		const existing = await this.listRoutineSections(routineId);
+		const remaining = new Set(existing.map((s) => s.id));
 		for (const id of orderedIds) {
-			if (!existing.some((s) => s.id === id)) {
-				throw new Error(`Routine section ${id} does not belong to routine ${routineId}`);
+			if (!remaining.delete(id)) {
+				throw new Error(
+					`Routine section ${id} does not belong to routine ${routineId}, or is listed more than once`,
+				);
 			}
+		}
+		if (remaining.size > 0) {
+			throw new Error(
+				`Reorder for routine ${routineId} omits ${remaining.size} existing section(s)`,
+			);
 		}
 		orderedIds.forEach((id, index) => {
 			const section = this.routineSections.get(id);
@@ -720,10 +728,18 @@ export class MockLoggingRepository implements LoggingRepository {
 		orderedIds: string[],
 	): Promise<RoutineExercise[]> {
 		const existing = await this.listRoutineExercises(routineSectionId);
+		const remaining = new Set(existing.map((e) => e.id));
 		for (const id of orderedIds) {
-			if (!existing.some((e) => e.id === id)) {
-				throw new Error(`Routine exercise ${id} does not belong to section ${routineSectionId}`);
+			if (!remaining.delete(id)) {
+				throw new Error(
+					`Routine exercise ${id} does not belong to section ${routineSectionId}, or is listed more than once`,
+				);
 			}
+		}
+		if (remaining.size > 0) {
+			throw new Error(
+				`Reorder for section ${routineSectionId} omits ${remaining.size} existing exercise(s)`,
+			);
 		}
 		orderedIds.forEach((id, index) => {
 			const exercise = this.routineExercises.get(id);

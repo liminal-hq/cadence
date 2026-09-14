@@ -1,7 +1,3 @@
-/* Shared across RoutineListScreen (P-30), RoutineDetailScreen (P-31), and RoutineEditorScreen
-   (P-32) — the Plan tab's own small style sheet, matching history.css/settings.css's per-feature
-   convention. */
-
 .routine-list {
 	display: flex;
 	flex-direction: column;

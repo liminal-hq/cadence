@@ -1,11 +1,12 @@
-// P-32 Routine editor — name/notes, sections, exercise ordering, and the set-template editor.
+// P-32 Routine editor — name/notes, sections, exercise ordering, and the set-template editor
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 // Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already
 // supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
 // Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent —
 // the lb-display variant is deferred app-wide until it's built there first.
-//
-// (c) Copyright 2026 Liminal HQ, Scott Morris
-// SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
@@ -140,6 +141,17 @@ interface AddTemplateFormProps {
 	}) => void;
 }
 
+/** A non-negative, finite target value — `integer` also rejects a fractional entry, since reps
+ *  and whole seconds can't be materialized as a fraction. Returns `undefined` for both an empty
+ *  field (no target given) and an invalid one (rejected rather than silently persisted). */
+function parseTarget(raw: string, { integer }: { integer: boolean } = { integer: false }) {
+	if (raw.trim() === '') return undefined;
+	const value = Number(raw);
+	if (!Number.isFinite(value) || value < 0) return undefined;
+	if (integer && !Number.isInteger(value)) return undefined;
+	return value;
+}
+
 function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 	const [seeded, setSeeded] = useState(false);
 	const [weightKg, setWeightKg] = useState('');
@@ -154,13 +166,13 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 		}
 		if (metricProfile === 'weight-reps') {
 			onAdd({
-				weightKg: weightKg ? Number(weightKg) : undefined,
-				reps: reps ? Number(reps) : undefined,
+				weightKg: parseTarget(weightKg),
+				reps: parseTarget(reps, { integer: true }),
 			});
 		} else {
 			onAdd({
-				distanceKm: distanceKm ? Number(distanceKm) : undefined,
-				durationSec: durationSec ? Number(durationSec) : undefined,
+				distanceKm: parseTarget(distanceKm),
+				durationSec: parseTarget(durationSec, { integer: true }),
 			});
 		}
 		setWeightKg('');
@@ -202,6 +214,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	const [state, setState] = useState<EditorState | null>(null);
 	const [pickerForSectionId, setPickerForSectionId] = useState<string | null>(null);
 	const [sectionPendingDelete, setSectionPendingDelete] = useState<EditorSection | null>(null);
+	const [exercisePendingDelete, setExercisePendingDelete] = useState<EditorExercise | null>(null);
 
 	const reload = useCallback(() => {
 		loadEditorState(repository, routineId).then(setState);
@@ -239,6 +252,15 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 			return;
 		}
 		await repository.deleteRoutineSection(editorSection.section.id);
+		reload();
+	}
+
+	async function handleDeleteExercise(editorExercise: EditorExercise) {
+		if (editorExercise.templates.length > 0) {
+			setExercisePendingDelete(editorExercise);
+			return;
+		}
+		await repository.deleteRoutineExercise(editorExercise.routineExercise.id);
 		reload();
 	}
 
@@ -335,10 +357,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 										<IconButton
 											icon="delete"
 											label="Remove exercise"
-											onClick={async () => {
-												await repository.deleteRoutineExercise(item.routineExercise.id);
-												reload();
-											}}
+											onClick={() => handleDeleteExercise(item)}
 										/>
 									</div>
 								)}
@@ -403,6 +422,38 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 					This removes {sectionPendingDelete?.exercises.length ?? 0} exercise
 					{sectionPendingDelete?.exercises.length === 1 ? '' : 's'} and all of their set templates
 					from this routine.
+				</p>
+			</Dialog>
+
+			<Dialog
+				open={exercisePendingDelete != null}
+				onClose={() => setExercisePendingDelete(null)}
+				headline="Remove this exercise?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => setExercisePendingDelete(null)}>
+							Cancel
+						</Button>
+						<Button
+							variant="filled"
+							tone="error"
+							onClick={async () => {
+								if (!exercisePendingDelete) return;
+								await repository.deleteRoutineExercise(exercisePendingDelete.routineExercise.id);
+								setExercisePendingDelete(null);
+								reload();
+							}}
+						>
+							Remove
+						</Button>
+					</>
+				}
+			>
+				<p>
+					This removes {exercisePendingDelete?.exercise.name} and its{' '}
+					{exercisePendingDelete?.templates.length ?? 0} set
+					{exercisePendingDelete?.templates.length === 1 ? '' : 's'} from this section.
 				</p>
 			</Dialog>
 		</div>

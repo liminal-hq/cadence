@@ -109,21 +109,30 @@ pub async fn rename(
 
 /// Rewrites every named section's `sort_order` to its 1-indexed position in `ordered_ids`, so a
 /// caller (the routine editor's up/down reorder controls) can commit a whole new order in one
-/// call rather than a series of pairwise swaps. Rejects an id that isn't actually a section of
-/// `routine_id` — silently reordering a stranger's section would let one routine's edit corrupt
-/// another's display order.
+/// call rather than a series of pairwise swaps. Requires `ordered_ids` to be a complete
+/// permutation of `routine_id`'s existing sections — rejecting a stranger id, a duplicate, or an
+/// omitted section — since anything less would leave omitted rows at their stale position or
+/// collide two rows onto the same `sort_order`.
 pub async fn reorder(
     conn: &mut SqliteConnection,
     routine_id: &str,
     ordered_ids: &[String],
 ) -> Result<Vec<RoutineSection>> {
     let existing = list_by_routine(conn, routine_id).await?;
+    let mut remaining: std::collections::HashSet<&str> =
+        existing.iter().map(|s| s.id.as_str()).collect();
     for id in ordered_ids {
-        if !existing.iter().any(|s| &s.id == id) {
+        if !remaining.remove(id.as_str()) {
             return Err(Error::Validation(format!(
-                "routine section {id:?} does not belong to routine {routine_id:?}"
+                "routine section {id:?} does not belong to routine {routine_id:?}, or is listed more than once"
             )));
         }
+    }
+    if !remaining.is_empty() {
+        return Err(Error::Validation(format!(
+            "reorder for routine {routine_id:?} omits {} existing section(s)",
+            remaining.len()
+        )));
     }
     let now = chrono::Utc::now().timestamp_millis();
     for (index, id) in ordered_ids.iter().enumerate() {
@@ -245,6 +254,38 @@ mod tests {
         let stranger = add(&mut conn, &other_routine.id, Some("X")).await.unwrap();
 
         let err = reorder(&mut conn, &routine.id, &[a.id.clone(), stranger.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_a_duplicate_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine = super::super::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let a = add(&mut conn, &routine.id, Some("A")).await.unwrap();
+        let _b = add(&mut conn, &routine.id, Some("B")).await.unwrap();
+
+        let err = reorder(&mut conn, &routine.id, &[a.id.clone(), a.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_an_incomplete_list() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine = super::super::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let a = add(&mut conn, &routine.id, Some("A")).await.unwrap();
+        let _b = add(&mut conn, &routine.id, Some("B")).await.unwrap();
+
+        let err = reorder(&mut conn, &routine.id, std::slice::from_ref(&a.id))
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Validation(_)));

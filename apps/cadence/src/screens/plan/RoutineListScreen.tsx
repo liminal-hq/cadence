@@ -1,5 +1,4 @@
-// P-30 Plan / routine list — the Plan tab's root content (bare, no own AppBar: TabsLayout's
-// shared AppShell supplies the title/top bar, same shape as TodayScreen/HistoryHubScreen)
+// P-30 Plan / routine list — the Plan tab's root content
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -14,6 +13,8 @@ import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { Routine } from '../../domain/types';
 import './plan.css';
 
+// Bare, no own AppBar — TabsLayout's shared AppShell supplies the title/top bar here, same shape
+// as TodayScreen/HistoryHubScreen.
 export function RoutineListScreen() {
 	const navigate = useNavigate();
 	const repository = useLoggingRepository();

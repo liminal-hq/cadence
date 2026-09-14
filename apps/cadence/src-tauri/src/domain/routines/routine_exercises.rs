@@ -170,19 +170,28 @@ pub async fn update_note(
 }
 
 /// Rewrites every named exercise's `sort_order` to its 1-indexed position in `ordered_ids` —
-/// mirrors `sections::reorder`'s reasoning and its reject-a-stranger-id guard.
+/// mirrors `sections::reorder`'s reasoning and its complete-permutation guard (a stranger id, a
+/// duplicate, or an omitted exercise are all rejected).
 pub async fn reorder(
     conn: &mut SqliteConnection,
     routine_section_id: &str,
     ordered_ids: &[String],
 ) -> Result<Vec<RoutineExercise>> {
     let existing = list_by_section(conn, routine_section_id).await?;
+    let mut remaining: std::collections::HashSet<&str> =
+        existing.iter().map(|e| e.id.as_str()).collect();
     for id in ordered_ids {
-        if !existing.iter().any(|e| &e.id == id) {
+        if !remaining.remove(id.as_str()) {
             return Err(Error::Validation(format!(
-                "routine exercise {id:?} does not belong to section {routine_section_id:?}"
+                "routine exercise {id:?} does not belong to section {routine_section_id:?}, or is listed more than once"
             )));
         }
+    }
+    if !remaining.is_empty() {
+        return Err(Error::Validation(format!(
+            "reorder for section {routine_section_id:?} omits {} existing exercise(s)",
+            remaining.len()
+        )));
     }
     let now = chrono::Utc::now().timestamp_millis();
     for (index, id) in ordered_ids.iter().enumerate() {
@@ -419,6 +428,34 @@ mod tests {
             .unwrap();
 
         let err = reorder(&mut conn, &section_id, &[a.id.clone(), stranger.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_a_duplicate_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let a = add(&mut conn, &section_id, "ex-bench-press").await.unwrap();
+        let _b = add(&mut conn, &section_id, "ex-running").await.unwrap();
+
+        let err = reorder(&mut conn, &section_id, &[a.id.clone(), a.id.clone()])
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reorder_rejects_an_incomplete_list() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let a = add(&mut conn, &section_id, "ex-bench-press").await.unwrap();
+        let _b = add(&mut conn, &section_id, "ex-running").await.unwrap();
+
+        let err = reorder(&mut conn, &section_id, std::slice::from_ref(&a.id))
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Validation(_)));

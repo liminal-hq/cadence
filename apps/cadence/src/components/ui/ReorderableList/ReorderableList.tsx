@@ -1,6 +1,4 @@
-// A list with up/down reorder controls per row, calling back with the whole new order —
-// simpler and more robust than drag-and-drop for a first pass (SPEC.md's "reorder is explicit
-// and durable" requirement doesn't demand a particular interaction, just that it commit for real)
+// A list with up/down reorder controls per row, calling back with the whole new order
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -9,6 +7,8 @@ import type { ReactNode } from 'react';
 import { IconButton } from '../IconButton/IconButton';
 import './ReorderableList.css';
 
+// Up/down controls, not drag-and-drop, for a first pass — SPEC.md's "reorder is explicit and
+// durable" requirement doesn't demand a particular interaction, just that it commit for real.
 export interface ReorderableListProps<T> {
 	items: T[];
 	getKey: (item: T) => string;
