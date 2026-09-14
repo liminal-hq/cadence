@@ -12,11 +12,18 @@ import type {
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
+	Routine,
+	RoutineExercise,
+	RoutineSection,
+	RoutineSuperset,
 	SetEntry,
+	SetTemplate,
+	SetTemplateValues,
 	Settings,
 	Workout,
 	WorkoutExercise,
 } from './types';
+import { SEED_LAST_PERFORMANCE } from './types';
 import {
 	BARBELL_CONFIGS,
 	DEFAULT_SETTINGS,
@@ -109,6 +116,12 @@ export class MockLoggingRepository implements LoggingRepository {
 	private restTimerTimeout: ReturnType<typeof setTimeout> | undefined;
 	private barbells = new Map(BARBELL_CONFIGS.map((b) => [b.id, { ...b }]));
 	private settings: Settings = { ...DEFAULT_SETTINGS };
+	// No seed data — real routines start empty too (0001_initial_schema.sql ships no rows).
+	private routines = new Map<string, Routine>();
+	private routineSections = new Map<string, RoutineSection>();
+	private routineSupersets = new Map<string, RoutineSuperset>();
+	private routineExercises = new Map<string, RoutineExercise>();
+	private setTemplates = new Map<string, SetTemplate>();
 
 	async getExercise(id: string): Promise<Exercise> {
 		const exercise = this.exercises.get(id);
@@ -530,6 +543,205 @@ export class MockLoggingRepository implements LoggingRepository {
 		const updated = { ...existing, note };
 		this.workouts.set(workoutId, updated);
 		return updated;
+	}
+
+	async getRoutine(id: string): Promise<Routine> {
+		const routine = this.routines.get(id);
+		if (!routine) throw new Error(`Unknown routine: ${id}`);
+		return routine;
+	}
+
+	async listRoutines(): Promise<Routine[]> {
+		return [...this.routines.values()].sort((a, b) => a.sortOrder - b.sortOrder);
+	}
+
+	async createRoutine(name: string): Promise<Routine> {
+		const siblings = [...this.routines.values()];
+		const nextOrder = siblings.reduce((max, r) => Math.max(max, r.sortOrder), 0) + 1;
+		const created: Routine = { id: newId('routine'), name, sortOrder: nextOrder, archived: false };
+		this.routines.set(created.id, created);
+		return created;
+	}
+
+	async renameRoutine(id: string, name: string): Promise<Routine> {
+		const existing = await this.getRoutine(id);
+		const updated = { ...existing, name };
+		this.routines.set(id, updated);
+		return updated;
+	}
+
+	async updateRoutineNote(id: string, note: string | undefined): Promise<Routine> {
+		const existing = await this.getRoutine(id);
+		const updated = { ...existing, note };
+		this.routines.set(id, updated);
+		return updated;
+	}
+
+	async setRoutineArchived(id: string, archived: boolean): Promise<Routine> {
+		const existing = await this.getRoutine(id);
+		const updated = { ...existing, archived };
+		this.routines.set(id, updated);
+		return updated;
+	}
+
+	async deleteRoutine(id: string): Promise<void> {
+		this.routines.delete(id);
+		for (const section of [...this.routineSections.values()].filter((s) => s.routineId === id)) {
+			await this.deleteRoutineSection(section.id);
+		}
+	}
+
+	async getRoutineSection(id: string): Promise<RoutineSection> {
+		const section = this.routineSections.get(id);
+		if (!section) throw new Error(`Unknown routine section: ${id}`);
+		return section;
+	}
+
+	async listRoutineSections(routineId: string): Promise<RoutineSection[]> {
+		return [...this.routineSections.values()]
+			.filter((s) => s.routineId === routineId)
+			.sort((a, b) => a.sortOrder - b.sortOrder);
+	}
+
+	async addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection> {
+		const siblings = await this.listRoutineSections(routineId);
+		const nextOrder = siblings.reduce((max, s) => Math.max(max, s.sortOrder), 0) + 1;
+		const created: RoutineSection = {
+			id: newId('routine-section'),
+			routineId,
+			name,
+			sortOrder: nextOrder,
+		};
+		this.routineSections.set(created.id, created);
+		return created;
+	}
+
+	async deleteRoutineSection(id: string): Promise<void> {
+		this.routineSections.delete(id);
+		for (const exercise of [...this.routineExercises.values()].filter(
+			(e) => e.routineSectionId === id,
+		)) {
+			await this.deleteRoutineExercise(exercise.id);
+		}
+		for (const superset of [...this.routineSupersets.values()].filter(
+			(s) => s.routineSectionId === id,
+		)) {
+			this.routineSupersets.delete(superset.id);
+		}
+	}
+
+	async getRoutineSuperset(id: string): Promise<RoutineSuperset> {
+		const superset = this.routineSupersets.get(id);
+		if (!superset) throw new Error(`Unknown routine superset: ${id}`);
+		return superset;
+	}
+
+	async createRoutineSuperset(
+		routineSectionId: string,
+		colour: string | undefined,
+		autoAdvance: boolean,
+		restMs: number | undefined,
+	): Promise<RoutineSuperset> {
+		const created: RoutineSuperset = {
+			id: newId('routine-superset'),
+			routineSectionId,
+			colour,
+			autoAdvance,
+			restMs,
+		};
+		this.routineSupersets.set(created.id, created);
+		return created;
+	}
+
+	async deleteRoutineSuperset(id: string): Promise<void> {
+		this.routineSupersets.delete(id);
+		for (const exercise of [...this.routineExercises.values()].filter(
+			(e) => e.routineSupersetId === id,
+		)) {
+			this.routineExercises.set(exercise.id, {
+				...exercise,
+				routineSupersetId: undefined,
+				supersetPosition: undefined,
+			});
+		}
+	}
+
+	async getRoutineExercise(id: string): Promise<RoutineExercise> {
+		const exercise = this.routineExercises.get(id);
+		if (!exercise) throw new Error(`Unknown routine exercise: ${id}`);
+		return exercise;
+	}
+
+	async listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]> {
+		return [...this.routineExercises.values()]
+			.filter((e) => e.routineSectionId === routineSectionId)
+			.sort((a, b) => a.order - b.order);
+	}
+
+	async addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise> {
+		const siblings = await this.listRoutineExercises(routineSectionId);
+		const nextOrder = siblings.reduce((max, e) => Math.max(max, e.order), 0) + 1;
+		const created: RoutineExercise = {
+			id: newId('routine-exercise'),
+			routineSectionId,
+			exerciseId,
+			order: nextOrder,
+		};
+		this.routineExercises.set(created.id, created);
+		return created;
+	}
+
+	async setRoutineExerciseSuperset(
+		id: string,
+		routineSupersetId: string | undefined,
+		supersetPosition: number | undefined,
+	): Promise<RoutineExercise> {
+		const existing = await this.getRoutineExercise(id);
+		const updated = { ...existing, routineSupersetId, supersetPosition };
+		this.routineExercises.set(id, updated);
+		return updated;
+	}
+
+	async updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise> {
+		const existing = await this.getRoutineExercise(id);
+		const updated = { ...existing, note };
+		this.routineExercises.set(id, updated);
+		return updated;
+	}
+
+	async deleteRoutineExercise(id: string): Promise<void> {
+		this.routineExercises.delete(id);
+		for (const template of [...this.setTemplates.values()].filter(
+			(t) => t.routineExerciseId === id,
+		)) {
+			this.setTemplates.delete(template.id);
+		}
+	}
+
+	async listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]> {
+		return [...this.setTemplates.values()]
+			.filter((t) => t.routineExerciseId === routineExerciseId)
+			.sort((a, b) => a.order - b.order);
+	}
+
+	async addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate> {
+		if (values.populationRule && values.populationRule !== SEED_LAST_PERFORMANCE) {
+			throw new Error(`Unknown set-template population rule: ${values.populationRule}`);
+		}
+		const siblings = await this.listSetTemplates(routineExerciseId);
+		const nextOrder = siblings.reduce((max, t) => Math.max(max, t.order), 0) + 1;
+		const created: SetTemplate = {
+			id: newId('set-template'),
+			routineExerciseId,
+			order: nextOrder,
+			...values,
+		};
+		this.setTemplates.set(created.id, created);
+		return created;
+	}
+
+	async deleteSetTemplate(id: string): Promise<void> {
+		this.setTemplates.delete(id);
 	}
 }
 

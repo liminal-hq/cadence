@@ -174,3 +174,69 @@ export interface Workout {
 	loggedByWatch?: boolean;
 	healthConnect?: WorkoutHealthConnectProvenance;
 }
+
+/** A reusable workout template — SPEC.md 8.4: "templates, not a second kind of workout history." */
+export interface Routine {
+	id: string;
+	name: string;
+	note?: string;
+	sortOrder: number;
+	archived: boolean;
+}
+
+/** A named group of exercises within a routine — routines may have one or many sections. */
+export interface RoutineSection {
+	id: string;
+	routineId: string;
+	name?: string;
+	sortOrder: number;
+}
+
+/** A routine-authored superset template; materialization copies these into a workout-level
+ *  superset, matching how a SetTemplate materializes into a Set. */
+export interface RoutineSuperset {
+	id: string;
+	routineSectionId: string;
+	colour?: string;
+	autoAdvance: boolean;
+	restMs?: number;
+}
+
+/** One exercise slot within a routine section. */
+export interface RoutineExercise {
+	id: string;
+	routineSectionId: string;
+	exerciseId: string;
+	order: number;
+	routineSupersetId?: string;
+	supersetPosition?: number;
+	restMs?: number;
+	note?: string;
+}
+
+/** The only `populationRule` value shipped in v1 — more may be added later. */
+export const SEED_LAST_PERFORMANCE = 'seed-last-performance' as const;
+
+/** A planned set within a routine exercise — either explicit target values, or a rule to seed
+ *  values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). */
+export interface SetTemplate {
+	id: string;
+	routineExerciseId: string;
+	order: number;
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+	populationRule?: string;
+	setLabel?: string;
+}
+
+/** The subset of SetTemplate's fields a caller supplies when creating one. */
+export interface SetTemplateValues {
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+	populationRule?: string;
+	setLabel?: string;
+}

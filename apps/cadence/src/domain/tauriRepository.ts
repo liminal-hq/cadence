@@ -12,7 +12,13 @@ import type {
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
+	Routine,
+	RoutineExercise,
+	RoutineSection,
+	RoutineSuperset,
 	SetEntry,
+	SetTemplate,
+	SetTemplateValues,
 	Settings,
 	Workout,
 	WorkoutExercise,
@@ -226,6 +232,107 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async deleteWorkoutExercise(id: string): Promise<void> {
 		return call('delete_workout_exercise', { id });
+	}
+
+	async getRoutine(id: string): Promise<Routine> {
+		return call('get_routine', { id });
+	}
+
+	async listRoutines(): Promise<Routine[]> {
+		return call('list_routines');
+	}
+
+	async createRoutine(name: string): Promise<Routine> {
+		return call('create_routine', { name });
+	}
+
+	async renameRoutine(id: string, name: string): Promise<Routine> {
+		return call('rename_routine', { id, name });
+	}
+
+	async updateRoutineNote(id: string, note: string | undefined): Promise<Routine> {
+		return call('update_routine_note', { id, note });
+	}
+
+	async setRoutineArchived(id: string, archived: boolean): Promise<Routine> {
+		return call('set_routine_archived', { id, archived });
+	}
+
+	async deleteRoutine(id: string): Promise<void> {
+		return call('delete_routine', { id });
+	}
+
+	async getRoutineSection(id: string): Promise<RoutineSection> {
+		return call('get_routine_section', { id });
+	}
+
+	async listRoutineSections(routineId: string): Promise<RoutineSection[]> {
+		return call('list_routine_sections', { routineId });
+	}
+
+	async addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection> {
+		return call('add_routine_section', { routineId, name });
+	}
+
+	async deleteRoutineSection(id: string): Promise<void> {
+		return call('delete_routine_section', { id });
+	}
+
+	async getRoutineSuperset(id: string): Promise<RoutineSuperset> {
+		return call('get_routine_superset', { id });
+	}
+
+	async createRoutineSuperset(
+		routineSectionId: string,
+		colour: string | undefined,
+		autoAdvance: boolean,
+		restMs: number | undefined,
+	): Promise<RoutineSuperset> {
+		return call('create_routine_superset', { routineSectionId, colour, autoAdvance, restMs });
+	}
+
+	async deleteRoutineSuperset(id: string): Promise<void> {
+		return call('delete_routine_superset', { id });
+	}
+
+	async getRoutineExercise(id: string): Promise<RoutineExercise> {
+		return call('get_routine_exercise', { id });
+	}
+
+	async listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]> {
+		return call('list_routine_exercises', { routineSectionId });
+	}
+
+	async addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise> {
+		return call('add_routine_exercise', { routineSectionId, exerciseId });
+	}
+
+	async setRoutineExerciseSuperset(
+		id: string,
+		routineSupersetId: string | undefined,
+		supersetPosition: number | undefined,
+	): Promise<RoutineExercise> {
+		return call('set_routine_exercise_superset', { id, routineSupersetId, supersetPosition });
+	}
+
+	async updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise> {
+		return call('update_routine_exercise_note', { id, note });
+	}
+
+	async deleteRoutineExercise(id: string): Promise<void> {
+		return call('delete_routine_exercise', { id });
+	}
+
+	async listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]> {
+		return call('list_set_templates', { routineExerciseId });
+	}
+
+	async addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate> {
+		return call('add_set_template', { routineExerciseId, values });
+	}
+
+	async deleteSetTemplate(id: string): Promise<void> {
+		return call('delete_set_template', { id });
 	}
 }
 

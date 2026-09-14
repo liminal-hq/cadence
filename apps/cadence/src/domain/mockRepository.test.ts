@@ -303,6 +303,104 @@ describe('MockLoggingRepository', () => {
 		});
 	});
 
+	describe('routines', () => {
+		it('creates a routine, appending at the end of the order', async () => {
+			const first = await repo.createRoutine('Push day');
+			expect(first.sortOrder).toBe(1);
+			expect(first.archived).toBe(false);
+			const second = await repo.createRoutine('Pull day');
+			expect(second.sortOrder).toBe(2);
+		});
+
+		it('renames, notes, and archives a routine', async () => {
+			const created = await repo.createRoutine('Push day');
+			const renamed = await repo.renameRoutine(created.id, 'Push day A');
+			expect(renamed.name).toBe('Push day A');
+			const noted = await repo.updateRoutineNote(created.id, 'Heavy week');
+			expect(noted.note).toBe('Heavy week');
+			const archived = await repo.setRoutineArchived(created.id, true);
+			expect(archived.archived).toBe(true);
+		});
+
+		it('rejects a lookup for an unknown routine', async () => {
+			await expect(repo.getRoutine('no-such-routine')).rejects.toThrow(
+				'Unknown routine: no-such-routine',
+			);
+		});
+
+		it('deletes a routine and cascades to its sections, exercises, and set templates', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+
+			await repo.deleteRoutine(routine.id);
+
+			await expect(repo.getRoutine(routine.id)).rejects.toThrow();
+			expect(await repo.listRoutineSections(routine.id)).toEqual([]);
+			expect(await repo.listRoutineExercises(section.id)).toEqual([]);
+			expect(await repo.listSetTemplates(exercise.id)).toEqual([]);
+		});
+
+		it('adds sections and exercises, each appending at the end of its own order', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const sectionA = await repo.addRoutineSection(routine.id, 'Warm-up');
+			const sectionB = await repo.addRoutineSection(routine.id, undefined);
+			expect(sectionA.sortOrder).toBe(1);
+			expect(sectionB.sortOrder).toBe(2);
+
+			const first = await repo.addRoutineExercise(sectionA.id, 'ex-bench-press');
+			const second = await repo.addRoutineExercise(sectionA.id, 'ex-running');
+			expect(first.order).toBe(1);
+			expect(second.order).toBe(2);
+		});
+
+		it('assigns and clears a routine exercise superset, and dissolves membership when the superset is deleted', async () => {
+			const routine = await repo.createRoutine('Superset A');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-lateral-raise');
+
+			const grouped = await repo.setRoutineExerciseSuperset(exercise.id, superset.id, 1);
+			expect(grouped.routineSupersetId).toBe(superset.id);
+			expect(grouped.supersetPosition).toBe(1);
+
+			await repo.deleteRoutineSuperset(superset.id);
+			const reloaded = await repo.getRoutineExercise(exercise.id);
+			expect(reloaded.routineSupersetId).toBeUndefined();
+		});
+
+		it('adds explicit-value and seeded set templates, rejecting an unknown population rule', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+
+			const explicit = await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+			expect(explicit.order).toBe(1);
+			expect(explicit.weightKg).toBe(80);
+
+			const seeded = await repo.addSetTemplate(exercise.id, {
+				populationRule: 'seed-last-performance',
+			});
+			expect(seeded.order).toBe(2);
+			expect(seeded.populationRule).toBe('seed-last-performance');
+
+			await expect(
+				repo.addSetTemplate(exercise.id, { populationRule: 'made-up-rule' }),
+			).rejects.toThrow('made-up-rule');
+		});
+
+		it('removes a set template', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			const template = await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+
+			await repo.deleteSetTemplate(template.id);
+			expect(await repo.listSetTemplates(exercise.id)).toEqual([]);
+		});
+	});
+
 	describe('calculatePlates', () => {
 		it('finds an exact loadable combination', async () => {
 			const olympic = BARBELL_CONFIGS.find((b) => b.id === 'barbell-olympic')!;

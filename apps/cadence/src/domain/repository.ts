@@ -10,7 +10,13 @@ import type {
 	Exercise,
 	PlateCalculationResult,
 	RestTimerState,
+	Routine,
+	RoutineExercise,
+	RoutineSection,
+	RoutineSuperset,
 	SetEntry,
+	SetTemplate,
+	SetTemplateValues,
 	Settings,
 	Workout,
 	WorkoutExercise,
@@ -94,4 +100,43 @@ export interface LoggingRepository {
 	addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise>;
 	/** A no-op when the workout-exercise doesn't exist. */
 	deleteWorkoutExercise(id: string): Promise<void>;
+
+	getRoutine(id: string): Promise<Routine>;
+	/** Every routine, archived or not — the routine list screen (P-30) filters. */
+	listRoutines(): Promise<Routine[]>;
+	createRoutine(name: string): Promise<Routine>;
+	renameRoutine(id: string, name: string): Promise<Routine>;
+	updateRoutineNote(id: string, note: string | undefined): Promise<Routine>;
+	setRoutineArchived(id: string, archived: boolean): Promise<Routine>;
+	deleteRoutine(id: string): Promise<void>;
+
+	getRoutineSection(id: string): Promise<RoutineSection>;
+	listRoutineSections(routineId: string): Promise<RoutineSection[]>;
+	addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection>;
+	deleteRoutineSection(id: string): Promise<void>;
+
+	getRoutineSuperset(id: string): Promise<RoutineSuperset>;
+	createRoutineSuperset(
+		routineSectionId: string,
+		colour: string | undefined,
+		autoAdvance: boolean,
+		restMs: number | undefined,
+	): Promise<RoutineSuperset>;
+	deleteRoutineSuperset(id: string): Promise<void>;
+
+	getRoutineExercise(id: string): Promise<RoutineExercise>;
+	listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]>;
+	addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise>;
+	/** `routineSupersetId: undefined` dissolves this exercise's superset membership. */
+	setRoutineExerciseSuperset(
+		id: string,
+		routineSupersetId: string | undefined,
+		supersetPosition: number | undefined,
+	): Promise<RoutineExercise>;
+	updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise>;
+	deleteRoutineExercise(id: string): Promise<void>;
+
+	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;
+	addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate>;
+	deleteSetTemplate(id: string): Promise<void>;
 }
