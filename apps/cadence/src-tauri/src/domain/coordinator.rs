@@ -282,8 +282,8 @@ impl<R: Runtime> Coordinator<R> {
                 sqlx::query(
                     "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, \
                      sort_order, status, weight_g, reps, distance_m, duration_s, note, \
-                     pending_sync, created_at_ms, updated_at_ms, revision) \
-                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+                     set_label, pending_sync, created_at_ms, updated_at_ms, revision) \
+                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
                 )
                 .bind(&new_set_id)
                 .bind(&new_workout_id)
@@ -295,6 +295,7 @@ impl<R: Runtime> Coordinator<R> {
                 .bind(source_set.distance_km.map(super::units::km_to_m))
                 .bind(source_set.duration_sec)
                 .bind(&source_set.note)
+                .bind(&source_set.set_label)
                 .bind(now)
                 .bind(now)
                 .bind(set_revision)
@@ -462,15 +463,7 @@ impl<R: Runtime> Coordinator<R> {
         routines::set_templates::delete(&mut conn, id).await
     }
 
-    /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed
-    /// materialization" step) — only the exercises named in `selected_routine_exercise_ids` are
-    /// carried over (in their original relative order), each set template resolved into a real
-    /// planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the
-    /// exercise's most recent completed set, or left blank with no fallback value when there's no
-    /// history yet), and superset grouping remapped into new workout-level supersets exactly like
-    /// `duplicate_workout` remaps them — a routine section's own superset-membership invariant
-    /// (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here
-    /// belongs to this same section.
+    /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed materialization" step) — only the exercises named in `selected_routine_exercise_ids` are carried over (in their original relative order, densely renumbered), each set template resolved into a real planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the exercise's most recent completed set, or left blank with no fallback value when there's no history yet), and superset grouping remapped into new workout-level supersets exactly like `duplicate_workout` remaps them — a routine section's own superset-membership invariant (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here belongs to this same section.
     pub async fn materialize_routine_section(
         &self,
         routine_section_id: &str,
@@ -509,7 +502,8 @@ impl<R: Runtime> Coordinator<R> {
 
         let mut superset_id_map: HashMap<String, String> = HashMap::new();
 
-        for re in &selected {
+        for (index, re) in selected.iter().enumerate() {
+            let new_order = index as i32 + 1;
             let new_superset_id = match &re.routine_superset_id {
                 None => None,
                 Some(old_superset_id) => {
@@ -551,7 +545,7 @@ impl<R: Runtime> Coordinator<R> {
             .bind(&new_we_id)
             .bind(&new_workout_id)
             .bind(&re.exercise_id)
-            .bind(re.order)
+            .bind(new_order)
             .bind(&re.note)
             .bind(&new_superset_id)
             .bind(re.superset_position)
@@ -1256,6 +1250,42 @@ mod tests {
         // The source workout is untouched.
         let source_sets = c.list_sets(&bench.id).await.unwrap();
         assert_eq!(source_sets[0].status, "completed");
+    }
+
+    #[tokio::test]
+    async fn duplicate_workout_preserves_set_labels() {
+        let c = test_coordinator().await;
+        let source = c.create_workout("2026-09-04", "Push A").await.unwrap();
+        let bench = c
+            .add_workout_exercise(&source.id, "ex-bench-press")
+            .await
+            .unwrap();
+        let set = c
+            .log_new_set(
+                &bench.id,
+                &SetValues {
+                    weight_kg: Some(80.0),
+                    reps: Some(8),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        // set_label is only ever written by routine materialization today, so it's set directly
+        // here rather than through a Coordinator method that doesn't exist yet.
+        sqlx::query("UPDATE sets SET set_label = 'warm-up' WHERE id = ?")
+            .bind(&set.id)
+            .execute(&c.pool)
+            .await
+            .unwrap();
+
+        let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&duplicated.id)
+            .await
+            .unwrap();
+        let duplicated_sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
+        assert_eq!(duplicated_sets[0].set_label.as_deref(), Some("warm-up"));
     }
 
     #[tokio::test]

@@ -457,8 +457,10 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('materializes a section into a real workout, resolving explicit and seeded templates', async () => {
-			// Seed history: a completed 82.5kg x 6 bench-press set in an earlier workout.
-			const historyWorkout = await repo.createWorkout('2026-09-01', 'Earlier session');
+			// Seed history: a completed 82.5kg x 6 bench-press set in the latest workout —
+			// seedData.ts's fixtures already give ex-bench-press completed history up to
+			// 2026-09-09, so this must date later than that to be the one that resolves.
+			const historyWorkout = await repo.createWorkout('2026-09-15', 'Later session');
 			const historyExercise = await repo.addWorkoutExercise(historyWorkout.id, 'ex-bench-press');
 			await repo.logNewSet(historyExercise.id, { weightKg: 82.5, reps: 6 });
 
@@ -500,6 +502,30 @@ describe('MockLoggingRepository', () => {
 			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
 			const sets = await repo.listSets(workoutExercises[0].id);
 			expect(sets[0].weightKg).not.toBe(999);
+		});
+
+		it('prefers the latest workout date over completion order when seeding', async () => {
+			// The later-dated workout logs its set first...
+			const newerWorkout = await repo.createWorkout('2026-09-16', 'Push B');
+			const newerExercise = await repo.addWorkoutExercise(newerWorkout.id, 'ex-bench-press');
+			await repo.logNewSet(newerExercise.id, { weightKg: 82.5, reps: 6 });
+
+			// ...then an earlier-dated workout is entered afterward, giving its set a later
+			// completedAt even though its training day came first. The nearer training day must
+			// still win.
+			const olderWorkout = await repo.createWorkout('2026-09-14', 'Push A');
+			const olderExercise = await repo.addWorkoutExercise(olderWorkout.id, 'ex-bench-press');
+			await repo.logNewSet(olderExercise.id, { weightKg: 70, reps: 10 });
+
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+			await repo.addSetTemplate(exercise.id, { populationRule: 'seed-last-performance' });
+
+			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
+			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
+			const sets = await repo.listSets(workoutExercises[0].id);
+			expect(sets[0]).toMatchObject({ weightKg: 82.5, reps: 6 });
 		});
 
 		it('copies the routine exercise note and set label onto the workout', async () => {

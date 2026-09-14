@@ -225,7 +225,7 @@ pub async fn log_new(
 }
 
 /// Copies an existing set's numbers into a fresh planned set — resets completion/sync state but
-/// keeps its note, mirroring `duplicateSet`'s exact reset-on-copy fields.
+/// keeps its note and set label, mirroring `duplicateSet`'s exact reset-on-copy fields.
 pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry> {
     let existing = get(conn, id).await?;
     let (workout_id, exercise_id) = parent_ids(conn, &existing.workout_exercise_id).await?;
@@ -240,8 +240,8 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     let new_id = uuid::Uuid::new_v4().to_string();
     sqlx::query(
         "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, sort_order, status, \
-         weight_g, reps, distance_m, duration_s, note, pending_sync, created_at_ms, updated_at_ms, \
-         revision) VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+         weight_g, reps, distance_m, duration_s, note, set_label, pending_sync, created_at_ms, \
+         updated_at_ms, revision) VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
     )
     .bind(&new_id)
     .bind(&workout_id)
@@ -253,6 +253,7 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     .bind(existing.distance_km.map(km_to_m))
     .bind(existing.duration_sec)
     .bind(&existing.note)
+    .bind(&existing.set_label)
     .bind(now)
     .bind(now)
     .bind(crate::db::next_revision(conn).await?)
@@ -284,13 +285,9 @@ struct MostRecentCompletedRow {
     duration_s: Option<i32>,
 }
 
-/// The most recent completed set for this exercise, across every workout — the pure lookup behind
-/// routine materialization's "seed from most recent comparable performance" rule (SPEC.md 8.4).
-/// Ordered by `completed_at_ms`, not `created_at_ms`, since a set can be completed out of creation
-/// order (e.g. a batch-logged rest day).
-/// `on_or_before_date` excludes a completed set from a workout dated after it — materializing a
-/// backdated routine section must not seed from performance that, relative to the workout being
-/// created, hasn't happened yet.
+/// The most recent completed set for this exercise, across every workout — the pure lookup behind routine materialization's "seed from most recent comparable performance" rule (SPEC.md 8.4).
+/// Ordered by the owning workout's `local_date` first, then `completed_at_ms` as a same-day tiebreaker — not `completed_at_ms` alone, since entering or completing an older workout after a newer one would otherwise make its later timestamp win over the actually-more-recent training day.
+/// `on_or_before_date` excludes a completed set from a workout dated after it — materializing a backdated routine section must not seed from performance that, relative to the workout being created, hasn't happened yet.
 pub async fn most_recent_completed(
     conn: &mut SqliteConnection,
     exercise_id: &str,
@@ -300,7 +297,7 @@ pub async fn most_recent_completed(
         "SELECT s.weight_g, s.reps, s.distance_m, s.duration_s FROM sets s \
          JOIN workouts w ON w.id = s.workout_id \
          WHERE s.exercise_id = ? AND s.status = 'completed' AND w.local_date <= ? \
-         ORDER BY s.completed_at_ms DESC LIMIT 1",
+         ORDER BY w.local_date DESC, s.completed_at_ms DESC LIMIT 1",
     )
     .bind(exercise_id)
     .bind(on_or_before_date)
@@ -555,6 +552,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn duplicate_preserves_the_set_label() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        // set_label is only ever written by routine materialization today, so it's set directly
+        // here rather than through a repo function that doesn't exist yet.
+        sqlx::query("UPDATE sets SET set_label = 'warm-up' WHERE id = ?")
+            .bind(&sets[1].id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        let duplicated = duplicate(&mut conn, &sets[1].id).await.unwrap();
+        assert_eq!(duplicated.set_label.as_deref(), Some("warm-up"));
+    }
+
+    #[tokio::test]
     async fn deletes_a_set() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
@@ -625,6 +638,69 @@ mod tests {
             .expect("a completed set exists");
         assert_eq!(found.weight_kg, sets[1].weight_kg);
         assert_eq!(found.reps, sets[1].reps);
+    }
+
+    #[tokio::test]
+    async fn most_recent_completed_prefers_the_latest_workout_date_over_completion_order() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+
+        // The later-dated workout logs its set first...
+        let newer_workout =
+            crate::domain::workouts::repo::create(&mut conn, "2026-09-10", "Push B")
+                .await
+                .unwrap();
+        let newer_we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &newer_workout.id,
+            "ex-bench-press",
+        )
+        .await
+        .unwrap();
+        let newer_set = log_new(
+            &mut conn,
+            &newer_we.id,
+            &SetValues {
+                weight_kg: Some(82.5),
+                reps: Some(6),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        // ...then an earlier-dated workout is entered afterward, giving its set a later
+        // `completed_at_ms` even though its training day came first. The nearer training day must
+        // still win.
+        let older_workout =
+            crate::domain::workouts::repo::create(&mut conn, "2026-09-05", "Push A")
+                .await
+                .unwrap();
+        let older_we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &older_workout.id,
+            "ex-bench-press",
+        )
+        .await
+        .unwrap();
+        log_new(
+            &mut conn,
+            &older_we.id,
+            &SetValues {
+                weight_kg: Some(70.0),
+                reps: Some(10),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let found = most_recent_completed(&mut conn, "ex-bench-press", "2026-09-10")
+            .await
+            .unwrap()
+            .expect("a completed set exists");
+        assert_eq!(found.weight_kg, newer_set.weight_kg);
+        assert_eq!(found.reps, newer_set.reps);
     }
 
     #[tokio::test]

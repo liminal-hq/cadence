@@ -770,13 +770,13 @@ export class MockLoggingRepository implements LoggingRepository {
 		this.setTemplates.delete(id);
 	}
 
-	/** The most recent completed set for this exercise, across every workout — mirrors the Rust
-	 *  Coordinator's `sets::repo::most_recent_completed`. */
+	/** The most recent completed set for this exercise, across every workout — mirrors the Rust Coordinator's `sets::repo::most_recent_completed`, preferring the owning workout's date over completion order. */
 	private mostRecentCompletedValues(
 		exerciseId: string,
 		onOrBeforeDate: string,
 	): Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'> {
 		let best: SetEntry | undefined;
+		let bestDate: string | undefined;
 		for (const we of this.workoutExercises.values()) {
 			if (we.exerciseId !== exerciseId) continue;
 			const owningWorkout = this.workouts.get(we.workoutId);
@@ -785,8 +785,15 @@ export class MockLoggingRepository implements LoggingRepository {
 			if (!owningWorkout || owningWorkout.date > onOrBeforeDate) continue;
 			for (const set of this.sets.values()) {
 				if (set.workoutExerciseId !== we.id || set.status !== 'completed') continue;
-				if (!best || (set.completedAt ?? '') > (best.completedAt ?? '')) {
+				// The nearer training day wins even if it was entered/completed later than a
+				// farther one — a same-day tie falls back to completion order.
+				const isBetter =
+					!best ||
+					owningWorkout.date > (bestDate ?? '') ||
+					(owningWorkout.date === bestDate && (set.completedAt ?? '') > (best.completedAt ?? ''));
+				if (isBetter) {
 					best = set;
+					bestDate = owningWorkout.date;
 				}
 			}
 		}
@@ -823,7 +830,8 @@ export class MockLoggingRepository implements LoggingRepository {
 
 		const supersetIdMap = new Map<string, string>();
 
-		for (const re of selected) {
+		for (const [index, re] of selected.entries()) {
+			const newOrder = index + 1;
 			let newSupersetId: string | undefined;
 			if (re.routineSupersetId) {
 				newSupersetId = supersetIdMap.get(re.routineSupersetId);
@@ -837,8 +845,8 @@ export class MockLoggingRepository implements LoggingRepository {
 				id: newId('we'),
 				exerciseId: re.exerciseId,
 				workoutId: workout.id,
-				workoutLabel: `${workout.title} · ${re.order} of ${selected.length}`,
-				order: re.order,
+				workoutLabel: `${workout.title} · ${newOrder} of ${selected.length}`,
+				order: newOrder,
 				todayNote: re.note,
 				supersetGroupId: newSupersetId,
 				supersetPosition: re.supersetPosition,
