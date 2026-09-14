@@ -11,6 +11,9 @@ use crate::domain::error::Error;
 use crate::domain::exercises::models::Exercise;
 use crate::domain::history::HistorySummary;
 use crate::domain::rest_timer::models::{RestTimerState, StartRestTimerOptions};
+use crate::domain::routines::models::{
+    Routine, RoutineExercise, RoutineSection, RoutineSuperset, SetTemplate, SetTemplateValues,
+};
 use crate::domain::sets::models::{SetEntry, SetValues};
 use crate::domain::settings::models::{Settings, SettingsPatch};
 use crate::domain::workouts::models::{Workout, WorkoutExercise};
@@ -132,6 +135,204 @@ pub async fn update_today_note(
     state
         .update_today_note(&workout_exercise_id, note.as_deref())
         .await
+}
+
+// ============ routines ============
+
+#[tauri::command]
+pub async fn get_routine(state: State<'_, Coordinator>, id: String) -> Result<Routine, Error> {
+    state.get_routine(&id).await
+}
+
+#[tauri::command]
+pub async fn list_routines(state: State<'_, Coordinator>) -> Result<Vec<Routine>, Error> {
+    state.list_routines().await
+}
+
+#[tauri::command]
+pub async fn create_routine(state: State<'_, Coordinator>, name: String) -> Result<Routine, Error> {
+    state.create_routine(&name).await
+}
+
+#[tauri::command]
+pub async fn rename_routine(
+    state: State<'_, Coordinator>,
+    id: String,
+    name: String,
+) -> Result<Routine, Error> {
+    state.rename_routine(&id, &name).await
+}
+
+#[tauri::command]
+pub async fn update_routine_note(
+    state: State<'_, Coordinator>,
+    id: String,
+    note: Option<String>,
+) -> Result<Routine, Error> {
+    state.update_routine_note(&id, note.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn set_routine_archived(
+    state: State<'_, Coordinator>,
+    id: String,
+    archived: bool,
+) -> Result<Routine, Error> {
+    state.set_routine_archived(&id, archived).await
+}
+
+#[tauri::command]
+pub async fn delete_routine(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
+    state.delete_routine(&id).await
+}
+
+#[tauri::command]
+pub async fn get_routine_section(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<RoutineSection, Error> {
+    state.get_routine_section(&id).await
+}
+
+#[tauri::command]
+pub async fn list_routine_sections(
+    state: State<'_, Coordinator>,
+    routine_id: String,
+) -> Result<Vec<RoutineSection>, Error> {
+    state.list_routine_sections(&routine_id).await
+}
+
+#[tauri::command]
+pub async fn add_routine_section(
+    state: State<'_, Coordinator>,
+    routine_id: String,
+    name: Option<String>,
+) -> Result<RoutineSection, Error> {
+    state
+        .add_routine_section(&routine_id, name.as_deref())
+        .await
+}
+
+#[tauri::command]
+pub async fn delete_routine_section(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_routine_section(&id).await
+}
+
+#[tauri::command]
+pub async fn get_routine_superset(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<RoutineSuperset, Error> {
+    state.get_routine_superset(&id).await
+}
+
+#[tauri::command]
+pub async fn create_routine_superset(
+    state: State<'_, Coordinator>,
+    routine_section_id: String,
+    colour: Option<String>,
+    auto_advance: bool,
+    rest_ms: Option<i64>,
+) -> Result<RoutineSuperset, Error> {
+    state
+        .create_routine_superset(
+            &routine_section_id,
+            colour.as_deref(),
+            auto_advance,
+            rest_ms,
+        )
+        .await
+}
+
+#[tauri::command]
+pub async fn delete_routine_superset(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_routine_superset(&id).await
+}
+
+#[tauri::command]
+pub async fn get_routine_exercise(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<RoutineExercise, Error> {
+    state.get_routine_exercise(&id).await
+}
+
+#[tauri::command]
+pub async fn list_routine_exercises(
+    state: State<'_, Coordinator>,
+    routine_section_id: String,
+) -> Result<Vec<RoutineExercise>, Error> {
+    state.list_routine_exercises(&routine_section_id).await
+}
+
+#[tauri::command]
+pub async fn add_routine_exercise(
+    state: State<'_, Coordinator>,
+    routine_section_id: String,
+    exercise_id: String,
+) -> Result<RoutineExercise, Error> {
+    state
+        .add_routine_exercise(&routine_section_id, &exercise_id)
+        .await
+}
+
+#[tauri::command]
+pub async fn set_routine_exercise_superset(
+    state: State<'_, Coordinator>,
+    id: String,
+    routine_superset_id: Option<String>,
+    superset_position: Option<i32>,
+) -> Result<RoutineExercise, Error> {
+    state
+        .set_routine_exercise_superset(&id, routine_superset_id.as_deref(), superset_position)
+        .await
+}
+
+#[tauri::command]
+pub async fn update_routine_exercise_note(
+    state: State<'_, Coordinator>,
+    id: String,
+    note: Option<String>,
+) -> Result<RoutineExercise, Error> {
+    state
+        .update_routine_exercise_note(&id, note.as_deref())
+        .await
+}
+
+#[tauri::command]
+pub async fn delete_routine_exercise(
+    state: State<'_, Coordinator>,
+    id: String,
+) -> Result<(), Error> {
+    state.delete_routine_exercise(&id).await
+}
+
+#[tauri::command]
+pub async fn list_set_templates(
+    state: State<'_, Coordinator>,
+    routine_exercise_id: String,
+) -> Result<Vec<SetTemplate>, Error> {
+    state.list_set_templates(&routine_exercise_id).await
+}
+
+#[tauri::command]
+pub async fn add_set_template(
+    state: State<'_, Coordinator>,
+    routine_exercise_id: String,
+    values: SetTemplateValues,
+) -> Result<SetTemplate, Error> {
+    state.add_set_template(&routine_exercise_id, &values).await
+}
+
+#[tauri::command]
+pub async fn delete_set_template(state: State<'_, Coordinator>, id: String) -> Result<(), Error> {
+    state.delete_set_template(&id).await
 }
 
 // ============ sets ============

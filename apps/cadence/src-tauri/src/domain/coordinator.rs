@@ -18,11 +18,14 @@ use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::Exercise;
 use super::history::HistorySummary;
 use super::rest_timer::models::{RestTimerState, StartRestTimerOptions};
+use super::routines::models::{
+    Routine, RoutineExercise, RoutineSection, RoutineSuperset, SetTemplate, SetTemplateValues,
+};
 use super::sets::models::{SetEntry, SetValues};
 use super::settings::models::{Settings, SettingsPatch};
 use super::units::kg_to_g;
 use super::workouts::models::{Workout, WorkoutExercise};
-use super::{barbells, exercises, history, rest_timer, sets, settings, workouts};
+use super::{barbells, exercises, history, rest_timer, routines, sets, settings, workouts};
 
 /// Everything the plain per-entity repo functions deliberately don't do. This is the one piece of
 /// the crate that needs an `AppHandle` (to emit events) and is generic over the Tauri runtime so
@@ -241,6 +244,160 @@ impl<R: Runtime> Coordinator<R> {
         tx.commit().await?;
         let mut conn = self.pool.acquire().await?;
         workouts::repo::get(&mut conn, &new_workout_id).await
+    }
+
+    // ============ routines ============
+
+    pub async fn get_routine(&self, id: &str) -> Result<Routine> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::get(&mut conn, id).await
+    }
+
+    pub async fn list_routines(&self) -> Result<Vec<Routine>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::list(&mut conn).await
+    }
+
+    pub async fn create_routine(&self, name: &str) -> Result<Routine> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::create(&mut conn, name).await
+    }
+
+    pub async fn rename_routine(&self, id: &str, name: &str) -> Result<Routine> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::rename(&mut conn, id, name).await
+    }
+
+    pub async fn update_routine_note(&self, id: &str, note: Option<&str>) -> Result<Routine> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::update_note(&mut conn, id, note).await
+    }
+
+    pub async fn set_routine_archived(&self, id: &str, archived: bool) -> Result<Routine> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::set_archived(&mut conn, id, archived).await
+    }
+
+    pub async fn delete_routine(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        routines::repo::delete(&mut conn, id).await
+    }
+
+    pub async fn get_routine_section(&self, id: &str) -> Result<RoutineSection> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::get(&mut conn, id).await
+    }
+
+    pub async fn list_routine_sections(&self, routine_id: &str) -> Result<Vec<RoutineSection>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::list_by_routine(&mut conn, routine_id).await
+    }
+
+    pub async fn add_routine_section(
+        &self,
+        routine_id: &str,
+        name: Option<&str>,
+    ) -> Result<RoutineSection> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::add(&mut conn, routine_id, name).await
+    }
+
+    pub async fn delete_routine_section(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        routines::sections::delete(&mut conn, id).await
+    }
+
+    pub async fn get_routine_superset(&self, id: &str) -> Result<RoutineSuperset> {
+        let mut conn = self.pool.acquire().await?;
+        routines::supersets::get(&mut conn, id).await
+    }
+
+    pub async fn create_routine_superset(
+        &self,
+        routine_section_id: &str,
+        colour: Option<&str>,
+        auto_advance: bool,
+        rest_ms: Option<i64>,
+    ) -> Result<RoutineSuperset> {
+        let mut conn = self.pool.acquire().await?;
+        routines::supersets::create(&mut conn, routine_section_id, colour, auto_advance, rest_ms)
+            .await
+    }
+
+    pub async fn delete_routine_superset(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        routines::supersets::delete(&mut conn, id).await
+    }
+
+    pub async fn get_routine_exercise(&self, id: &str) -> Result<RoutineExercise> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::get(&mut conn, id).await
+    }
+
+    pub async fn list_routine_exercises(
+        &self,
+        routine_section_id: &str,
+    ) -> Result<Vec<RoutineExercise>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::list_by_section(&mut conn, routine_section_id).await
+    }
+
+    pub async fn add_routine_exercise(
+        &self,
+        routine_section_id: &str,
+        exercise_id: &str,
+    ) -> Result<RoutineExercise> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::add(&mut conn, routine_section_id, exercise_id).await
+    }
+
+    pub async fn set_routine_exercise_superset(
+        &self,
+        id: &str,
+        routine_superset_id: Option<&str>,
+        superset_position: Option<i32>,
+    ) -> Result<RoutineExercise> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::set_superset(
+            &mut conn,
+            id,
+            routine_superset_id,
+            superset_position,
+        )
+        .await
+    }
+
+    pub async fn update_routine_exercise_note(
+        &self,
+        id: &str,
+        note: Option<&str>,
+    ) -> Result<RoutineExercise> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::update_note(&mut conn, id, note).await
+    }
+
+    pub async fn delete_routine_exercise(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::delete(&mut conn, id).await
+    }
+
+    pub async fn list_set_templates(&self, routine_exercise_id: &str) -> Result<Vec<SetTemplate>> {
+        let mut conn = self.pool.acquire().await?;
+        routines::set_templates::list_by_routine_exercise(&mut conn, routine_exercise_id).await
+    }
+
+    pub async fn add_set_template(
+        &self,
+        routine_exercise_id: &str,
+        values: &SetTemplateValues,
+    ) -> Result<SetTemplate> {
+        let mut conn = self.pool.acquire().await?;
+        routines::set_templates::add(&mut conn, routine_exercise_id, values).await
+    }
+
+    pub async fn delete_set_template(&self, id: &str) -> Result<()> {
+        let mut conn = self.pool.acquire().await?;
+        routines::set_templates::delete(&mut conn, id).await
     }
 
     // ============ sets ============

@@ -18,6 +18,7 @@ pub mod barbells;
 pub mod exercises;
 pub mod history;
 pub mod rest_timer;
+pub mod routines;
 pub mod sets;
 pub mod settings;
 pub mod workouts;
