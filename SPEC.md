@@ -335,7 +335,7 @@ Training analysis provides category/exercise breakdowns over a selected period, 
 
 ### 8.8 Goals and body measurements
 
-Goals attach to an exercise and may target a metric combination, title, start date, and target date. Initial UI may ship a focused goal flow after logging/history is stable.
+Goals attach to an exercise and may target a metric combination, title, start date, and target date (P-48). Progress toward a goal is computed live over logged history, never stored — a goal and a record are different entities, and reaching a goal must not rewrite the record; `achievedAt` is instead an explicit manual toggle, independent of that computed progress. A goal past its target date without being met is surfaced as overdue, distinct from achieved. A goal's stored target belongs to whichever metric profile the exercise had when it was created; if the exercise's profile later changes, the goal is flagged rather than silently evaluated against the wrong fields.
 
 Body tracking uses generic measurement definitions rather than a bodyweight-only silo. A definition has name, unit, optional goal, enabled state, and order. Records store date, optional time, value, and note. Measurements support history and graph views.
 

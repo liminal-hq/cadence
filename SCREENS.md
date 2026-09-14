@@ -416,14 +416,14 @@ Watch
 
 ### P-48 — Exercise goals
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** Define and review an exercise-specific target.
 
-**Entry:** Exercise detail; Progress.
+**Entry:** Exercise detail. A Progress-tab entry point is deferred to the training-analysis screen (P-47), still a placeholder as of this screen's build.
 
-**Content and actions:** title; target metrics; start/target dates; progress; edit/archive goal; source performance reference.
+**Content and actions:** title; target metrics (weight/reps or distance/duration, matching the exercise's metric profile); start/target dates; progress computed live over logged history (never stored — SPEC.md 8.8); a manual achieved toggle, independent of that computed progress; edit/archive/delete goal.
 
-**States:** no goals; achieved; overdue; no compatible performance yet; metric profile changed.
+**States:** no goals; achieved (met by logged history, or manually toggled); overdue (target date passed unachieved); no compatible performance yet ("No history yet"); metric profile changed since the goal was created (its stored target no longer matches the exercise's current profile — surfaced explicitly rather than silently evaluated against the wrong fields, and resolved by editing the goal to set a new target).
 
 ### P-49 — Measurement tracker
 

@@ -48,6 +48,22 @@ function bestLabel(
 	return `Best so far: ${best.distanceKm ?? '—'} km · ${best.durationSec ?? '—'}s (${best.date})`;
 }
 
+/** Which profile a goal's own stored target fields belong to — `undefined` for a targetless goal. Distinct from `exercise.metricProfile`, which can drift away from it if the exercise's profile changes after the goal was created (nothing currently locks that for a history-free exercise). */
+function goalMetricProfile(goal: ExerciseGoal): Exercise['metricProfile'] | undefined {
+	if (goal.targetWeightKg != null || goal.targetReps != null) return 'weight-reps';
+	if (goal.targetDistanceKm != null || goal.targetDurationSec != null) return 'distance-duration';
+	return undefined;
+}
+
+function draftHasTarget(
+	draft: ExerciseGoalValues,
+	metricProfile: Exercise['metricProfile'],
+): boolean {
+	return metricProfile === 'weight-reps'
+		? draft.targetWeightKg != null || draft.targetReps != null
+		: draft.targetDistanceKm != null || draft.targetDurationSec != null;
+}
+
 export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	const repository = useLoggingRepository();
 	const [goals, setGoals] = useState<ExerciseGoal[] | null>(null);
@@ -97,13 +113,19 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 
 	async function handleSave() {
 		if (!draft) return;
-		if (editingId) {
-			await guarded(() => repository.updateExerciseGoal(editingId, draft));
-		} else {
-			await guarded(() => repository.createExerciseGoal(draft));
+		try {
+			setError(null);
+			if (editingId) {
+				await repository.updateExerciseGoal(editingId, draft);
+			} else {
+				await repository.createExerciseGoal(draft);
+			}
+			reload();
+			setDraft(null);
+			setEditingId(null);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
 		}
-		setDraft(null);
-		setEditingId(null);
 	}
 
 	return (
@@ -125,7 +147,9 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 			) : (
 				<div className="exercise-goals-tab__list">
 					{goals.map((goal) => {
-						const progress = computeGoalProgress(goal, datedSets);
+						const goalProfile = goalMetricProfile(goal);
+						const profileMismatch = goalProfile != null && goalProfile !== exercise.metricProfile;
+						const progress = profileMismatch ? null : computeGoalProgress(goal, datedSets);
 						return (
 							<Surface
 								key={goal.id}
@@ -138,23 +162,37 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 									{goal.achievedAt && (
 										<span className="exercise-goals-tab__achieved">Achieved</span>
 									)}
+									{progress?.overdue && (
+										<span className="exercise-goals-tab__overdue">Overdue</span>
+									)}
 								</div>
-								<span className="exercise-goals-tab__target">
-									Target: {targetLabel(goal, exercise.metricProfile)}
-								</span>
-								<span className="exercise-goals-tab__best">
-									{progress.achieved
-										? 'Goal met by logged history'
-										: bestLabel(progress.best, exercise.metricProfile)}
-								</span>
+								{profileMismatch ? (
+									<span className="exercise-goals-tab__target">
+										This goal's target was set for the exercise's previous metric profile and no
+										longer applies — edit it to set a new target.
+									</span>
+								) : (
+									<>
+										<span className="exercise-goals-tab__target">
+											Target: {targetLabel(goal, exercise.metricProfile)}
+										</span>
+										<span className="exercise-goals-tab__best">
+											{progress?.achieved
+												? 'Goal met by logged history'
+												: bestLabel(progress?.best, exercise.metricProfile)}
+										</span>
+									</>
+								)}
 								<div className="exercise-goals-tab__row-actions">
-									<Switch
-										checked={goal.achievedAt != null}
-										onChange={(achieved) =>
-											guarded(() => repository.setExerciseGoalAchieved(goal.id, achieved))
-										}
-										label={goal.achievedAt ? 'Mark not achieved' : 'Mark achieved'}
-									/>
+									{!profileMismatch && (
+										<Switch
+											checked={goal.achievedAt != null}
+											onChange={(achieved) =>
+												guarded(() => repository.setExerciseGoalAchieved(goal.id, achieved))
+											}
+											label={goal.achievedAt ? 'Mark not achieved' : 'Mark achieved'}
+										/>
+									)}
 									<Button variant="text" onClick={() => startEdit(goal)}>
 										Edit
 									</Button>
@@ -259,7 +297,11 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 						>
 							Cancel
 						</Button>
-						<Button variant="filled" disabled={!draft.title.trim()} onClick={handleSave}>
+						<Button
+							variant="filled"
+							disabled={!draft.title.trim() || !draftHasTarget(draft, exercise.metricProfile)}
+							onClick={handleSave}
+						>
 							Save
 						</Button>
 					</div>

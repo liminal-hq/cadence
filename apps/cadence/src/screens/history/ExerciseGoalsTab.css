@@ -34,6 +34,11 @@
 	color: var(--cadence-primary);
 }
 
+.exercise-goals-tab__overdue {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-error);
+}
+
 .exercise-goals-tab__target,
 .exercise-goals-tab__best {
 	font-size: var(--cadence-type-body-m-size);

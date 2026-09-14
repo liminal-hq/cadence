@@ -28,7 +28,12 @@ function goal(overrides: Partial<ExerciseGoal>): ExerciseGoal {
 describe('computeGoalProgress', () => {
 	it('reports not achieved with no completed sets', () => {
 		const result = computeGoalProgress(goal({ targetWeightKg: 100 }), []);
-		expect(result).toEqual({ achieved: false, best: undefined });
+		expect(result).toEqual({ achieved: false, overdue: false, best: undefined });
+	});
+
+	it('is never achieved for a goal with no target field set', () => {
+		const result = computeGoalProgress(goal({}), [dated('2026-09-10', { weightKg: 100, reps: 1 })]);
+		expect(result.achieved).toBe(false);
 	});
 
 	it('is achieved once a single set meets every specified target', () => {
@@ -79,5 +84,51 @@ describe('computeGoalProgress', () => {
 		]);
 		expect(result.achieved).toBe(false);
 		expect(result.best).toBeUndefined();
+	});
+
+	it('does not count a performance after the target date as achieving the goal', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),
+			[dated('2026-09-10', { weightKg: 100, reps: 1 })],
+			'2026-09-15',
+		);
+		expect(result.achieved).toBe(false);
+	});
+
+	it('still ranks a late performance as the best attempt', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),
+			[dated('2026-09-10', { weightKg: 100, reps: 1 })],
+			'2026-09-15',
+		);
+		expect(result.best).toMatchObject({ weightKg: 100, reps: 1, date: '2026-09-10' });
+	});
+
+	it('is overdue once the target date has passed unachieved', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),
+			[dated('2026-09-01', { weightKg: 80, reps: 1 })],
+			'2026-09-15',
+		);
+		expect(result.overdue).toBe(true);
+	});
+
+	it('is not overdue once achieved by the target date', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),
+			[dated('2026-09-03', { weightKg: 100, reps: 1 })],
+			'2026-09-15',
+		);
+		expect(result.achieved).toBe(true);
+		expect(result.overdue).toBe(false);
+	});
+
+	it('is not overdue before the target date arrives', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-20' }),
+			[],
+			'2026-09-15',
+		);
+		expect(result.overdue).toBe(false);
 	});
 });
