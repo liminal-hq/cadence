@@ -8,6 +8,7 @@ import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
+import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { IconButton } from '../../components/ui/IconButton/IconButton';
 import { ReorderableList } from '../../components/ui/ReorderableList/ReorderableList';
 import { Surface } from '../../components/ui/Surface/Surface';
@@ -53,12 +54,43 @@ export function CategoryEditorScreen() {
 	const [categoryPendingDelete, setCategoryPendingDelete] = useState<Category | null>(null);
 
 	const reload = useCallback(() => {
-		repository.listCategories().then(setCategories);
+		repository.listCategories().then(setCategories, (err) => {
+			setError(err instanceof Error ? err.message : String(err));
+		});
 	}, [repository]);
 
 	useEffect(reload, [reload]);
 
-	if (!categories) return null;
+	// A rejected initial load previously left this screen blank forever -- `categories` never
+	// left `null`, so the render bailed out here on every re-render with no way to retry or even
+	// see that anything had gone wrong.
+	if (!categories) {
+		if (error) {
+			return (
+				<div className="screen-shell">
+					<AppBar title="Categories" size="medium" back={{ to: '/settings' }} />
+					<div className="screen-shell__content exercises-screen__content">
+						<EmptyState
+							headline="Couldn't load categories"
+							body={error}
+							action={
+								<Button
+									variant="filled"
+									onClick={() => {
+										setError(null);
+										reload();
+									}}
+								>
+									Try again
+								</Button>
+							}
+						/>
+					</div>
+				</div>
+			);
+		}
+		return null;
+	}
 
 	async function guarded(action: () => Promise<unknown>) {
 		try {
