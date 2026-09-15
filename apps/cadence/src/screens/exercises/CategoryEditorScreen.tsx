@@ -15,8 +15,11 @@ import { Tag } from '../../components/ui/Tag/Tag';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { Category } from '../../domain/types';
+import { isLowContrast } from './colourContrast';
 import '../screens.css';
 import './exercises.css';
+
+const LOW_CONTRAST_WARNING = 'This background and text colour are hard to read together.';
 
 function slugify(name: string): string {
 	return (
@@ -177,6 +180,9 @@ export function CategoryEditorScreen() {
 								label="Delete category"
 								onClick={() => setCategoryPendingDelete(category)}
 							/>
+							{isLowContrast(category.colourBackground, category.colourText) && (
+								<span className="category-row__contrast-warning">{LOW_CONTRAST_WARNING}</span>
+							)}
 						</Surface>
 					)}
 				/>
@@ -204,6 +210,9 @@ export function CategoryEditorScreen() {
 							value={draft.colourDot}
 							onChange={(colourDot) => setDraft({ ...draft, colourDot })}
 						/>
+						{isLowContrast(draft.colourBackground, draft.colourText) && (
+							<span className="category-row__contrast-warning">{LOW_CONTRAST_WARNING}</span>
+						)}
 						<Button variant="text" onClick={() => setDraft(null)}>
 							Cancel
 						</Button>

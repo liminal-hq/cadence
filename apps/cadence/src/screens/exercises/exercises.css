@@ -21,6 +21,12 @@
 	border: 1px dashed var(--cadence-outline-variant);
 }
 
+.category-row__contrast-warning {
+	width: 100%;
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-error);
+}
+
 .exercise-library__toolbar {
 	display: flex;
 	flex-direction: column;
@@ -42,9 +48,18 @@
 .exercise-library__row {
 	display: flex;
 	align-items: center;
+	gap: var(--cadence-space-1);
+	width: 100%;
+	border-radius: var(--cadence-shape-m);
+}
+
+.exercise-library__row-main {
+	display: flex;
+	align-items: center;
 	justify-content: space-between;
 	gap: var(--cadence-space-2);
-	width: 100%;
+	flex: 1;
+	min-width: 0;
 	padding: var(--cadence-space-3);
 	background: none;
 	border: none;
@@ -54,7 +69,7 @@
 	font-family: inherit;
 }
 
-.exercise-library__row:hover {
+.exercise-library__row-main:hover {
 	background: var(--cadence-surface-container-low);
 }
 

@@ -71,103 +71,100 @@ export function ExerciseGraphTab({ exercise, history }: ExerciseGraphTabProps) {
 	const datedSets = useMemo(() => flattenDatedSets(history), [history]);
 	const points = useMemo(() => computeGraphPoints(datedSets, metric), [datedSets, metric]);
 
-	if (points.length === 0) {
-		return (
-			<div className="exercise-graph-tab">
-				<EmptyState
-					headline="No data yet"
-					body="Completed sets for this exercise will chart here."
-				/>
-			</div>
-		);
-	}
-
-	if (points.length === 1) {
-		return (
-			<div className="exercise-graph-tab">
-				<EmptyGraphIllustration />
-			</div>
-		);
-	}
-
-	const selected = points.find((p) => p.setId === selectedSetId) ?? points[points.length - 1];
-	const found = findEntry(history, selected.setId);
+	const selected =
+		points.length >= 2
+			? (points.find((p) => p.setId === selectedSetId) ?? points[points.length - 1])
+			: undefined;
+	const found = selected ? findEntry(history, selected.setId) : undefined;
 
 	return (
 		<div className="exercise-graph-tab">
 			<SegmentedControl options={metricOptions} value={metric} onChange={setMetric} />
 
-			<LineChart
-				points={points}
-				selectedSetId={selected.setId}
-				onSelectPoint={(p: GraphPoint) => setSelectedSetId(p.setId)}
-			/>
+			{points.length === 0 ? (
+				<EmptyState
+					headline="No data yet"
+					body="Completed sets for this exercise will chart here."
+				/>
+			) : points.length === 1 ? (
+				<EmptyGraphIllustration />
+			) : (
+				selected && (
+					<>
+						<LineChart
+							points={points}
+							selectedSetId={selected.setId}
+							onSelectPoint={(p: GraphPoint) => setSelectedSetId(p.setId)}
+						/>
 
-			{found && (
-				<div className="exercise-graph-tab__detail">
-					<p className="exercise-graph-tab__detail-line">
-						{formatCalendarDateLabel(selected.date)} ·{' '}
-						{exercise.metricProfile === 'weight-reps'
-							? `${formatNumber(selected.weightKg ?? 0)} kg × ${selected.reps ?? 0}`
-							: `${formatNumber(selected.distanceKm ?? 0)} km`}
-						{metric === 'estimated-1rm' && (
-							<span className="exercise-graph-tab__formula">
-								{' '}
-								· est. 1RM {formatNumber(selected.value)} kg ({ONE_REP_MAX_FORMULA_NAME})
-							</span>
+						{found && (
+							<div className="exercise-graph-tab__detail">
+								<p className="exercise-graph-tab__detail-line">
+									{formatCalendarDateLabel(selected.date)} ·{' '}
+									{exercise.metricProfile === 'weight-reps'
+										? `${formatNumber(selected.weightKg ?? 0)} kg × ${selected.reps ?? 0}`
+										: `${formatNumber(selected.distanceKm ?? 0)} km`}
+									{metric === 'estimated-1rm' && (
+										<span className="exercise-graph-tab__formula">
+											{' '}
+											· est. 1RM {formatNumber(selected.value)} kg ({ONE_REP_MAX_FORMULA_NAME})
+										</span>
+									)}
+								</p>
+								<Button
+									variant="text"
+									onClick={() =>
+										navigate({
+											to: '/history/workout/$workoutId',
+											params: { workoutId: found.entry.workout.id },
+										})
+									}
+								>
+									Open set
+								</Button>
+							</div>
 						)}
-					</p>
-					<Button
-						variant="text"
-						onClick={() =>
-							navigate({
-								to: '/history/workout/$workoutId',
-								params: { workoutId: found.entry.workout.id },
-							})
-						}
-					>
-						Open set
-					</Button>
-				</div>
-			)}
 
-			<p className="exercise-graph-tab__caption">
-				Completed sets only · gaps shown as gaps · values in {metricUnit(metric)}
-			</p>
+						<p className="exercise-graph-tab__caption">
+							Completed sets only · gaps shown as gaps · values in {metricUnit(metric)}
+						</p>
 
-			<div className="exercise-graph-tab__footer">
-				<Button variant="text" onClick={() => setShowTable((v) => !v)}>
-					{showTable ? 'Hide table' : 'View as table'}
-				</Button>
-				<Button
-					variant="text"
-					icon={saved ? 'bookmark' : 'bookmark_border'}
-					onClick={() => setSaved((v) => !v)}
-				>
-					{saved ? 'Saved' : 'Save this view'}
-				</Button>
-			</div>
+						<div className="exercise-graph-tab__footer">
+							<Button variant="text" onClick={() => setShowTable((v) => !v)}>
+								{showTable ? 'Hide table' : 'View as table'}
+							</Button>
+							<Button
+								variant="text"
+								icon={saved ? 'bookmark' : 'bookmark_border'}
+								onClick={() => setSaved((v) => !v)}
+							>
+								{saved ? 'Saved' : 'Save this view'}
+							</Button>
+						</div>
 
-			{showTable && (
-				<table className="exercise-graph-tab__table">
-					<caption className="ui-visually-hidden">
-						{exercise.name} — {metricOptions.find((m) => m.value === metric)?.label} over time
-					</caption>
-					<thead>
-						<tr>
-							<th scope="col">Date</th>
-							<th scope="col">Value ({metricUnit(metric)})</th>
-						</tr>
-					</thead>
-					<tbody>
-						{points.map((point) => (
-							<tr key={point.setId}>
-								<td>{formatCalendarDateLabel(point.date)}</td>
-								<td>{formatNumber(point.value)}</td>
-							</tr>
-						))}
-					</tbody>
-				</table>
+						{showTable && (
+							<table className="exercise-graph-tab__table">
+								<caption className="ui-visually-hidden">
+									{exercise.name} — {metricOptions.find((m) => m.value === metric)?.label} over time
+								</caption>
+								<thead>
+									<tr>
+										<th scope="col">Date</th>
+										<th scope="col">Value ({metricUnit(metric)})</th>
+									</tr>
+								</thead>
+								<tbody>
+									{points.map((point) => (
+										<tr key={point.setId}>
+											<td>{formatCalendarDateLabel(point.date)}</td>
+											<td>{formatNumber(point.value)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						)}
+					</>
+				)
 			)}
 		</div>
 	);

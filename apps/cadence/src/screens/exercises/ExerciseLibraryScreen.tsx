@@ -8,6 +8,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { Chip } from '../../components/ui/Chip/Chip';
 import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
+import { IconButton } from '../../components/ui/IconButton/IconButton';
 import { Tag } from '../../components/ui/Tag/Tag';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
@@ -93,26 +94,37 @@ export function ExerciseLibraryScreen() {
 						{filtered.map((exercise) => {
 							const category = categoryById.get(exercise.category);
 							return (
-								<button
+								<div
 									key={exercise.id}
-									type="button"
 									className={`exercise-library__row${exercise.archived ? ' exercise-library__row--archived' : ''}`}
-									onClick={() =>
-										navigate({
-											to: '/exercise-library/$exerciseId/edit',
-											params: { exerciseId: exercise.id },
-										})
-									}
 								>
-									<span className="exercise-library__row-name">{exercise.name}</span>
-									{category && (
-										<Tag
-											label={category.name}
-											background={category.colourBackground}
-											colour={category.colourText}
-										/>
-									)}
-								</button>
+									<button
+										type="button"
+										className="exercise-library__row-main"
+										onClick={() =>
+											navigate({
+												to: '/exercise-library/$exerciseId/edit',
+												params: { exerciseId: exercise.id },
+											})
+										}
+									>
+										<span className="exercise-library__row-name">{exercise.name}</span>
+										{category && (
+											<Tag
+												label={category.name}
+												background={category.colourBackground}
+												colour={category.colourText}
+											/>
+										)}
+									</button>
+									<IconButton
+										icon="history"
+										label={`${exercise.name} history`}
+										onClick={() =>
+											navigate({ to: '/exercise/$exerciseId', params: { exerciseId: exercise.id } })
+										}
+									/>
+								</div>
 							);
 						})}
 					</div>
