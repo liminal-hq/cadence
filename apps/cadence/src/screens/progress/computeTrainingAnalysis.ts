@@ -4,9 +4,10 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { AnalysisSetEntry } from '../../domain/types';
-import { estimateOneRepMax } from '../history/oneRepMax';
+import { estimateOneRepMax, ONE_REP_MAX_FORMULA_NAME } from '../history/oneRepMax';
 
 export type AnalysisMetric =
+	| 'frequency'
 	| 'sets'
 	| 'volume'
 	| 'reps'
@@ -21,6 +22,7 @@ export type AnalysisMetric =
 export type AnalysisGroupBy = 'category' | 'exercise';
 
 export const WEIGHT_REPS_METRICS: AnalysisMetric[] = [
+	'frequency',
 	'sets',
 	'volume',
 	'reps',
@@ -29,6 +31,7 @@ export const WEIGHT_REPS_METRICS: AnalysisMetric[] = [
 ];
 
 export const DISTANCE_DURATION_METRICS: AnalysisMetric[] = [
+	'frequency',
 	'sets',
 	'maxDistance',
 	'totalDistance',
@@ -43,6 +46,7 @@ export const ANALYSIS_METRICS: AnalysisMetric[] = [
 ];
 
 export const ANALYSIS_METRIC_LABELS: Record<AnalysisMetric, string> = {
+	frequency: 'Training days',
 	sets: 'Total sets',
 	volume: 'Volume',
 	reps: 'Total reps',
@@ -56,6 +60,7 @@ export const ANALYSIS_METRIC_LABELS: Record<AnalysisMetric, string> = {
 };
 
 export const ANALYSIS_METRIC_UNITS: Record<AnalysisMetric, string> = {
+	frequency: 'days',
 	sets: '',
 	volume: 'kg',
 	reps: '',
@@ -68,9 +73,26 @@ export const ANALYSIS_METRIC_UNITS: Record<AnalysisMetric, string> = {
 	speed: 'km/h',
 };
 
+/** Plain-language definition of how each metric is computed within a group — SPEC.md 8.7 requires stating a metric's definition and unit in the UI, not just its label, since several of these (pace/speed in particular) are simple per-set averages rather than totals-derived rates. */
+export const ANALYSIS_METRIC_DEFINITIONS: Record<AnalysisMetric, string> = {
+	frequency: 'Number of distinct calendar days with a completed set in this group.',
+	sets: 'Number of completed sets.',
+	volume: 'Sum of weight × reps across every set.',
+	reps: 'Sum of reps across every set.',
+	maxWeight: 'Heaviest weight logged on a single set.',
+	estimated1RM: `Heaviest single-set estimated one-rep max (${ONE_REP_MAX_FORMULA_NAME} formula).`,
+	maxDistance: 'Longest distance logged on a single set.',
+	totalDistance: 'Sum of distance across every set.',
+	duration: 'Sum of duration across every set.',
+	pace: "Average of each set's own pace (duration ÷ distance), not total duration ÷ total distance.",
+	speed:
+		"Average of each set's own speed (distance ÷ duration), not total distance ÷ total duration.",
+};
+
 /** A metric's value for one set, or `undefined` when the set's metric profile doesn't support it — e.g. `volume` for a distance-duration set, `pace` for a set with no distance logged. The Rust backend serializes an absent field as JSON `null` (unlike the mock repository's plain `undefined`), so every branch normalizes `null` to `undefined` rather than letting it flow through as a real value — `Math.max(null)` is `0`, not "not applicable". */
 function metricValue(entry: AnalysisSetEntry, metric: AnalysisMetric): number | undefined {
 	switch (metric) {
+		case 'frequency':
 		case 'sets':
 			return 1;
 		case 'volume':
@@ -140,8 +162,14 @@ export function computeBreakdown(
 
 	const rows: AnalysisBreakdownRow[] = [];
 	for (const [key, { label, entries: groupEntries }] of groups) {
-		const values = groupEntries.map((e) => metricValue(e, metric)!);
-		rows.push({ key, label, value: aggregate(values, metric), entries: groupEntries });
+		const value =
+			metric === 'frequency'
+				? countTrainingDays(groupEntries)
+				: aggregate(
+						groupEntries.map((e) => metricValue(e, metric)!),
+						metric,
+					);
+		rows.push({ key, label, value, entries: groupEntries });
 	}
 	return rows.sort((a, b) => b.value - a.value);
 }

@@ -11,11 +11,12 @@ import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatNumber } from '../../domain/format';
-import { formatCalendarDateLabel } from '../history/historyDates';
+import { formatNumber, todayLocalDate } from '../../domain/format';
+import { addDays, formatCalendarDateLabel } from '../history/historyDates';
 import type { AnalysisSetEntry } from '../../domain/types';
 import {
 	ANALYSIS_METRICS,
+	ANALYSIS_METRIC_DEFINITIONS,
 	ANALYSIS_METRIC_LABELS,
 	ANALYSIS_METRIC_UNITS,
 	computeBreakdown,
@@ -25,7 +26,7 @@ import {
 } from './computeTrainingAnalysis';
 import './progress.css';
 
-type Period = '7d' | '30d' | '90d' | '1y' | 'all';
+export type Period = '7d' | '30d' | '90d' | '1y' | 'all';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 	{ value: '7d', label: '7 days' },
@@ -42,12 +43,14 @@ const GROUP_BY_OPTIONS: { value: AnalysisGroupBy; label: string }[] = [
 
 const EARLIEST_DATE = '2000-01-01';
 
-function dateRangeFor(period: Period, today: string): { startDate: string; endDate: string } {
+export function dateRangeFor(
+	period: Period,
+	today: string,
+): { startDate: string; endDate: string } {
 	if (period === 'all') return { startDate: EARLIEST_DATE, endDate: today };
 	const days = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[period];
-	const start = new Date(`${today}T00:00:00`);
-	start.setDate(start.getDate() - days);
-	return { startDate: start.toISOString().slice(0, 10), endDate: today };
+	// The backend's BETWEEN range is inclusive of both endpoints, so a window of exactly `days` dates ending on `today` starts `days - 1` days earlier, not `days` days earlier.
+	return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 
 // Bare, no own AppBar — TabsLayout's shared AppShell supplies the title/top bar here, same shape as TodayScreen/RoutineListScreen.
@@ -60,12 +63,18 @@ export function TrainingAnalysisScreen() {
 	const [entries, setEntries] = useState<AnalysisSetEntry[] | null>(null);
 	const [expandedKey, setExpandedKey] = useState<string | null>(null);
 
-	const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
 
 	useEffect(() => {
+		let cancelled = false;
 		setEntries(null);
-		repository.listAnalysisSets(startDate, endDate).then(setEntries);
+		repository.listAnalysisSets(startDate, endDate).then((result) => {
+			if (!cancelled) setEntries(result);
+		});
+		return () => {
+			cancelled = true;
+		};
 	}, [repository, startDate, endDate]);
 
 	if (!entries) return null;
@@ -98,6 +107,8 @@ export function TrainingAnalysisScreen() {
 					/>
 				))}
 			</div>
+
+			<p className="training-analysis__metric-definition">{ANALYSIS_METRIC_DEFINITIONS[metric]}</p>
 
 			<SegmentedControl options={GROUP_BY_OPTIONS} value={groupBy} onChange={setGroupBy} />
 

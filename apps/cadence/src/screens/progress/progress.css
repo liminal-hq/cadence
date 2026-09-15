@@ -16,6 +16,11 @@
 	color: var(--cadence-on-surface-variant);
 }
 
+.training-analysis__metric-definition {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
 .training-analysis__table {
 	width: 100%;
 	border-collapse: collapse;

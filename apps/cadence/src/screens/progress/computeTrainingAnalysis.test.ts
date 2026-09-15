@@ -129,6 +129,28 @@ describe('computeBreakdown', () => {
 		expect(rows[0].entries).toHaveLength(2);
 	});
 
+	it('counts distinct training days within each group for the frequency metric', () => {
+		const rows = computeBreakdown(
+			[
+				entry({ setId: 's1', date: '2026-09-01' }),
+				entry({ setId: 's2', date: '2026-09-01' }),
+				entry({ setId: 's3', date: '2026-09-03' }),
+				entry({
+					setId: 's4',
+					date: '2026-09-01',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					categoryId: 'cardio',
+					categoryName: 'Cardio',
+				}),
+			],
+			'frequency',
+			'exercise',
+		);
+		expect(rows.find((r) => r.label === 'Bench Press')?.value).toBe(2);
+		expect(rows.find((r) => r.label === 'Running')?.value).toBe(1);
+	});
+
 	it('sorts rows by value, descending', () => {
 		const rows = computeBreakdown(
 			[
