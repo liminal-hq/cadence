@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useBlocker, useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
@@ -83,8 +83,9 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	const [categoryPickerOpen, setCategoryPickerOpen] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [deletePendingConfirm, setDeletePendingConfirm] = useState(false);
-	const [discardPendingConfirm, setDiscardPendingConfirm] = useState(false);
 	const [draftFavourite, setDraftFavourite] = useState(false);
+	// Stays false forever on a failed lookup, not just while pending — Save must never be allowed to treat an existing exercise it couldn't confirm as a brand-new one.
+	const [existingLoaded, setExistingLoaded] = useState(!exerciseId);
 	const baselineRef = useRef<{ values: ExerciseValues; favourite: boolean } | null>(null);
 
 	useEffect(() => {
@@ -101,12 +102,16 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 
 	useEffect(() => {
 		if (!exerciseId) return;
-		repository.getExercise(exerciseId).then((exercise) => {
-			setExisting(exercise);
-			const loaded = valuesFromExercise(exercise);
-			setValues(loaded);
-			baselineRef.current = { values: loaded, favourite: exercise.favourite ?? false };
-		});
+		repository
+			.getExercise(exerciseId)
+			.then((exercise) => {
+				setExisting(exercise);
+				const loaded = valuesFromExercise(exercise);
+				setValues(loaded);
+				baselineRef.current = { values: loaded, favourite: exercise.favourite ?? false };
+				setExistingLoaded(true);
+			})
+			.catch((err) => setError(err instanceof Error ? err.message : String(err)));
 		repository.listWorkoutExercisesByExercise(exerciseId).then((occurrences) => {
 			setHasHistory(occurrences.length > 0);
 			setHistoryLoaded(true);
@@ -120,10 +125,8 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			currentFavourite !== baselineRef.current.favourite),
 	);
 
-	function handleBack() {
-		if (isDirty) setDiscardPendingConfirm(true);
-		else navigate({ to: '/exercise-library' });
-	}
+	// Blocks every navigation path away from a dirty draft, not just the app bar's back button — predictive back and hardware/browser back both go through the router's history, same as this.
+	const blocker = useBlocker({ shouldBlockFn: () => isDirty, withResolver: true });
 
 	const graphMetricOptions =
 		values.metricProfile === 'weight-reps'
@@ -189,11 +192,11 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			<AppBar
 				title={existing ? existing.name : 'New exercise'}
 				size="medium"
-				back={{ onClick: handleBack }}
+				back={{ to: '/exercise-library' }}
 				trailingContent={
 					<Button
 						variant="text"
-						disabled={!values.name.trim() || !values.category}
+						disabled={!values.name.trim() || !values.category || !existingLoaded}
 						onClick={handleSave}
 					>
 						Save
@@ -429,20 +432,16 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			</Dialog>
 
 			<Dialog
-				open={discardPendingConfirm}
-				onClose={() => setDiscardPendingConfirm(false)}
+				open={blocker.status === 'blocked'}
+				onClose={() => blocker.reset?.()}
 				headline="Discard changes?"
 				role="dialog"
 				actions={
 					<>
-						<Button variant="text" onClick={() => setDiscardPendingConfirm(false)}>
+						<Button variant="text" onClick={() => blocker.reset?.()}>
 							Cancel
 						</Button>
-						<Button
-							variant="filled"
-							tone="error"
-							onClick={() => navigate({ to: '/exercise-library' })}
-						>
+						<Button variant="filled" tone="error" onClick={() => blocker.proceed?.()}>
 							Discard
 						</Button>
 					</>

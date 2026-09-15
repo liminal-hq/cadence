@@ -87,6 +87,18 @@ export function CategoryEditorScreen() {
 		}
 	}
 
+	function saveCategoryName(category: Category) {
+		if (!category.name.trim()) {
+			setError('Enter a category name.');
+			reload();
+			return;
+		}
+		saveCategoryField(
+			() => repository.renameCategory(category.id, category.name),
+			(updated) => ({ name: updated.name }),
+		);
+	}
+
 	async function handleCreate() {
 		if (!draft) return;
 		await guarded(() =>
@@ -126,12 +138,7 @@ export function CategoryEditorScreen() {
 								onChange={(name) =>
 									setCategories(categories.map((c) => (c.id === category.id ? { ...c, name } : c)))
 								}
-								onBlur={() =>
-									saveCategoryField(
-										() => repository.renameCategory(category.id, category.name),
-										(updated) => ({ name: updated.name }),
-									)
-								}
+								onBlur={() => saveCategoryName(category)}
 							/>
 							<TextField
 								label="Background"
