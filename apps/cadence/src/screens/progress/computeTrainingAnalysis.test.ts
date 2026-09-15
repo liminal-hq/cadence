@@ -386,4 +386,14 @@ describe('analysis favourite config round-trip', () => {
 		const stored = JSON.stringify({ period: '30d', metric: 'volume', groupBy: 'bogus' });
 		expect(parseAnalysisFavouriteConfig(stored)).toBeUndefined();
 	});
+
+	it('rejects a config carrying an unknown field, even with otherwise-valid values', () => {
+		const stored = JSON.stringify({
+			period: '30d',
+			metric: 'volume',
+			groupBy: 'category',
+			comparison: 'previousPeriod',
+		});
+		expect(parseAnalysisFavouriteConfig(stored)).toBeUndefined();
+	});
 });

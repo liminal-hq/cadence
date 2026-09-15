@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
@@ -80,6 +80,12 @@ export function TrainingAnalysisScreen() {
 	const [favourites, setFavourites] = useState<AnalysisFavourite[]>([]);
 	const [pinDraftName, setPinDraftName] = useState<string | null>(null);
 	const [favouriteError, setFavouriteError] = useState<string | null>(null);
+	const [pinning, setPinning] = useState(false);
+	// Tracks the last name this component generated itself, so the pin form's suggested name can
+	// keep following period/metric/groupBy changes made while the form is open -- but only until
+	// the user types their own name, at which point `pinDraftName` no longer matches this and we
+	// stop overwriting their edit.
+	const lastAutoFavouriteName = useRef<string | null>(null);
 
 	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
@@ -121,6 +127,14 @@ export function TrainingAnalysisScreen() {
 		};
 	}, [repository]);
 
+	useEffect(() => {
+		if (pinDraftName === null || pinDraftName !== lastAutoFavouriteName.current) return;
+		const name = defaultFavouriteName(metric, groupBy);
+		lastAutoFavouriteName.current = name;
+		setPinDraftName(name);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [metric, groupBy]);
+
 	function applyFavourite(favourite: AnalysisFavourite) {
 		const config = parseAnalysisFavouriteConfig(favourite.config);
 		if (!config) return;
@@ -129,8 +143,15 @@ export function TrainingAnalysisScreen() {
 		setGroupBy(config.groupBy);
 	}
 
+	function startPin() {
+		const name = defaultFavouriteName(metric, groupBy);
+		lastAutoFavouriteName.current = name;
+		setPinDraftName(name);
+	}
+
 	async function handlePin() {
-		if (!pinDraftName?.trim()) return;
+		if (!pinDraftName?.trim() || pinning) return;
+		setPinning(true);
 		try {
 			setFavouriteError(null);
 			const config = serializeAnalysisFavouriteConfig({ period, metric, groupBy });
@@ -139,6 +160,8 @@ export function TrainingAnalysisScreen() {
 			setPinDraftName(null);
 		} catch (err) {
 			setFavouriteError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setPinning(false);
 		}
 	}
 
@@ -199,11 +222,7 @@ export function TrainingAnalysisScreen() {
 			)}
 
 			{pinDraftName == null ? (
-				<Button
-					variant="text"
-					icon="push_pin"
-					onClick={() => setPinDraftName(defaultFavouriteName(metric, groupBy))}
-				>
+				<Button variant="text" icon="push_pin" onClick={startPin}>
 					Pin this view
 				</Button>
 			) : (
@@ -211,14 +230,18 @@ export function TrainingAnalysisScreen() {
 					<TextField
 						label="Favourite name"
 						value={pinDraftName}
-						onChange={setPinDraftName}
+						onChange={(name) => {
+							lastAutoFavouriteName.current = null;
+							setPinDraftName(name);
+						}}
 						autoFocus
+						disabled={pinning}
 					/>
 					<div className="training-analysis__pin-form-actions">
-						<Button variant="text" onClick={() => setPinDraftName(null)}>
+						<Button variant="text" disabled={pinning} onClick={() => setPinDraftName(null)}>
 							Cancel
 						</Button>
-						<Button variant="filled" disabled={!pinDraftName.trim()} onClick={handlePin}>
+						<Button variant="filled" disabled={!pinDraftName.trim() || pinning} onClick={handlePin}>
 							Save
 						</Button>
 					</div>

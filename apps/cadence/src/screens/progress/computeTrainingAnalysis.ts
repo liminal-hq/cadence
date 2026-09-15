@@ -43,7 +43,14 @@ export function parseAnalysisFavouriteConfig(raw: string): AnalysisFavouriteConf
 	try {
 		const parsed: unknown = JSON.parse(raw);
 		if (typeof parsed !== 'object' || parsed === null) return undefined;
-		const { period, metric, groupBy } = parsed as Record<string, unknown>;
+		const record = parsed as Record<string, unknown>;
+		// Reject any key this build doesn't know about, not just invalid values for the ones it
+		// does -- a favourite saved by a newer build with an extra filter/comparison field would
+		// otherwise silently apply only period/metric/groupBy, showing a different breakdown than
+		// the one actually pinned.
+		const KNOWN_KEYS = new Set(['period', 'metric', 'groupBy']);
+		if (!Object.keys(record).every((key) => KNOWN_KEYS.has(key))) return undefined;
+		const { period, metric, groupBy } = record;
 		if (typeof period !== 'string' || !ANALYSIS_PERIODS.includes(period as AnalysisPeriod)) {
 			return undefined;
 		}

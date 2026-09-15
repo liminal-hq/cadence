@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use sqlx::{FromRow, SqliteConnection};
+use sqlx::{Connection, FromRow, SqliteConnection};
 
 use super::models::AnalysisFavourite;
 use crate::domain::error::{Error, Result};
@@ -105,12 +105,13 @@ pub async fn update(
     get(conn, id).await
 }
 
-/// Rewrites every favourite's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `routines::sections::reorder`'s complete-permutation guard (a stranger id, a duplicate, or an omitted favourite are all rejected).
+/// Rewrites every favourite's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `routines::sections::reorder`'s complete-permutation guard (a stranger id, a duplicate, or an omitted favourite are all rejected). Runs in one transaction so a failure partway through (or an overlapping reorder) can't leave the list half-renumbered.
 pub async fn reorder(
     conn: &mut SqliteConnection,
     ordered_ids: &[String],
 ) -> Result<Vec<AnalysisFavourite>> {
-    let existing = list(conn).await?;
+    let mut tx = conn.begin().await?;
+    let existing = list(&mut tx).await?;
     let mut remaining: std::collections::HashSet<&str> =
         existing.iter().map(|f| f.id.as_str()).collect();
     for id in ordered_ids {
@@ -128,7 +129,7 @@ pub async fn reorder(
     }
     let now = chrono::Utc::now().timestamp_millis();
     for (index, id) in ordered_ids.iter().enumerate() {
-        let revision = crate::db::next_revision(conn).await?;
+        let revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "UPDATE analysis_favourites SET sort_order = ?, updated_at_ms = ?, revision = ? \
              WHERE id = ?",
@@ -137,10 +138,12 @@ pub async fn reorder(
         .bind(now)
         .bind(revision)
         .bind(id)
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
     }
-    list(conn).await
+    let result = list(&mut tx).await?;
+    tx.commit().await?;
+    Ok(result)
 }
 
 /// A no-op if the favourite doesn't exist, otherwise records a tombstone — unpinning a favourite doesn't touch any workout data, so no reject-if-referenced guard applies.
