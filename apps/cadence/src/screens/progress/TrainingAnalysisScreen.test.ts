@@ -27,7 +27,7 @@ describe('dateRangeFor', () => {
 
 	it('uses the earliest-supported date for all time', () => {
 		const { startDate, endDate } = dateRangeFor('all', '2026-09-15');
-		expect(startDate).toBe('2000-01-01');
+		expect(startDate).toBe('0001-01-01');
 		expect(endDate).toBe('2026-09-15');
 	});
 });

@@ -13,14 +13,15 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { formatNumber, todayLocalDate } from '../../domain/format';
 import { addDays, formatCalendarDateLabel } from '../history/historyDates';
-import type { AnalysisSetEntry } from '../../domain/types';
+import type { AnalysisSetEntry, WeightUnit } from '../../domain/types';
 import {
 	ANALYSIS_METRICS,
 	ANALYSIS_METRIC_DEFINITIONS,
 	ANALYSIS_METRIC_LABELS,
-	ANALYSIS_METRIC_UNITS,
 	computeBreakdown,
 	countTrainingDays,
+	displayMetricUnit,
+	displayMetricValue,
 	type AnalysisGroupBy,
 	type AnalysisMetric,
 } from './computeTrainingAnalysis';
@@ -41,7 +42,8 @@ const GROUP_BY_OPTIONS: { value: AnalysisGroupBy; label: string }[] = [
 	{ value: 'exercise', label: 'By exercise' },
 ];
 
-const EARLIEST_DATE = '2000-01-01';
+// A true minimum, not an arbitrary cutoff — workout dates are plain 'YYYY-MM-DD' strings compared lexicographically by the backend's BETWEEN, and a FitNotes import can legitimately predate 2000.
+const EARLIEST_DATE = '0001-01-01';
 
 export function dateRangeFor(
 	period: Period,
@@ -61,7 +63,14 @@ export function TrainingAnalysisScreen() {
 	const [metric, setMetric] = useState<AnalysisMetric>('volume');
 	const [groupBy, setGroupBy] = useState<AnalysisGroupBy>('category');
 	const [entries, setEntries] = useState<AnalysisSetEntry[] | null>(null);
+	const [loadError, setLoadError] = useState<string | null>(null);
+	const [retryToken, setRetryToken] = useState(0);
 	const [expandedKey, setExpandedKey] = useState<string | null>(null);
+	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+
+	useEffect(() => {
+		repository.getSettings().then((settings) => setWeightUnit(settings.weightUnit));
+	}, [repository]);
 
 	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
@@ -69,18 +78,40 @@ export function TrainingAnalysisScreen() {
 	useEffect(() => {
 		let cancelled = false;
 		setEntries(null);
-		repository.listAnalysisSets(startDate, endDate).then((result) => {
-			if (!cancelled) setEntries(result);
-		});
+		setLoadError(null);
+		repository.listAnalysisSets(startDate, endDate).then(
+			(result) => {
+				if (!cancelled) setEntries(result);
+			},
+			(err) => {
+				if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
+			},
+		);
 		return () => {
 			cancelled = true;
 		};
-	}, [repository, startDate, endDate]);
+	}, [repository, startDate, endDate, retryToken]);
+
+	if (loadError) {
+		return (
+			<div className="training-analysis">
+				<EmptyState
+					headline="Couldn't load this breakdown"
+					body={loadError}
+					action={
+						<Button variant="filled" onClick={() => setRetryToken((t) => t + 1)}>
+							Try again
+						</Button>
+					}
+				/>
+			</div>
+		);
+	}
 
 	if (!entries) return null;
 
 	const rows = computeBreakdown(entries, metric, groupBy);
-	const unit = ANALYSIS_METRIC_UNITS[metric];
+	const unit = displayMetricUnit(metric, weightUnit);
 
 	return (
 		<div className="training-analysis">
@@ -156,7 +187,7 @@ export function TrainingAnalysisScreen() {
 												{row.label}
 											</button>
 										</td>
-										<td>{formatNumber(row.value)}</td>
+										<td>{formatNumber(displayMetricValue(row.value, metric, weightUnit))}</td>
 									</tr>
 									{expandedKey === row.key && (
 										<tr>

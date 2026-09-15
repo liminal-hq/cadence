@@ -4,7 +4,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { computeBreakdown, countTrainingDays } from './computeTrainingAnalysis';
+import {
+	computeBreakdown,
+	countTrainingDays,
+	displayMetricUnit,
+	displayMetricValue,
+} from './computeTrainingAnalysis';
 import type { AnalysisSetEntry } from '../../domain/types';
 
 function entry(overrides: Partial<AnalysisSetEntry>): AnalysisSetEntry {
@@ -172,5 +177,22 @@ describe('countTrainingDays', () => {
 			entry({ setId: 's3', date: '2026-09-03' }),
 		]);
 		expect(count).toBe(2);
+	});
+});
+
+describe('displayMetricUnit and displayMetricValue', () => {
+	it('leaves a weight-based metric in kg when the user has configured kg', () => {
+		expect(displayMetricUnit('volume', 'kg')).toBe('kg');
+		expect(displayMetricValue(100, 'volume', 'kg')).toBe(100);
+	});
+
+	it('converts a weight-based metric to lb when the user has configured lb', () => {
+		expect(displayMetricUnit('maxWeight', 'lb')).toBe('lb');
+		expect(displayMetricValue(100, 'maxWeight', 'lb')).toBeCloseTo(220.462, 2);
+	});
+
+	it('leaves a non-weight metric unaffected by the weight unit', () => {
+		expect(displayMetricUnit('maxDistance', 'lb')).toBe('km');
+		expect(displayMetricValue(5, 'maxDistance', 'lb')).toBe(5);
 	});
 });

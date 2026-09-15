@@ -3,7 +3,8 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { AnalysisSetEntry } from '../../domain/types';
+import type { AnalysisSetEntry, WeightUnit } from '../../domain/types';
+import { kgToLb } from '../../domain/format';
 import { estimateOneRepMax, ONE_REP_MAX_FORMULA_NAME } from '../history/oneRepMax';
 
 export type AnalysisMetric =
@@ -72,6 +73,23 @@ export const ANALYSIS_METRIC_UNITS: Record<AnalysisMetric, string> = {
 	pace: 'sec/km',
 	speed: 'km/h',
 };
+
+/** Metrics whose canonical unit above is kg — the only ones affected by Settings' weight-unit preference. */
+const WEIGHT_METRICS: AnalysisMetric[] = ['volume', 'maxWeight', 'estimated1RM'];
+
+/** `ANALYSIS_METRIC_UNITS[metric]`, but converted to the user's configured weight unit for a weight-based metric — everything else is unit-agnostic and passes through unchanged. */
+export function displayMetricUnit(metric: AnalysisMetric, weightUnit: WeightUnit): string {
+	return WEIGHT_METRICS.includes(metric) ? weightUnit : ANALYSIS_METRIC_UNITS[metric];
+}
+
+/** A breakdown row's value (always computed and stored in kg), converted for display when the metric is weight-based and the user has configured pounds. */
+export function displayMetricValue(
+	value: number,
+	metric: AnalysisMetric,
+	weightUnit: WeightUnit,
+): number {
+	return WEIGHT_METRICS.includes(metric) && weightUnit === 'lb' ? kgToLb(value) : value;
+}
 
 /** Plain-language definition of how each metric is computed within a group — SPEC.md 8.7 requires stating a metric's definition and unit in the UI, not just its label, since several of these (pace/speed in particular) are simple per-set averages rather than totals-derived rates. */
 export const ANALYSIS_METRIC_DEFINITIONS: Record<AnalysisMetric, string> = {
