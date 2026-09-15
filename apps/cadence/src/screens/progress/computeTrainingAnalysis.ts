@@ -24,6 +24,9 @@ export type AnalysisGroupBy = 'category' | 'exercise';
 
 export type AnalysisPeriod = '7d' | '30d' | '90d' | '1y' | 'all';
 
+const ANALYSIS_PERIODS: AnalysisPeriod[] = ['7d', '30d', '90d', '1y', 'all'];
+const ANALYSIS_GROUP_BYS: AnalysisGroupBy[] = ['category', 'exercise'];
+
 /** The opaque JSON shape stored in `AnalysisFavourite.config` — this file both writes and reads it, so `AnalysisFavourite`'s backend-side "opaque blob" stays genuinely opaque to everything else. */
 export interface AnalysisFavouriteConfig {
 	period: AnalysisPeriod;
@@ -35,20 +38,22 @@ export function serializeAnalysisFavouriteConfig(config: AnalysisFavouriteConfig
 	return JSON.stringify(config);
 }
 
-/** Returns `undefined` for anything that isn't a well-formed config — a favourite saved by a future version with fields this build doesn't recognize, or corrupted storage — so the caller can skip it rather than crash applying it. */
+/** Returns `undefined` for anything that isn't a well-formed config — a favourite saved by a future version with fields or values this build doesn't recognize, or corrupted storage — so the caller can skip it rather than crash applying it. Validates that each field is actually one of its supported union members, not just present, since a merely-present-but-invalid value (e.g. a metric retired in a later release) would otherwise reach `computeBreakdown` or `ANALYSIS_METRIC_LABELS` and behave as if it were a real one. */
 export function parseAnalysisFavouriteConfig(raw: string): AnalysisFavouriteConfig | undefined {
 	try {
 		const parsed: unknown = JSON.parse(raw);
-		if (
-			typeof parsed === 'object' &&
-			parsed !== null &&
-			'period' in parsed &&
-			'metric' in parsed &&
-			'groupBy' in parsed
-		) {
-			return parsed as AnalysisFavouriteConfig;
+		if (typeof parsed !== 'object' || parsed === null) return undefined;
+		const { period, metric, groupBy } = parsed as Record<string, unknown>;
+		if (typeof period !== 'string' || !ANALYSIS_PERIODS.includes(period as AnalysisPeriod)) {
+			return undefined;
 		}
-		return undefined;
+		if (typeof metric !== 'string' || !ANALYSIS_METRICS.includes(metric as AnalysisMetric)) {
+			return undefined;
+		}
+		if (typeof groupBy !== 'string' || !ANALYSIS_GROUP_BYS.includes(groupBy as AnalysisGroupBy)) {
+			return undefined;
+		}
+		return { period, metric, groupBy } as AnalysisFavouriteConfig;
 	} catch {
 		return undefined;
 	}

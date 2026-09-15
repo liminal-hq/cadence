@@ -1,4 +1,4 @@
-// Row mapping and persistence for analysis favourites — a pinned P-47 breakdown configuration.
+// Row mapping and persistence for analysis favourites — a pinned P-47 breakdown configuration
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

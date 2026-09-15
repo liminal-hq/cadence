@@ -371,4 +371,19 @@ describe('analysis favourite config round-trip', () => {
 	it('rejects a well-formed object missing a required field', () => {
 		expect(parseAnalysisFavouriteConfig(JSON.stringify({ period: '30d' }))).toBeUndefined();
 	});
+
+	it('rejects a config whose metric is not a supported value', () => {
+		const stored = JSON.stringify({ period: '30d', metric: 'bogus', groupBy: 'category' });
+		expect(parseAnalysisFavouriteConfig(stored)).toBeUndefined();
+	});
+
+	it('rejects a config whose period is not a supported value', () => {
+		const stored = JSON.stringify({ period: 'bogus', metric: 'volume', groupBy: 'category' });
+		expect(parseAnalysisFavouriteConfig(stored)).toBeUndefined();
+	});
+
+	it('rejects a config whose groupBy is not a supported value', () => {
+		const stored = JSON.stringify({ period: '30d', metric: 'volume', groupBy: 'bogus' });
+		expect(parseAnalysisFavouriteConfig(stored)).toBeUndefined();
+	});
 });
