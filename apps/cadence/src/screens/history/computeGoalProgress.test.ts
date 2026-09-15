@@ -123,6 +123,19 @@ describe('computeGoalProgress', () => {
 		expect(result.best).toMatchObject({ weightKg: 100, reps: 1, date: '2026-09-10' });
 	});
 
+	it('ignores a completed set missing the targeted metrics when ranking best', () => {
+		const result = computeGoalProgress(goal({ targetWeightKg: 100 }), [
+			dated('2026-09-01', {}),
+			dated('2026-09-10', { weightKg: 90, reps: 3 }),
+		]);
+		expect(result.best).toMatchObject({ weightKg: 90, reps: 3, date: '2026-09-10' });
+	});
+
+	it('reports no history yet when only blank completed sets exist', () => {
+		const result = computeGoalProgress(goal({ targetWeightKg: 100 }), [dated('2026-09-01', {})]);
+		expect(result.best).toBeUndefined();
+	});
+
 	it('is overdue once the target date has passed unachieved', () => {
 		const result = computeGoalProgress(
 			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),

@@ -67,10 +67,21 @@ export function computeGoalProgress(
 			? (entry.set.distanceKm ?? 0)
 			: (entry.set.durationSec ?? 0);
 	};
-	const best = eligible.reduce<DatedSet | undefined>(
-		(top, entry) => (!top || rank(entry) > rank(top) ? entry : top),
-		undefined,
-	);
+	// A set can be marked completed without every field filled in (SetEditorSheet permits a blank weight-reps set); such a set has nothing to rank and must not be picked as "best" over having no compatible performance at all.
+	const hasRankedMetric = (entry: DatedSet) => {
+		if (isWeightReps) {
+			return goal.targetWeightKg != null ? entry.set.weightKg != null : entry.set.reps != null;
+		}
+		return goal.targetDistanceKm != null
+			? entry.set.distanceKm != null
+			: entry.set.durationSec != null;
+	};
+	const best = eligible
+		.filter(hasRankedMetric)
+		.reduce<DatedSet | undefined>(
+			(top, entry) => (!top || rank(entry) > rank(top) ? entry : top),
+			undefined,
+		);
 
 	return {
 		achieved,

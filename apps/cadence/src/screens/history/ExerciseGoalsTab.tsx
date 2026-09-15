@@ -15,6 +15,7 @@ import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { Exercise, ExerciseGoal, ExerciseGoalValues } from '../../domain/types';
 import { computeGoalProgress } from './computeGoalProgress';
+import { formatCalendarDateLabel } from './historyDates';
 import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
 import './ExerciseGoalsTab.css';
 
@@ -65,6 +66,14 @@ function draftHasTarget(
 		: draft.targetDistanceKm != null || draft.targetDurationSec != null;
 }
 
+/** `undefined` when the goal has neither date set — nothing to render on the row. */
+function dateRangeLabel(goal: ExerciseGoal): string | undefined {
+	if (!goal.startDate && !goal.targetDate) return undefined;
+	const start = goal.startDate ? formatCalendarDateLabel(goal.startDate) : 'the start';
+	const target = goal.targetDate ? formatCalendarDateLabel(goal.targetDate) : 'no deadline';
+	return `${start} → ${target}`;
+}
+
 export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	const repository = useLoggingRepository();
 	const [goals, setGoals] = useState<ExerciseGoal[] | null>(null);
@@ -73,6 +82,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [goalPendingDelete, setGoalPendingDelete] = useState<ExerciseGoal | null>(null);
 	const [showArchived, setShowArchived] = useState(false);
+	const [saving, setSaving] = useState(false);
 
 	const reload = () => {
 		repository.listExerciseGoals(exercise.id).then(setGoals);
@@ -80,11 +90,16 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 
 	useEffect(reload, [repository, exercise.id]);
 
+	const hasArchived = Boolean(goals?.some((goal) => goal.archived));
+	useEffect(() => {
+		// The last archived goal being unarchived or deleted must not strand the view on an empty "No archived goals" state with no chip left to get back to the active list.
+		if (!hasArchived) setShowArchived(false);
+	}, [hasArchived]);
+
 	if (!goals) return null;
 
 	const datedSets = flattenDatedSets(history);
 	const visibleGoals = goals.filter((goal) => goal.archived === showArchived);
-	const hasArchived = goals.some((goal) => goal.archived);
 
 	async function guarded(action: () => Promise<unknown>) {
 		try {
@@ -119,7 +134,8 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	}
 
 	async function handleSave() {
-		if (!draft) return;
+		if (!draft || saving) return;
+		setSaving(true);
 		try {
 			setError(null);
 			if (editingId) {
@@ -132,6 +148,8 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 			setEditingId(null);
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			setSaving(false);
 		}
 	}
 
@@ -198,6 +216,9 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 										<span className="exercise-goals-tab__target">
 											Target: {targetLabel(goal, exercise.metricProfile)}
 										</span>
+										{dateRangeLabel(goal) && (
+											<span className="exercise-goals-tab__dates">{dateRangeLabel(goal)}</span>
+										)}
 										<span className="exercise-goals-tab__best">
 											{progress?.achieved
 												? 'Goal met by logged history'
@@ -321,7 +342,9 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 						</Button>
 						<Button
 							variant="filled"
-							disabled={!draft.title.trim() || !draftHasTarget(draft, exercise.metricProfile)}
+							disabled={
+								saving || !draft.title.trim() || !draftHasTarget(draft, exercise.metricProfile)
+							}
 							onClick={handleSave}
 						>
 							Save

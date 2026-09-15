@@ -45,6 +45,11 @@
 	color: var(--cadence-on-surface-variant);
 }
 
+.exercise-goals-tab__dates {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
 .exercise-goals-tab__row-actions {
 	display: flex;
 	flex-wrap: wrap;
