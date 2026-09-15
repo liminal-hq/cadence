@@ -139,11 +139,11 @@ export function PlateCalculatorSheet({
 					<button
 						type="button"
 						className="plate-calculator-sheet__stepper-item"
-						disabled={result.nearestLower === undefined}
-						onClick={() => result.nearestLower !== undefined && useTotal(result.nearestLower)}
+						disabled={result.nearestLower == null}
+						onClick={() => result.nearestLower != null && useTotal(result.nearestLower)}
 					>
 						<span className="material-symbols-rounded">chevron_left</span>
-						{result.nearestLower !== undefined ? formatNumber(result.nearestLower) : '—'}
+						{result.nearestLower != null ? formatNumber(result.nearestLower) : '—'}
 					</button>
 					<span
 						className={`plate-calculator-sheet__current ${result.loadable ? 'is-loadable' : 'is-warning'}`}
@@ -154,10 +154,10 @@ export function PlateCalculatorSheet({
 					<button
 						type="button"
 						className="plate-calculator-sheet__stepper-item"
-						disabled={result.nearestHigher === undefined}
-						onClick={() => result.nearestHigher !== undefined && useTotal(result.nearestHigher)}
+						disabled={result.nearestHigher == null}
+						onClick={() => result.nearestHigher != null && useTotal(result.nearestHigher)}
 					>
-						{result.nearestHigher !== undefined ? formatNumber(result.nearestHigher) : '—'}
+						{result.nearestHigher != null ? formatNumber(result.nearestHigher) : '—'}
 						<span className="material-symbols-rounded">chevron_right</span>
 					</button>
 				</div>
@@ -165,12 +165,12 @@ export function PlateCalculatorSheet({
 				{!result.loadable && (
 					<>
 						<div className="plate-calculator-sheet__resolutions">
-							{result.nearestLower !== undefined && (
+							{result.nearestLower != null && (
 								<Button variant="tonal" onClick={() => useTotal(result.nearestLower!)}>
 									Use {formatNumber(result.nearestLower)}
 								</Button>
 							)}
-							{result.nearestHigher !== undefined && (
+							{result.nearestHigher != null && (
 								<Button variant="tonal" onClick={() => useTotal(result.nearestHigher!)}>
 									Use {formatNumber(result.nearestHigher)}
 								</Button>
