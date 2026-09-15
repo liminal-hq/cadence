@@ -1,14 +1,4 @@
-.settings-screen {
-	display: flex;
-	flex-direction: column;
-	height: 100%;
-	min-height: 0;
-}
-
 .settings-screen__content {
-	flex: 1;
-	min-height: 0;
-	overflow-y: auto;
 	display: flex;
 	flex-direction: column;
 	gap: var(--cadence-space-2);
