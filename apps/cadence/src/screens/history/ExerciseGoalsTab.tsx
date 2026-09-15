@@ -66,6 +66,25 @@ function draftHasTarget(
 		: draft.targetDistanceKm != null || draft.targetDurationSec != null;
 }
 
+/** `undefined` when the draft is safe to save — otherwise a message to show the user. Both integer fields map to a Rust `i32` (a fractional value fails deserialization rather than the intended validation error), and an inverted date range can never be achieved (`computeGoalProgress`'s eligible window requires on-or-after start AND on-or-before target). */
+export function draftValidationError(
+	draft: ExerciseGoalValues,
+	metricProfile: Exercise['metricProfile'],
+): string | undefined {
+	if (!draft.title.trim()) return 'Enter a title.';
+	if (!draftHasTarget(draft, metricProfile)) return 'Enter a target.';
+	if (draft.targetReps != null && !Number.isInteger(draft.targetReps)) {
+		return 'Target reps must be a whole number.';
+	}
+	if (draft.targetDurationSec != null && !Number.isInteger(draft.targetDurationSec)) {
+		return 'Target duration must be a whole number of seconds.';
+	}
+	if (draft.startDate && draft.targetDate && draft.targetDate < draft.startDate) {
+		return 'Target date must be on or after the start date.';
+	}
+	return undefined;
+}
+
 /** `undefined` when the goal has neither date set — nothing to render on the row. */
 function dateRangeLabel(goal: ExerciseGoal): string | undefined {
 	if (!goal.startDate && !goal.targetDate) return undefined;
@@ -135,6 +154,11 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 
 	async function handleSave() {
 		if (!draft || saving) return;
+		const validationError = draftValidationError(draft, exercise.metricProfile);
+		if (validationError) {
+			setError(validationError);
+			return;
+		}
 		setSaving(true);
 		try {
 			setError(null);
@@ -286,6 +310,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 							<TextField
 								label="Target reps"
 								type="number"
+								step={1}
 								value={draft.targetReps != null ? String(draft.targetReps) : ''}
 								onChange={(raw) =>
 									setDraft({ ...draft, targetReps: raw.trim() === '' ? undefined : Number(raw) })
@@ -308,6 +333,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 							<TextField
 								label="Target duration (seconds)"
 								type="number"
+								step={1}
 								value={draft.targetDurationSec != null ? String(draft.targetDurationSec) : ''}
 								onChange={(raw) =>
 									setDraft({
@@ -342,9 +368,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 						</Button>
 						<Button
 							variant="filled"
-							disabled={
-								saving || !draft.title.trim() || !draftHasTarget(draft, exercise.metricProfile)
-							}
+							disabled={saving || draftValidationError(draft, exercise.metricProfile) != null}
 							onClick={handleSave}
 						>
 							Save

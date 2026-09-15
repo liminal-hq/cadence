@@ -145,6 +145,15 @@ describe('computeGoalProgress', () => {
 		expect(result.overdue).toBe(true);
 	});
 
+	it('is not overdue once manually marked achieved, even past the target date with no matching set', () => {
+		const result = computeGoalProgress(
+			goal({ targetWeightKg: 100, targetDate: '2026-09-05', achievedAt: '2026-09-10T00:00:00Z' }),
+			[dated('2026-09-01', { weightKg: 80, reps: 1 })],
+			'2026-09-15',
+		);
+		expect(result.overdue).toBe(false);
+	});
+
 	it('is not overdue once achieved by the target date', () => {
 		const result = computeGoalProgress(
 			goal({ targetWeightKg: 100, targetDate: '2026-09-05' }),

@@ -56,7 +56,10 @@ export function computeGoalProgress(
 	const withinDeadline = eligible.filter(({ date }) => !goal.targetDate || date <= goal.targetDate);
 
 	const achieved = hasTarget(goal) && withinDeadline.some((entry) => meetsTarget(goal, entry));
-	const overdue = Boolean(goal.targetDate && today > goal.targetDate && !achieved);
+	// A manually-achieved goal (SPEC.md 8.8's toggle, independent of this computed history check) is an achieved state, full stop — it must not also read as overdue just because the deadline has since passed.
+	const overdue = Boolean(
+		goal.targetDate && today > goal.targetDate && !achieved && goal.achievedAt == null,
+	);
 
 	const isWeightReps = goal.targetWeightKg != null || goal.targetReps != null;
 	const rank = (entry: DatedSet) => {
