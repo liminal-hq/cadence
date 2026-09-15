@@ -118,6 +118,7 @@ pub fn run() {
             commands::reorder_routine_exercises,
             commands::set_routine_exercise_superset,
             commands::update_routine_exercise_note,
+            commands::update_routine_exercise_rest,
             commands::delete_routine_exercise,
             commands::list_set_templates,
             commands::add_set_template,
