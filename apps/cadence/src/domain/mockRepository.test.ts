@@ -572,6 +572,7 @@ describe('MockLoggingRepository', () => {
 			]);
 			const workoutExercises = await repo.listWorkoutExercisesByWorkout(workout.id);
 			expect(workoutExercises.map((we) => we.supersetPosition)).toEqual([1, 2]);
+			expect(workoutExercises.map((we) => we.supersetSize)).toEqual([2, 2]);
 		});
 
 		it('copies the routine exercise note and set label onto the workout', async () => {

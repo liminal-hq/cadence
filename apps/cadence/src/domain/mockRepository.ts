@@ -813,8 +813,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	): Promise<Workout> {
 		const section = await this.getRoutineSection(routineSectionId);
 		const routine = await this.getRoutine(section.routineId);
-		// Ordered by the caller's selectedRoutineExerciseIds — the reviewed order from the
-		// materialization review screen — not the routine's own order.
+		// Ordered by the caller's selectedRoutineExerciseIds — the reviewed order from the materialization review screen — not the routine's own order.
 		const byId = new Map(
 			(await this.listRoutineExercises(routineSectionId)).map((re) => [re.id, re]),
 		);
@@ -834,10 +833,12 @@ export class MockLoggingRepository implements LoggingRepository {
 		this.workouts.set(workout.id, workout);
 
 		const supersetIdMap = new Map<string, string>();
-		// Positions are recomputed densely among only the *selected* members of each superset, in
-		// reviewed order — carrying over a member's original supersetPosition verbatim would leave
-		// gaps or an out-of-range position once an earlier member is deselected.
+		// Positions are recomputed densely among only the *selected* members of each superset, in reviewed order — carrying over a member's original supersetPosition verbatim would leave gaps or an out-of-range position once an earlier member is deselected.
 		const supersetPositionCounters = new Map<string, number>();
+		// A group's final size is only known once every selected member has been counted, so the
+		// materialized workout exercises are backfilled with it in a second pass below, mirroring
+		// how the real backend's `superset_size` is a live COUNT rather than a stored value.
+		const materializedExerciseIds: string[] = [];
 
 		for (const [index, re] of selected.entries()) {
 			const newOrder = index + 1;
@@ -865,6 +866,7 @@ export class MockLoggingRepository implements LoggingRepository {
 				supersetPosition: newSupersetPosition,
 			};
 			this.workoutExercises.set(newWorkoutExercise.id, newWorkoutExercise);
+			materializedExerciseIds.push(newWorkoutExercise.id);
 
 			const templates = await this.listSetTemplates(re.id);
 			for (const template of templates) {
@@ -887,6 +889,16 @@ export class MockLoggingRepository implements LoggingRepository {
 					...values,
 				};
 				this.sets.set(set.id, set);
+			}
+		}
+
+		for (const id of materializedExerciseIds) {
+			const we = this.workoutExercises.get(id);
+			if (we?.supersetGroupId) {
+				const size = [...this.workoutExercises.values()].filter(
+					(other) => other.supersetGroupId === we.supersetGroupId,
+				).length;
+				this.workoutExercises.set(id, { ...we, supersetSize: size });
 			}
 		}
 

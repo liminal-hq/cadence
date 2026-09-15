@@ -243,8 +243,9 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     let new_id = uuid::Uuid::new_v4().to_string();
     sqlx::query(
         "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, sort_order, status, \
-         weight_g, reps, distance_m, duration_s, note, set_label, pending_sync, created_at_ms, \
-         updated_at_ms, revision) VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+         weight_g, reps, distance_m, duration_s, note, set_label, source_template_id, \
+         pending_sync, created_at_ms, updated_at_ms, revision) \
+         VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
     )
     .bind(&new_id)
     .bind(&workout_id)
@@ -257,6 +258,7 @@ pub async fn duplicate(conn: &mut SqliteConnection, id: &str) -> Result<SetEntry
     .bind(existing.duration_sec)
     .bind(&existing.note)
     .bind(&existing.set_label)
+    .bind(&existing.source_template_id)
     .bind(now)
     .bind(now)
     .bind(crate::db::next_revision(conn).await?)
@@ -570,6 +572,22 @@ mod tests {
             .unwrap();
         let duplicated = duplicate(&mut conn, &sets[1].id).await.unwrap();
         assert_eq!(duplicated.set_label.as_deref(), Some("warm-up"));
+    }
+
+    #[tokio::test]
+    async fn duplicate_preserves_the_source_template_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let (_, sets) = seed_four_bench_press_sets(&mut conn).await;
+        // source_template_id is only ever written by routine materialization today, so it's set
+        // directly here rather than through a repo function that doesn't exist yet.
+        sqlx::query("UPDATE sets SET source_template_id = 'template-1' WHERE id = ?")
+            .bind(&sets[1].id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+        let duplicated = duplicate(&mut conn, &sets[1].id).await.unwrap();
+        assert_eq!(duplicated.source_template_id.as_deref(), Some("template-1"));
     }
 
     #[tokio::test]

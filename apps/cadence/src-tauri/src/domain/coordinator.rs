@@ -293,8 +293,8 @@ impl<R: Runtime> Coordinator<R> {
                 sqlx::query(
                     "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, \
                      sort_order, status, weight_g, reps, distance_m, duration_s, note, \
-                     set_label, pending_sync, created_at_ms, updated_at_ms, revision) \
-                     VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
+                     set_label, source_template_id, pending_sync, created_at_ms, updated_at_ms, \
+                     revision) VALUES (?, ?, ?, ?, ?, 'planned', ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)",
                 )
                 .bind(&new_set_id)
                 .bind(&new_workout_id)
@@ -307,6 +307,7 @@ impl<R: Runtime> Coordinator<R> {
                 .bind(source_set.duration_sec)
                 .bind(&source_set.note)
                 .bind(&source_set.set_label)
+                .bind(&source_set.source_template_id)
                 .bind(now)
                 .bind(now)
                 .bind(set_revision)
@@ -485,19 +486,14 @@ impl<R: Runtime> Coordinator<R> {
 
         let section = routines::sections::get(&mut tx, routine_section_id).await?;
         let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
-        // Ordered by the caller's `selected_routine_exercise_ids`, not the routine's own order —
-        // that array is the reviewed order from the materialization review screen, so it must
-        // drive the new workout's exercise order, not just filter membership.
+        // Ordered by the caller's `selected_routine_exercise_ids`, not the routine's own order — that array is the reviewed order from the materialization review screen, so it must drive the new workout's exercise order, not just filter membership.
         let by_id: HashMap<String, RoutineExercise> =
             routines::routine_exercises::list_by_section(&mut tx, routine_section_id)
                 .await?
                 .into_iter()
                 .map(|re| (re.id.clone(), re))
                 .collect();
-        // Excludes an exercise that's since been archived — the review screen's own picker
-        // filters archived exercises out of fresh selections, but a routine can still reference
-        // one that was archived after it was added, and materializing it would put an archived
-        // exercise straight into a brand-new workout.
+        // Excludes an exercise that's since been archived — the review screen's own picker filters archived exercises out of fresh selections, but a routine can still reference one that was archived after it was added, and materializing it would put an archived exercise straight into a brand-new workout.
         let mut selected: Vec<RoutineExercise> = selected_routine_exercise_ids
             .iter()
             .filter_map(|id| by_id.get(id).cloned())
@@ -531,9 +527,7 @@ impl<R: Runtime> Coordinator<R> {
         .await?;
 
         let mut superset_id_map: HashMap<String, String> = HashMap::new();
-        // Positions are recomputed densely among only the *selected* members of each superset, in
-        // reviewed order — carrying over a member's original `superset_position` verbatim would
-        // leave gaps or an out-of-range position once an earlier member is deselected.
+        // Positions are recomputed densely among only the *selected* members of each superset, in reviewed order — carrying over a member's original `superset_position` verbatim would leave gaps or an out-of-range position once an earlier member is deselected.
         let mut superset_position_counters: HashMap<String, i32> = HashMap::new();
 
         for (index, re) in selected.iter().enumerate() {
@@ -1325,6 +1319,45 @@ mod tests {
             .unwrap();
         let duplicated_sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
         assert_eq!(duplicated_sets[0].set_label.as_deref(), Some("warm-up"));
+    }
+
+    #[tokio::test]
+    async fn duplicate_workout_preserves_source_template_ids() {
+        let c = test_coordinator().await;
+        let source = c.create_workout("2026-09-04", "Push A").await.unwrap();
+        let bench = c
+            .add_workout_exercise(&source.id, "ex-bench-press")
+            .await
+            .unwrap();
+        let set = c
+            .log_new_set(
+                &bench.id,
+                &SetValues {
+                    weight_kg: Some(80.0),
+                    reps: Some(8),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        // source_template_id is only ever written by routine materialization today, so it's set
+        // directly here rather than through a Coordinator method that doesn't exist yet.
+        sqlx::query("UPDATE sets SET source_template_id = 'template-1' WHERE id = ?")
+            .bind(&set.id)
+            .execute(&c.pool)
+            .await
+            .unwrap();
+
+        let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
+        let workout_exercises = c
+            .list_workout_exercises_by_workout(&duplicated.id)
+            .await
+            .unwrap();
+        let duplicated_sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
+        assert_eq!(
+            duplicated_sets[0].source_template_id.as_deref(),
+            Some("template-1")
+        );
     }
 
     #[tokio::test]
