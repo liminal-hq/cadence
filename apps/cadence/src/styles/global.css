@@ -2,6 +2,10 @@
 
 * {
 	box-sizing: border-box;
+	/* Android WebView's own tap-highlight box ignores border-radius and stacks on top of this
+	   file's own M3 state layers below, reading as a stray square flash on every tap — the
+	   deliberate state layers below are the only tap feedback buttons should show. */
+	-webkit-tap-highlight-color: transparent;
 }
 
 html,

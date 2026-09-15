@@ -13,6 +13,16 @@
 	overflow-y: auto;
 }
 
+/* Every screen's own content class turns this element into a flex column too (for `gap`
+   spacing), which makes its direct children flex items -- without this, once their combined
+   content outgrows the visible area, flexbox shrinks them all to fit instead of leaving them
+   full size and letting the overflow above scroll, squashing things like a bottom action
+   button shorter the more content there is above it. This is a phone screen, not a
+   flex-shrinking web page: nothing here should get smaller than it started. */
+.screen-shell__content > * {
+	flex-shrink: 0;
+}
+
 .screen-empty-state__headline {
 	font-size: var(--cadence-type-title-l-size);
 	line-height: var(--cadence-type-title-l-line);
