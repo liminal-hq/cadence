@@ -15,6 +15,7 @@ pub struct MeasurementDefinition {
     pub name: String,
     pub unit: String,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub goal: Option<f64>,
     pub sort_order: i32,
     pub archived: bool,
@@ -32,5 +33,39 @@ pub struct MeasurementRecord {
     pub recorded_at: String,
     pub value: f64,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn omits_a_definitions_absent_goal_rather_than_serializing_it_as_null() {
+        let definition = MeasurementDefinition {
+            id: "def-1".to_string(),
+            name: "Bodyweight".to_string(),
+            unit: "kg".to_string(),
+            goal: None,
+            sort_order: 0,
+            archived: false,
+        };
+        let value = serde_json::to_value(&definition).unwrap();
+        assert!(!value.as_object().unwrap().contains_key("goal"));
+    }
+
+    #[test]
+    fn omits_a_records_absent_note_rather_than_serializing_it_as_null() {
+        let record = MeasurementRecord {
+            id: "rec-1".to_string(),
+            definition_id: "def-1".to_string(),
+            date: "2026-09-15".to_string(),
+            recorded_at: "2026-09-15T00:00:00.000Z".to_string(),
+            value: 80.0,
+            note: None,
+        };
+        let value = serde_json::to_value(&record).unwrap();
+        assert!(!value.as_object().unwrap().contains_key("note"));
+    }
 }

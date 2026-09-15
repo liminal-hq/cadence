@@ -5,6 +5,6 @@
  */
 export type ExerciseGoal = { id: string, exerciseId: string, title: string, targetWeightKg?: number, targetReps?: number, targetDistanceKm?: number, targetDurationSec?: number, startDate?: string, targetDate?: string, 
 /**
- * Set by the explicit `set_achieved` toggle, not inferred automatically — a user can mark a goal met (or clear that) independently of whatever the history-derived progress calculation shows, matching SPEC.md 8.8's "a goal and a record are different entities." Omitted rather than serialized as `null` when absent, matching the generated/frontend type's `achievedAt?: string` (a plain optional property, not `string | null`) and the mock's `undefined`.
+ * Set by the explicit `set_achieved` toggle, not inferred automatically — a user can mark a goal met (or clear that) independently of whatever the history-derived progress calculation shows, matching SPEC.md 8.8's "a goal and a record are different entities."
  */
 achievedAt?: string, archived: boolean, };

@@ -163,12 +163,13 @@ pub async fn set_archived(
     get(conn, id).await
 }
 
-/// Rewrites every definition's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `routines::sections::reorder`'s complete-permutation guard (a stranger id, a duplicate, or an omitted definition are all rejected).
+/// Rewrites every definition's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `routines::sections::reorder`'s complete-permutation guard (a stranger id, a duplicate, or an omitted definition are all rejected). The whole validate-then-write sequence runs in one transaction so two overlapping reorder requests, or a mid-write failure, can't interleave and leave duplicate or partially-applied `sort_order` values.
 pub async fn reorder(
     conn: &mut SqliteConnection,
     ordered_ids: &[String],
 ) -> Result<Vec<MeasurementDefinition>> {
-    let existing = list(conn).await?;
+    let mut tx = conn.begin().await?;
+    let existing = list(&mut tx).await?;
     let mut remaining: std::collections::HashSet<&str> =
         existing.iter().map(|d| d.id.as_str()).collect();
     for id in ordered_ids {
@@ -186,7 +187,7 @@ pub async fn reorder(
     }
     let now = chrono::Utc::now().timestamp_millis();
     for (index, id) in ordered_ids.iter().enumerate() {
-        let revision = crate::db::next_revision(conn).await?;
+        let revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "UPDATE measurement_definitions SET sort_order = ?, updated_at_ms = ?, revision = ? \
              WHERE id = ?",
@@ -195,10 +196,12 @@ pub async fn reorder(
         .bind(now)
         .bind(revision)
         .bind(id)
-        .execute(&mut *conn)
+        .execute(&mut *tx)
         .await?;
     }
-    list(conn).await
+    let reordered = list(&mut tx).await?;
+    tx.commit().await?;
+    Ok(reordered)
 }
 
 /// A no-op if the definition doesn't exist, otherwise records a tombstone. Its records cascade via the schema's `ON DELETE CASCADE` — unlike categories/exercises, a measurement record isn't durable training history, so no reject-if-referenced guard applies here; archiving is the encouraged reversible path (SPEC.md 8.8: "all definitions remain editable").

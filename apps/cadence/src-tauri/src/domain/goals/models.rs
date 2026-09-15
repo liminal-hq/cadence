@@ -14,19 +14,26 @@ pub struct ExerciseGoal {
     pub id: String,
     pub exercise_id: String,
     pub title: String,
+    // Every optional field below is omitted rather than serialized as `null` when absent, matching the generated/frontend type's plain `?: T` optional properties (not `T | null`) and the mock's `undefined` — a consistent contract, not just the achieved_at case fixed earlier.
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_weight_kg: Option<f64>,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_reps: Option<i32>,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_distance_km: Option<f64>,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_duration_sec: Option<i32>,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub start_date: Option<String>,
     #[cfg_attr(test, ts(optional))]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub target_date: Option<String>,
-    /// Set by the explicit `set_achieved` toggle, not inferred automatically — a user can mark a goal met (or clear that) independently of whatever the history-derived progress calculation shows, matching SPEC.md 8.8's "a goal and a record are different entities." Omitted rather than serialized as `null` when absent, matching the generated/frontend type's `achievedAt?: string` (a plain optional property, not `string | null`) and the mock's `undefined`.
+    /// Set by the explicit `set_achieved` toggle, not inferred automatically — a user can mark a goal met (or clear that) independently of whatever the history-derived progress calculation shows, matching SPEC.md 8.8's "a goal and a record are different entities."
     #[cfg_attr(test, ts(optional))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub achieved_at: Option<String>,
@@ -60,7 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn omits_achieved_at_rather_than_serializing_it_as_null() {
+    fn omits_every_absent_optional_field_rather_than_serializing_it_as_null() {
         let goal = ExerciseGoal {
             id: "goal-1".to_string(),
             exercise_id: "ex-1".to_string(),
@@ -75,6 +82,20 @@ mod tests {
             archived: false,
         };
         let value = serde_json::to_value(&goal).unwrap();
-        assert!(!value.as_object().unwrap().contains_key("achievedAt"));
+        let object = value.as_object().unwrap();
+        for field in [
+            "targetWeightKg",
+            "targetReps",
+            "targetDistanceKm",
+            "targetDurationSec",
+            "startDate",
+            "targetDate",
+            "achievedAt",
+        ] {
+            assert!(
+                !object.contains_key(field),
+                "expected {field:?} to be omitted"
+            );
+        }
     }
 }
