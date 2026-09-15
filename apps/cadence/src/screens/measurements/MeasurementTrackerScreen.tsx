@@ -63,13 +63,17 @@ export function MeasurementTrackerScreen() {
 
 	// Always reloads, on success or failure — a rejected update (e.g. a unit change once records or
 	// a goal exist) must not leave the optimistic edit from onChange sitting in local state, since
-	// the persisted definition never actually changed.
-	async function guarded(action: () => Promise<unknown>) {
+	// the persisted definition never actually changed. Returns whether the action succeeded, so a
+	// caller with its own draft/dialog state (handleCreate, handleQuickLog) can leave that open on
+	// failure instead of closing as if the save had gone through.
+	async function guarded(action: () => Promise<unknown>): Promise<boolean> {
 		try {
 			setError(null);
 			await action();
+			return true;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+			return false;
 		} finally {
 			reload();
 		}
@@ -93,8 +97,10 @@ export function MeasurementTrackerScreen() {
 
 	async function handleCreate() {
 		if (!newDraft) return;
-		await guarded(() => repository.createMeasurementDefinition(newDraft.name, newDraft.unit));
-		setNewDraft(null);
+		const succeeded = await guarded(() =>
+			repository.createMeasurementDefinition(newDraft.name, newDraft.unit),
+		);
+		if (succeeded) setNewDraft(null);
 	}
 
 	async function handleQuickLog(definitionId: string) {
@@ -103,11 +109,13 @@ export function MeasurementTrackerScreen() {
 			setError('Enter a numeric value.');
 			return;
 		}
-		await guarded(() =>
+		const succeeded = await guarded(() =>
 			repository.createMeasurementRecord(definitionId, todayLocalDate(), value, undefined),
 		);
-		setQuickLogId(null);
-		setQuickLogValue('');
+		if (succeeded) {
+			setQuickLogId(null);
+			setQuickLogValue('');
+		}
 	}
 
 	const enabled = definitions.filter((d) => !d.archived);

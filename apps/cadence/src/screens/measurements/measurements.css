@@ -111,13 +111,6 @@
 	color: var(--cadence-on-surface-variant);
 }
 
-.measurement-tracker__quick-log {
-	display: flex;
-	align-items: center;
-	gap: var(--cadence-space-2);
-	padding: var(--cadence-space-3);
-}
-
 .measurement-tracker__manage-row {
 	display: flex;
 	flex-wrap: wrap;

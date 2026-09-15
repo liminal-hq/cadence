@@ -35,8 +35,24 @@ function blankDraft(): RecordDraft {
 	return { date: todayLocalDate(), value: '', note: '' };
 }
 
-function isValidDate(date: string): boolean {
-	return date.trim() !== '' && !Number.isNaN(new Date(`${date}T00:00:00`).getTime());
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// `new Date('2026-02-30T00:00:00')` doesn't produce NaN — JS silently normalizes it to
+// 2026-03-02 — so a calendar-invalid date has to be caught by round-tripping the parsed
+// year/month/day back through UTC construction and checking nothing shifted, not just checking
+// for a parse failure.
+export function isValidDate(date: string): boolean {
+	const match = DATE_PATTERN.exec(date);
+	if (!match) return false;
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const parsed = new Date(Date.UTC(year, month - 1, day));
+	return (
+		parsed.getUTCFullYear() === year &&
+		parsed.getUTCMonth() === month - 1 &&
+		parsed.getUTCDate() === day
+	);
 }
 
 function draftFromRecord(record: MeasurementRecord): RecordDraft {
@@ -107,15 +123,14 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 			return;
 		}
 		const note = recordDraft.note.trim() === '' ? undefined : recordDraft.note.trim();
-		if (editingRecordId) {
-			await guarded(() =>
-				repository.updateMeasurementRecord(editingRecordId, recordDraft.date, value, note),
-			);
-		} else {
-			await guarded(() =>
-				repository.createMeasurementRecord(definitionId, recordDraft.date, value, note),
-			);
-		}
+		const succeeded = editingRecordId
+			? await guarded(() =>
+					repository.updateMeasurementRecord(editingRecordId, recordDraft.date, value, note),
+				)
+			: await guarded(() =>
+					repository.createMeasurementRecord(definitionId, recordDraft.date, value, note),
+				);
+		if (!succeeded) return;
 		setRecordDraft(null);
 		setEditingRecordId(null);
 	}
@@ -142,8 +157,10 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 		}
 	}
 
-	const points: GraphPoint[] = records
-		.filter((r) => !recordPendingDelete || r.id !== recordPendingDelete.id)
+	// Reflects only what's actually persisted — opening the delete-confirmation dialog must not
+	// itself change what the graph/table show, even though `recordPendingDelete` is already set at
+	// that point (it only becomes true after the delete actually succeeds via `reload()`).
+	const points: GraphPoint[] = [...records]
 		.sort(byDateThenRecordedAt(1))
 		.map((r) => ({ date: r.date, value: r.value, setId: r.id }));
 

@@ -1,10 +1,10 @@
-// Covers byDateThenRecordedAt's same-day tie-break, so a graph's chronologically-last point is the actually-last-recorded one
+// Covers byDateThenRecordedAt's same-day tie-break, so a graph's chronologically-last point is the actually-last-recorded one, and isValidDate's calendar-strict validation
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { describe, expect, it } from 'vitest';
-import { byDateThenRecordedAt } from './MeasurementDetailScreen';
+import { byDateThenRecordedAt, isValidDate } from './MeasurementDetailScreen';
 import type { MeasurementRecord } from '../../domain/types';
 
 function record(overrides: Partial<MeasurementRecord>): MeasurementRecord {
@@ -41,5 +41,28 @@ describe('byDateThenRecordedAt', () => {
 			'later',
 			'earlier',
 		]);
+	});
+});
+
+describe('isValidDate', () => {
+	it('accepts a real calendar date', () => {
+		expect(isValidDate('2026-09-01')).toBe(true);
+	});
+
+	it('rejects a calendar-invalid date instead of letting it silently roll over', () => {
+		expect(isValidDate('2026-02-30')).toBe(false);
+		expect(isValidDate('2026-13-01')).toBe(false);
+		expect(isValidDate('2026-04-31')).toBe(false);
+	});
+
+	it('accepts a leap-day date only in a leap year', () => {
+		expect(isValidDate('2028-02-29')).toBe(true);
+		expect(isValidDate('2026-02-29')).toBe(false);
+	});
+
+	it('rejects a blank or malformed value', () => {
+		expect(isValidDate('')).toBe(false);
+		expect(isValidDate('not-a-date')).toBe(false);
+		expect(isValidDate('2026-9-1')).toBe(false);
 	});
 });
