@@ -86,6 +86,7 @@ pub async fn create(
     colour_text: &str,
     colour_dot: &str,
 ) -> Result<Category> {
+    let name = name.trim();
     reject_duplicate_name(conn, name, None).await?;
     let existing = list(conn).await?;
     if existing.iter().any(|c| c.id == id) {
@@ -116,6 +117,7 @@ pub async fn create(
 }
 
 pub async fn rename(conn: &mut SqliteConnection, id: &str, name: &str) -> Result<Category> {
+    let name = name.trim();
     reject_duplicate_name(conn, name, Some(id)).await?;
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
@@ -332,6 +334,26 @@ mod tests {
             .unwrap();
         let err = rename(&mut conn, &created.id, "chest").await.unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn trims_the_name_before_storing_and_before_the_duplicate_check() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "grip", "  Grip  ", "#eee", "#111", "#999")
+            .await
+            .unwrap();
+        assert_eq!(created.name, "Grip");
+
+        let err = create(&mut conn, "grip-2", "grip ", "#eee", "#111", "#999")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let renamed = rename(&mut conn, &created.id, "  Grip Strength  ")
+            .await
+            .unwrap();
+        assert_eq!(renamed.name, "Grip Strength");
     }
 
     #[tokio::test]

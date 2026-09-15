@@ -123,6 +123,11 @@ fn validate_values(values: &ExerciseValues) -> Result<()> {
                 "weight increment must be positive".into(),
             ));
         }
+        if kg_to_g(v) < 1 {
+            return Err(Error::Validation(
+                "weight increment is too small to represent in whole grams".into(),
+            ));
+        }
     }
     if let Some(v) = values.reps_increment {
         if v <= 0 {
@@ -133,6 +138,11 @@ fn validate_values(values: &ExerciseValues) -> Result<()> {
         if !(v.is_finite() && v > 0.0) {
             return Err(Error::Validation(
                 "distance increment must be positive".into(),
+            ));
+        }
+        if km_to_m(v) < 1 {
+            return Err(Error::Validation(
+                "distance increment is too small to represent in whole metres".into(),
             ));
         }
     }
@@ -213,6 +223,24 @@ pub async fn update(
     validate_values(values)?;
     let name = values.name.trim();
     reject_duplicate_name(conn, name, Some(id)).await?;
+    let current = get(conn, id).await?;
+    // The frontend's own metric-profile lock only looks at workout history, so an exercise
+    // referenced solely by a routine's set templates would otherwise still be editable here —
+    // changing its profile would leave those templates' weight/reps or distance/duration fields
+    // pointing at a metric the exercise no longer uses, corrupted the next time that routine
+    // materializes.
+    if current.metric_profile != values.metric_profile {
+        let (routine_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM routine_exercises WHERE exercise_id = ?")
+                .bind(id)
+                .fetch_one(&mut *conn)
+                .await?;
+        if routine_count > 0 {
+            return Err(Error::Validation(
+                "this exercise is used in a routine — its metric profile can't change while a routine still references it".into(),
+            ));
+        }
+    }
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
@@ -476,6 +504,29 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn rejects_a_weight_increment_too_small_to_round_to_a_whole_gram() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.weight_increment_kg = Some(0.0001);
+        let err = create(&mut conn, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_distance_increment_too_small_to_round_to_a_whole_metre() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.metric_profile = "distance-duration".to_string();
+        values.weight_increment_kg = None;
+        values.reps_increment = None;
+        values.distance_increment_km = Some(0.0001);
+        let err = create(&mut conn, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
     async fn rejects_a_zero_reps_increment() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
@@ -544,6 +595,34 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[tokio::test]
+    async fn refuses_to_change_metric_profile_while_a_routine_still_references_the_exercise() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, &sample_values()).await.unwrap();
+        let routine = crate::domain::routines::repo::create(&mut conn, "Push day")
+            .await
+            .unwrap();
+        let section = crate::domain::routines::sections::add(&mut conn, &routine.id, Some("A"))
+            .await
+            .unwrap();
+        crate::domain::routines::routine_exercises::add(&mut conn, &section.id, &created.id)
+            .await
+            .unwrap();
+
+        let mut values = sample_values();
+        values.metric_profile = "distance-duration".to_string();
+        values.weight_increment_kg = None;
+        values.reps_increment = None;
+        let err = update(&mut conn, &created.id, &values).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        // Any other field can still change freely -- only the profile itself is locked.
+        let mut same_profile = sample_values();
+        same_profile.note = Some("Updated cue".to_string());
+        update(&mut conn, &created.id, &same_profile).await.unwrap();
     }
 
     #[tokio::test]
