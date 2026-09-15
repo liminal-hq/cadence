@@ -120,7 +120,8 @@ function metricValue(entry: AnalysisSetEntry, metric: AnalysisMetric): number | 
 		case 'maxWeight':
 			return entry.weightKg ?? undefined;
 		case 'estimated1RM':
-			return entry.weightKg != null && entry.reps != null
+			// reps <= 0 has nothing to estimate from — estimateOneRepMax's own reps <= 1 branch returns the bare weight, which would let a failed zero-rep attempt read as a real 1RM.
+			return entry.weightKg != null && entry.reps != null && entry.reps > 0
 				? estimateOneRepMax(entry.weightKg, entry.reps)
 				: undefined;
 		case 'maxDistance':
@@ -195,4 +196,16 @@ export function computeBreakdown(
 /** Distinct calendar dates represented in `entries` — the "frequency" half of SPEC.md 8.7's "frequency, sets, reps, volume, duration, and distance" breakdown list. */
 export function countTrainingDays(entries: AnalysisSetEntry[]): number {
 	return new Set(entries.map((e) => e.date)).size;
+}
+
+/** Distinguishes one set's own values from another's in a drill-down list — several completed sets from the same exercise and workout otherwise render as identical rows. */
+export function formatEntrySummary(entry: AnalysisSetEntry): string {
+	if (entry.metricProfile === 'weight-reps') {
+		const weight = entry.weightKg != null ? `${entry.weightKg} kg` : '—';
+		const reps = entry.reps != null ? entry.reps : '—';
+		return `${weight} × ${reps}`;
+	}
+	const distance = entry.distanceKm != null ? `${entry.distanceKm} km` : '—';
+	const duration = entry.durationSec != null ? `${entry.durationSec}s` : '—';
+	return `${distance} · ${duration}`;
 }

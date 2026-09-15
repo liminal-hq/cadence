@@ -9,6 +9,7 @@ import {
 	countTrainingDays,
 	displayMetricUnit,
 	displayMetricValue,
+	formatEntrySummary,
 } from './computeTrainingAnalysis';
 import type { AnalysisSetEntry } from '../../domain/types';
 
@@ -48,6 +49,18 @@ describe('computeBreakdown', () => {
 			'exercise',
 		);
 		expect(rows[0].value).toBe(90);
+	});
+
+	it('excludes a zero-rep set from estimated 1RM, rather than reading it as the bare weight', () => {
+		const rows = computeBreakdown(
+			[
+				entry({ setId: 's1', weightKg: 120, reps: 0 }),
+				entry({ setId: 's2', weightKg: 80, reps: 8 }),
+			],
+			'estimated1RM',
+			'exercise',
+		);
+		expect(rows[0].value).toBeCloseTo(80 * (1 + 8 / 30));
 	});
 
 	it('counts one set each toward the sets total', () => {
@@ -194,5 +207,25 @@ describe('displayMetricUnit and displayMetricValue', () => {
 	it('leaves a non-weight metric unaffected by the weight unit', () => {
 		expect(displayMetricUnit('maxDistance', 'lb')).toBe('km');
 		expect(displayMetricValue(5, 'maxDistance', 'lb')).toBe(5);
+	});
+});
+
+describe('formatEntrySummary', () => {
+	it('formats a weight-reps entry', () => {
+		expect(formatEntrySummary(entry({ weightKg: 80, reps: 8 }))).toBe('80 kg × 8');
+	});
+
+	it('formats a distance-duration entry', () => {
+		expect(
+			formatEntrySummary(
+				entry({ metricProfile: 'distance-duration', distanceKm: 5, durationSec: 1500 }),
+			),
+		).toBe('5 km · 1500s');
+	});
+
+	it('distinguishes two sets on the same date and exercise', () => {
+		const first = formatEntrySummary(entry({ weightKg: 80, reps: 8 }));
+		const second = formatEntrySummary(entry({ weightKg: 82.5, reps: 6 }));
+		expect(first).not.toBe(second);
 	});
 });

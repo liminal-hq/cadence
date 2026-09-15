@@ -22,6 +22,7 @@ import {
 	countTrainingDays,
 	displayMetricUnit,
 	displayMetricValue,
+	formatEntrySummary,
 	type AnalysisGroupBy,
 	type AnalysisMetric,
 } from './computeTrainingAnalysis';
@@ -68,10 +69,6 @@ export function TrainingAnalysisScreen() {
 	const [expandedKey, setExpandedKey] = useState<string | null>(null);
 	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
 
-	useEffect(() => {
-		repository.getSettings().then((settings) => setWeightUnit(settings.weightUnit));
-	}, [repository]);
-
 	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
 
@@ -79,9 +76,11 @@ export function TrainingAnalysisScreen() {
 		let cancelled = false;
 		setEntries(null);
 		setLoadError(null);
-		repository.listAnalysisSets(startDate, endDate).then(
-			(result) => {
-				if (!cancelled) setEntries(result);
+		Promise.all([repository.getSettings(), repository.listAnalysisSets(startDate, endDate)]).then(
+			([settings, result]) => {
+				if (cancelled) return;
+				setWeightUnit(settings.weightUnit);
+				setEntries(result);
 			},
 			(err) => {
 				if (!cancelled) setLoadError(err instanceof Error ? err.message : String(err));
@@ -201,6 +200,7 @@ export function TrainingAnalysisScreen() {
 														<div key={entry.setId} className="training-analysis__entry">
 															<span>{formatCalendarDateLabel(entry.date)}</span>
 															<span>{entry.exerciseName}</span>
+															<span>{formatEntrySummary(entry)}</span>
 															<Button
 																variant="text"
 																onClick={() =>
