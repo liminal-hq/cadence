@@ -144,10 +144,7 @@ pub async fn recolour(
     get(conn, id).await
 }
 
-/// Returns a validation error naming how many exercises still reference `id`, or `Ok(())` if
-/// none do. Shared by `set_archived` (only when archiving — unarchiving is always safe) and
-/// `delete`, since both are "this category is going away" operations SCREENS.md's P-35 requires
-/// exercises to be reassigned away from first.
+/// Returns a validation error naming how many exercises still reference `id`, or `Ok(())` if none do. Shared by `set_archived` (only when archiving — unarchiving is always safe) and `delete`, since both are "this category is going away" operations SCREENS.md's P-35 requires exercises to be reassigned away from first.
 async fn reject_if_referenced(conn: &mut SqliteConnection, id: &str) -> Result<()> {
     let (exercise_count,): (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM exercises WHERE category_id = ?")
@@ -162,8 +159,7 @@ async fn reject_if_referenced(conn: &mut SqliteConnection, id: &str) -> Result<(
     Ok(())
 }
 
-/// Archiving requires exercises to be reassigned away first, matching `delete`'s own guard —
-/// unarchiving never does, since it only makes a hidden category visible again.
+/// Archiving requires exercises to be reassigned away first, matching `delete`'s own guard — unarchiving never does, since it only makes a hidden category visible again.
 pub async fn set_archived(
     conn: &mut SqliteConnection,
     id: &str,
