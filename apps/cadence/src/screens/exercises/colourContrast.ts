@@ -1,4 +1,4 @@
-// WCAG 2.1 relative-luminance contrast ratio — P-35's "colour contrast warning" state (SCREENS.md), a non-blocking heuristic so an editor can flag a hard-to-read background/text pairing without preventing the save.
+// WCAG 2.1 relative-luminance contrast ratio — P-35's "colour contrast warning" state (SCREENS.md), a non-blocking heuristic so an editor can flag a hard-to-read background/text pairing without preventing the save
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -6,9 +6,19 @@
 export const MIN_TEXT_CONTRAST_RATIO = 4.5;
 
 function hexToRgb(hex: string): [number, number, number] | undefined {
-	const match = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
-	if (!match) return undefined;
-	const value = parseInt(match[1], 16);
+	const trimmed = hex.trim();
+	const shortMatch = /^#?([0-9a-f]{3})$/i.exec(trimmed);
+	// Expand CSS shorthand (#fff -> #ffffff) by doubling each digit -- both the category colour
+	// fields and the browser's own <input type="color"> accept this form, so a low-contrast pair
+	// like #fff/#eee must be caught here too, not silently treated as unparseable.
+	const full = shortMatch
+		? shortMatch[1]
+				.split('')
+				.map((c) => c + c)
+				.join('')
+		: /^#?([0-9a-f]{6})$/i.exec(trimmed)?.[1];
+	if (!full) return undefined;
+	const value = parseInt(full, 16);
 	return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
 }
 

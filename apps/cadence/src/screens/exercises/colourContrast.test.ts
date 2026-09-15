@@ -25,6 +25,10 @@ describe('contrastRatio', () => {
 	it('returns undefined for an invalid hex value', () => {
 		expect(contrastRatio('not-a-colour', '#000000')).toBeUndefined();
 	});
+
+	it('expands 3-digit shorthand hex the same as its 6-digit equivalent', () => {
+		expect(contrastRatio('#fff', '#000')).toBeCloseTo(contrastRatio('#ffffff', '#000000')!, 5);
+	});
 });
 
 describe('isLowContrast', () => {
@@ -38,5 +42,9 @@ describe('isLowContrast', () => {
 
 	it('is false (not a false positive) for an invalid colour', () => {
 		expect(isLowContrast('nope', '#000000')).toBe(false);
+	});
+
+	it('is true for near-identical shorthand-hex colours', () => {
+		expect(isLowContrast('#fff', '#eee')).toBe(true);
 	});
 });
