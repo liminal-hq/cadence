@@ -5,6 +5,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
 import { Chip } from '../../components/ui/Chip/Chip';
 import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
@@ -78,6 +79,7 @@ export function TrainingAnalysisScreen() {
 	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
 	const [favourites, setFavourites] = useState<AnalysisFavourite[]>([]);
 	const [pinDraftName, setPinDraftName] = useState<string | null>(null);
+	const [favouriteError, setFavouriteError] = useState<string | null>(null);
 
 	const today = useMemo(() => todayLocalDate(), []);
 	const { startDate, endDate } = useMemo(() => dateRangeFor(period, today), [period, today]);
@@ -105,7 +107,18 @@ export function TrainingAnalysisScreen() {
 	}, [repository, startDate, endDate, retryToken]);
 
 	useEffect(() => {
-		repository.listAnalysisFavourites().then(setFavourites);
+		let cancelled = false;
+		repository.listAnalysisFavourites().then(
+			(all) => {
+				if (!cancelled) setFavourites(all);
+			},
+			(err) => {
+				if (!cancelled) setFavouriteError(err instanceof Error ? err.message : String(err));
+			},
+		);
+		return () => {
+			cancelled = true;
+		};
 	}, [repository]);
 
 	function applyFavourite(favourite: AnalysisFavourite) {
@@ -118,15 +131,25 @@ export function TrainingAnalysisScreen() {
 
 	async function handlePin() {
 		if (!pinDraftName?.trim()) return;
-		const config = serializeAnalysisFavouriteConfig({ period, metric, groupBy });
-		const created = await repository.createAnalysisFavourite(pinDraftName.trim(), config);
-		setFavourites((current) => [...current, created]);
-		setPinDraftName(null);
+		try {
+			setFavouriteError(null);
+			const config = serializeAnalysisFavouriteConfig({ period, metric, groupBy });
+			const created = await repository.createAnalysisFavourite(pinDraftName.trim(), config);
+			setFavourites((current) => [...current, created]);
+			setPinDraftName(null);
+		} catch (err) {
+			setFavouriteError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	async function handleUnpin(id: string) {
-		await repository.deleteAnalysisFavourite(id);
-		setFavourites((current) => current.filter((f) => f.id !== id));
+		try {
+			setFavouriteError(null);
+			await repository.deleteAnalysisFavourite(id);
+			setFavourites((current) => current.filter((f) => f.id !== id));
+		} catch (err) {
+			setFavouriteError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	if (loadError) {
@@ -152,6 +175,15 @@ export function TrainingAnalysisScreen() {
 
 	return (
 		<div className="training-analysis">
+			{favouriteError && (
+				<Banner
+					icon="error"
+					message={favouriteError}
+					tone="attention"
+					onDismiss={() => setFavouriteError(null)}
+				/>
+			)}
+
 			{favourites.length > 0 && (
 				<div className="training-analysis__filters">
 					{favourites.map((favourite) => (

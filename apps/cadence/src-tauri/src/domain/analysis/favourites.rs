@@ -222,6 +222,16 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn reorder_rejects_a_duplicate_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let a = create(&mut conn, "A", "{}").await.unwrap();
+        create(&mut conn, "B", "{}").await.unwrap();
+        let err = reorder(&mut conn, &[a.id.clone(), a.id]).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
     async fn reorder_rewrites_sort_order_to_match_the_given_order() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
