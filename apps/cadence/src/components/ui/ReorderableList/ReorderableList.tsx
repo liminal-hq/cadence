@@ -31,11 +31,7 @@ export interface ReorderableListProps<T> {
 	renderItem: (item: T, index: number) => ReactNode;
 }
 
-/** Pure id-to-index reorder math, split out from the `DndContext` wiring so it's unit-testable
- *  without a real layout -- dnd-kit's own drag gesture can't be meaningfully simulated under
- *  happy-dom/jsdom, which report zero-sized rects for every element. Returns `items` unchanged
- *  (same reference) if either id is missing or they're equal, so callers can skip the `onReorder`
- *  call entirely on a no-op drag. */
+/** Pure id-to-index reorder math, split out from the `DndContext` wiring so it's unit-testable without a real layout — dnd-kit's own drag gesture can't be meaningfully simulated under happy-dom/jsdom, which report zero-sized rects for every element. Returns `items` unchanged (same reference) if either id is missing or they're equal, so callers can skip the `onReorder` call entirely on a no-op drag. */
 export function reorderByKeys<T>(
 	items: T[],
 	getKey: (item: T) => string,
@@ -52,13 +48,16 @@ export function reorderByKeys<T>(
 interface RowProps {
 	id: string;
 	children: ReactNode;
+	index: number;
+	canMoveUp: boolean;
+	canMoveDown: boolean;
+	onMoveUp: () => void;
+	onMoveDown: () => void;
 }
 
-// One sortable row: `useSortable` supplies both the drag transform for the row being moved and
-// the `listeners`/`attributes` that make the handle itself draggable -- those need to land on the
-// real DOM button (via IconButton's prop-spreading), not just be read and discarded, or nothing
-// would actually respond to a pointer or keyboard.
-function Row({ id, children }: RowProps) {
+// One sortable row: `useSortable` supplies both the drag transform for the row being moved and the `listeners`/`attributes` that make the handle itself draggable — those need to land on the real DOM button (via IconButton's prop-spreading), not just be read and discarded, or nothing would actually respond to a pointer or keyboard.
+// A drag gesture (pointer or keyboard) has no equivalent for a touch screen reader, which operates by synthesizing a click rather than real pointer or key events — so every row also gets a pair of click-operable, visually hidden move actions, satisfying WCAG 2.5.7's "single pointer" alternative without reintroducing the two visible buttons this component was built to replace.
+function Row({ id, children, index, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: RowProps) {
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
 		id,
 	});
@@ -75,6 +74,17 @@ function Row({ id, children }: RowProps) {
 			}}
 		>
 			<div className="ui-reorderable-list__content">{children}</div>
+			<button type="button" className="ui-visually-hidden" disabled={!canMoveUp} onClick={onMoveUp}>
+				{`Move item ${index + 1} up`}
+			</button>
+			<button
+				type="button"
+				className="ui-visually-hidden"
+				disabled={!canMoveDown}
+				onClick={onMoveDown}
+			>
+				{`Move item ${index + 1} down`}
+			</button>
 			<IconButton
 				icon="drag_handle"
 				label="Reorder"
@@ -93,10 +103,7 @@ export function ReorderableList<T>({
 	onReorder,
 	renderItem,
 }: ReorderableListProps<T>) {
-	// PointerSensor covers mouse/touch drag; KeyboardSensor is the accessible fallback the old
-	// up/down buttons already provided -- Tab to a handle, Space to pick up, arrow keys to move,
-	// Space to drop, Escape to cancel. A small activation distance on the pointer sensor stops an
-	// ordinary tap (e.g. on a row's own text field) from being mistaken for a drag.
+	// PointerSensor covers mouse/touch drag; KeyboardSensor is the accessible fallback the old up/down buttons already provided — Tab to a handle, Space to pick up, arrow keys to move, Space to drop, Escape to cancel. A small activation distance on the pointer sensor stops an ordinary tap (e.g. on a row's own text field) from being mistaken for a drag.
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -109,6 +116,12 @@ export function ReorderableList<T>({
 		if (next !== items) onReorder(next);
 	}
 
+	function handleMoveByClick(index: number, delta: number) {
+		const targetIndex = index + delta;
+		if (targetIndex < 0 || targetIndex >= items.length) return;
+		onReorder(arrayMove(items, index, targetIndex));
+	}
+
 	const ids = items.map(getKey);
 
 	return (
@@ -116,7 +129,15 @@ export function ReorderableList<T>({
 			<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 				<div className="ui-reorderable-list">
 					{items.map((item, index) => (
-						<Row key={getKey(item)} id={getKey(item)}>
+						<Row
+							key={getKey(item)}
+							id={getKey(item)}
+							index={index}
+							canMoveUp={index > 0}
+							canMoveDown={index < items.length - 1}
+							onMoveUp={() => handleMoveByClick(index, -1)}
+							onMoveDown={() => handleMoveByClick(index, 1)}
+						>
 							{renderItem(item, index)}
 						</Row>
 					))}

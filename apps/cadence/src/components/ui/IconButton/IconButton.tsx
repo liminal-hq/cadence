@@ -27,9 +27,7 @@ export function IconButton({
 	disabled = false,
 	onClick,
 	className,
-	// Spread onto the native button -- dnd-kit's `listeners`/`attributes` (onPointerDown,
-	// onKeyDown, tabIndex, role, aria-describedby, etc.) need to land on the real DOM element
-	// for a drag-handle IconButton to actually be draggable.
+	// Spread onto the native button — dnd-kit's `listeners`/`attributes` (onPointerDown, onKeyDown, tabIndex, role, aria-describedby, etc.) need to land on the real DOM element for a drag-handle IconButton to actually be draggable.
 	...rest
 }: IconButtonProps) {
 	return (

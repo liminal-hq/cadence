@@ -1,11 +1,9 @@
-// The reorder math (reorderByKeys) and structural rendering -- a real dnd-kit drag gesture
-// can't be meaningfully simulated under happy-dom, which reports zero-sized rects for every
-// element, so the id-to-index logic is tested directly instead
+// The reorder math (reorderByKeys) and structural rendering — a real dnd-kit drag gesture can't be meaningfully simulated under happy-dom, which reports zero-sized rects for every element, so the id-to-index logic is tested directly instead
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ReorderableList, reorderByKeys } from './ReorderableList';
 
@@ -71,5 +69,38 @@ describe('ReorderableList', () => {
 		);
 
 		expect(onReorder).not.toHaveBeenCalled();
+	});
+
+	it('offers a click-operable move action alongside the drag handle, for assistive tech a drag gesture cannot reach', () => {
+		const onReorder = vi.fn();
+		render(
+			<ReorderableList
+				items={ITEMS}
+				getKey={(item) => item.id}
+				onReorder={onReorder}
+				renderItem={(item) => item.label}
+			/>,
+		);
+
+		fireEvent.click(screen.getByText('Move item 1 down'));
+		expect(onReorder).toHaveBeenCalledWith([
+			{ id: 'b', label: 'B' },
+			{ id: 'a', label: 'A' },
+			{ id: 'c', label: 'C' },
+		]);
+	});
+
+	it('disables moving past either end of the list', () => {
+		render(
+			<ReorderableList
+				items={ITEMS}
+				getKey={(item) => item.id}
+				onReorder={() => {}}
+				renderItem={(item) => item.label}
+			/>,
+		);
+
+		expect(screen.getByText('Move item 1 up')).toBeDisabled();
+		expect(screen.getByText('Move item 3 down')).toBeDisabled();
 	});
 });
