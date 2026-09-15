@@ -14,7 +14,9 @@ pub struct ExerciseGoal {
     pub id: String,
     pub exercise_id: String,
     pub title: String,
-    // Every optional field below is omitted rather than serialized as `null` when absent, matching the generated/frontend type's plain `?: T` optional properties (not `T | null`) and the mock's `undefined` — a consistent contract, not just the achieved_at case fixed earlier.
+    // Every optional field below is omitted rather than serialized as `null` when absent, matching
+    // the generated/frontend type's plain `?: T` optional properties (not `T | null`) and the
+    // mock's `undefined` — a consistent contract, not just the achieved_at case fixed earlier.
     #[cfg_attr(test, ts(optional))]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub target_weight_kg: Option<f64>,

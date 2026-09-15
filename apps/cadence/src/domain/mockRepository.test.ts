@@ -995,7 +995,8 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('breaks a same-day tie by actual instant, not by comparing recordedAt text', async () => {
-			// A textual comparison would sort '06:00Z' before '10:00+05:00' even though the latter (05:00Z) is the earlier instant — these two records share a date but not an offset.
+			// A textual comparison would sort '06:00Z' before '10:00+05:00' even though the latter
+			// (05:00Z) is the earlier instant — these two records share a date but not an offset.
 			await repo.createMeasurementRecord(
 				'bodyweight',
 				'2026-09-05',

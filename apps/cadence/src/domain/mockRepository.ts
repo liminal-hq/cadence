@@ -1306,7 +1306,9 @@ export class MockLoggingRepository implements LoggingRepository {
 			.sort(
 				(a, b) =>
 					a.date.localeCompare(b.date) ||
-					// A textual comparison of RFC 3339 instants only sorts correctly when every offset is identical (e.g. all "Z") — two valid but differently-offset timestamps for the same actual instant can compare unequal, unlike the real repository's recorded_at_ms.
+					// A textual comparison of RFC 3339 instants only sorts correctly when every offset is
+					// identical (e.g. all "Z") — two valid but differently-offset timestamps for the same
+					// actual instant can compare unequal, unlike the real repository's recorded_at_ms.
 					new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime(),
 			);
 	}
