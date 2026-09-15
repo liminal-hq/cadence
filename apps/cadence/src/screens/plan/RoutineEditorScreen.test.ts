@@ -1,6 +1,4 @@
-// Regression coverage for the P-32 redesign: a dangling exercise reference must render as a
-// "missing exercise" row rather than blanking the whole screen, and the "values come from"
-// selector's default must track what the exercise's own most recently added set actually used
+// Regression coverage for the P-32 redesign: a dangling exercise reference must render as a "missing exercise" row rather than blanking the whole screen, and the "values come from" selector's default must track what the exercise's own most recently added set actually used
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
