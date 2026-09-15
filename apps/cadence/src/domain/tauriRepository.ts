@@ -8,11 +8,25 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import type { LoggingRepository, Unsubscribe } from './repository';
 import type {
+	AnalysisFavourite,
+	AnalysisSetEntry,
 	BarbellConfig,
+	Category,
 	Exercise,
+	ExerciseGoal,
+	ExerciseGoalValues,
+	ExerciseValues,
+	MeasurementDefinition,
+	MeasurementRecord,
 	PlateCalculationResult,
 	RestTimerState,
+	Routine,
+	RoutineExercise,
+	RoutineSection,
+	RoutineSuperset,
 	SetEntry,
+	SetTemplate,
+	SetTemplateValues,
 	Settings,
 	Workout,
 	WorkoutExercise,
@@ -69,6 +83,22 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise> {
 		return call('update_exercise_favourite', { id: exerciseId, favourite });
+	}
+
+	async createExercise(values: ExerciseValues): Promise<Exercise> {
+		return call('create_exercise', { values });
+	}
+
+	async updateExercise(id: string, values: ExerciseValues): Promise<Exercise> {
+		return call('update_exercise', { id, values });
+	}
+
+	async setExerciseArchived(id: string, archived: boolean): Promise<Exercise> {
+		return call('set_exercise_archived', { id, archived });
+	}
+
+	async deleteExercise(id: string): Promise<void> {
+		return call('delete_exercise', { id });
 	}
 
 	async listSets(workoutExerciseId: string): Promise<SetEntry[]> {
@@ -226,6 +256,320 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async deleteWorkoutExercise(id: string): Promise<void> {
 		return call('delete_workout_exercise', { id });
+	}
+
+	async getRoutine(id: string): Promise<Routine> {
+		return call('get_routine', { id });
+	}
+
+	async listRoutines(): Promise<Routine[]> {
+		return call('list_routines');
+	}
+
+	async createRoutine(name: string): Promise<Routine> {
+		return call('create_routine', { name });
+	}
+
+	async renameRoutine(id: string, name: string): Promise<Routine> {
+		return call('rename_routine', { id, name });
+	}
+
+	async updateRoutineNote(id: string, note: string | undefined): Promise<Routine> {
+		return call('update_routine_note', { id, note });
+	}
+
+	async setRoutineArchived(id: string, archived: boolean): Promise<Routine> {
+		return call('set_routine_archived', { id, archived });
+	}
+
+	async deleteRoutine(id: string): Promise<void> {
+		return call('delete_routine', { id });
+	}
+
+	async getRoutineSection(id: string): Promise<RoutineSection> {
+		return call('get_routine_section', { id });
+	}
+
+	async listRoutineSections(routineId: string): Promise<RoutineSection[]> {
+		return call('list_routine_sections', { routineId });
+	}
+
+	async addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection> {
+		return call('add_routine_section', { routineId, name });
+	}
+
+	async renameRoutineSection(id: string, name: string | undefined): Promise<RoutineSection> {
+		return call('rename_routine_section', { id, name });
+	}
+
+	async reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]> {
+		return call('reorder_routine_sections', { routineId, orderedIds });
+	}
+
+	async deleteRoutineSection(id: string): Promise<void> {
+		return call('delete_routine_section', { id });
+	}
+
+	async getRoutineSuperset(id: string): Promise<RoutineSuperset> {
+		return call('get_routine_superset', { id });
+	}
+
+	async createRoutineSuperset(
+		routineSectionId: string,
+		colour: string | undefined,
+		autoAdvance: boolean,
+		restMs: number | undefined,
+	): Promise<RoutineSuperset> {
+		return call('create_routine_superset', { routineSectionId, colour, autoAdvance, restMs });
+	}
+
+	async deleteRoutineSuperset(id: string): Promise<void> {
+		return call('delete_routine_superset', { id });
+	}
+
+	async getRoutineExercise(id: string): Promise<RoutineExercise> {
+		return call('get_routine_exercise', { id });
+	}
+
+	async listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]> {
+		return call('list_routine_exercises', { routineSectionId });
+	}
+
+	async addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise> {
+		return call('add_routine_exercise', { routineSectionId, exerciseId });
+	}
+
+	async reorderRoutineExercises(
+		routineSectionId: string,
+		orderedIds: string[],
+	): Promise<RoutineExercise[]> {
+		return call('reorder_routine_exercises', { routineSectionId, orderedIds });
+	}
+
+	async setRoutineExerciseSuperset(
+		id: string,
+		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
+	): Promise<RoutineExercise> {
+		return call('set_routine_exercise_superset', {
+			id,
+			routineSupersetId: assignment?.routineSupersetId,
+			supersetPosition: assignment?.supersetPosition,
+		});
+	}
+
+	async updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise> {
+		return call('update_routine_exercise_note', { id, note });
+	}
+
+	async deleteRoutineExercise(id: string): Promise<void> {
+		return call('delete_routine_exercise', { id });
+	}
+
+	async listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]> {
+		return call('list_set_templates', { routineExerciseId });
+	}
+
+	async addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate> {
+		return call('add_set_template', { routineExerciseId, values });
+	}
+
+	async deleteSetTemplate(id: string): Promise<void> {
+		return call('delete_set_template', { id });
+	}
+
+	async mostRecentCompletedSet(
+		exerciseId: string,
+		onOrBeforeDate: string,
+	): Promise<{
+		weightKg?: number;
+		reps?: number;
+		distanceKm?: number;
+		durationSec?: number;
+	} | null> {
+		return call('most_recent_completed_set', { exerciseId, onOrBeforeDate });
+	}
+
+	async materializeRoutineSection(
+		routineSectionId: string,
+		targetDate: string,
+		selectedRoutineExerciseIds: string[],
+	): Promise<Workout> {
+		return call('materialize_routine_section', {
+			routineSectionId,
+			targetDate,
+			selectedRoutineExerciseIds,
+		});
+	}
+
+	async getCategory(id: string): Promise<Category> {
+		return call('get_category', { id });
+	}
+
+	async listCategories(): Promise<Category[]> {
+		return call('list_categories');
+	}
+
+	async createCategory(
+		id: string,
+		name: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		return call('create_category', { id, name, colourBackground, colourText, colourDot });
+	}
+
+	async renameCategory(id: string, name: string): Promise<Category> {
+		return call('rename_category', { id, name });
+	}
+
+	async recolourCategory(
+		id: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category> {
+		return call('recolour_category', { id, colourBackground, colourText, colourDot });
+	}
+
+	async setCategoryArchived(id: string, archived: boolean): Promise<Category> {
+		return call('set_category_archived', { id, archived });
+	}
+
+	async deleteCategory(id: string): Promise<void> {
+		return call('delete_category', { id });
+	}
+
+	async reorderCategories(orderedIds: string[]): Promise<Category[]> {
+		return call('reorder_categories', { orderedIds });
+	}
+
+	async getExerciseGoal(id: string): Promise<ExerciseGoal> {
+		return call('get_exercise_goal', { id });
+	}
+
+	async listExerciseGoals(exerciseId: string): Promise<ExerciseGoal[]> {
+		return call('list_exercise_goals', { exerciseId });
+	}
+
+	async createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		return call('create_exercise_goal', { values });
+	}
+
+	async updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		return call('update_exercise_goal', { id, values });
+	}
+
+	async setExerciseGoalAchieved(id: string, achieved: boolean): Promise<ExerciseGoal> {
+		return call('set_exercise_goal_achieved', { id, achieved });
+	}
+
+	async setExerciseGoalArchived(id: string, archived: boolean): Promise<ExerciseGoal> {
+		return call('set_exercise_goal_archived', { id, archived });
+	}
+
+	async deleteExerciseGoal(id: string): Promise<void> {
+		return call('delete_exercise_goal', { id });
+	}
+
+	async getMeasurementDefinition(id: string): Promise<MeasurementDefinition> {
+		return call('get_measurement_definition', { id });
+	}
+
+	async listMeasurementDefinitions(): Promise<MeasurementDefinition[]> {
+		return call('list_measurement_definitions');
+	}
+
+	async createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition> {
+		return call('create_measurement_definition', { name, unit });
+	}
+
+	async updateMeasurementDefinition(
+		id: string,
+		name: string,
+		unit: string,
+		goal?: number,
+	): Promise<MeasurementDefinition> {
+		return call('update_measurement_definition', { id, name, unit, goal });
+	}
+
+	async setMeasurementDefinitionArchived(
+		id: string,
+		archived: boolean,
+	): Promise<MeasurementDefinition> {
+		return call('set_measurement_definition_archived', { id, archived });
+	}
+
+	async reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]> {
+		return call('reorder_measurement_definitions', { orderedIds });
+	}
+
+	async deleteMeasurementDefinition(id: string): Promise<void> {
+		return call('delete_measurement_definition', { id });
+	}
+
+	async getMeasurementRecord(id: string): Promise<MeasurementRecord> {
+		return call('get_measurement_record', { id });
+	}
+
+	async listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]> {
+		return call('list_measurement_records', { definitionId });
+	}
+
+	async createMeasurementRecord(
+		definitionId: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+		recordedAt?: string,
+	): Promise<MeasurementRecord> {
+		return call('create_measurement_record', { definitionId, date, value, note, recordedAt });
+	}
+
+	async updateMeasurementRecord(
+		id: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+		recordedAt?: string,
+	): Promise<MeasurementRecord> {
+		return call('update_measurement_record', { id, date, value, note, recordedAt });
+	}
+
+	async deleteMeasurementRecord(id: string): Promise<void> {
+		return call('delete_measurement_record', { id });
+	}
+
+	async listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]> {
+		return call('list_analysis_sets', { startDate, endDate });
+	}
+
+	async getAnalysisFavourite(id: string): Promise<AnalysisFavourite> {
+		return call('get_analysis_favourite', { id });
+	}
+
+	async listAnalysisFavourites(): Promise<AnalysisFavourite[]> {
+		return call('list_analysis_favourites');
+	}
+
+	async createAnalysisFavourite(name: string, config: string): Promise<AnalysisFavourite> {
+		return call('create_analysis_favourite', { name, config });
+	}
+
+	async updateAnalysisFavourite(
+		id: string,
+		name: string,
+		config: string,
+	): Promise<AnalysisFavourite> {
+		return call('update_analysis_favourite', { id, name, config });
+	}
+
+	async reorderAnalysisFavourites(orderedIds: string[]): Promise<AnalysisFavourite[]> {
+		return call('reorder_analysis_favourites', { orderedIds });
+	}
+
+	async deleteAnalysisFavourite(id: string): Promise<void> {
+		return call('delete_analysis_favourite', { id });
 	}
 }
 

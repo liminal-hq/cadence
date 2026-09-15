@@ -6,11 +6,25 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type {
+	AnalysisFavourite,
+	AnalysisSetEntry,
 	BarbellConfig,
+	Category,
 	Exercise,
+	ExerciseGoal,
+	ExerciseGoalValues,
+	ExerciseValues,
+	MeasurementDefinition,
+	MeasurementRecord,
 	PlateCalculationResult,
 	RestTimerState,
+	Routine,
+	RoutineExercise,
+	RoutineSection,
+	RoutineSuperset,
 	SetEntry,
+	SetTemplate,
+	SetTemplateValues,
 	Settings,
 	Workout,
 	WorkoutExercise,
@@ -29,6 +43,11 @@ export interface LoggingRepository {
 	/** The full library, name-ordered — backs the Add-exercise picker's browse/search/category views. */
 	listExercises(): Promise<Exercise[]>;
 	updateExerciseFavourite(exerciseId: string, favourite: boolean): Promise<Exercise>;
+	createExercise(values: ExerciseValues): Promise<Exercise>;
+	updateExercise(id: string, values: ExerciseValues): Promise<Exercise>;
+	setExerciseArchived(id: string, archived: boolean): Promise<Exercise>;
+	/** Rejects if any workout, routine, or goal still references this exercise — archive it instead. */
+	deleteExercise(id: string): Promise<void>;
 	listSets(workoutExerciseId: string): Promise<SetEntry[]>;
 	saveSet(set: SetEntry): Promise<SetEntry>;
 	completeSet(setId: string): Promise<SetEntry>;
@@ -94,4 +113,146 @@ export interface LoggingRepository {
 	addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise>;
 	/** A no-op when the workout-exercise doesn't exist. */
 	deleteWorkoutExercise(id: string): Promise<void>;
+
+	getRoutine(id: string): Promise<Routine>;
+	/** Every routine, archived or not — the routine list screen (P-30) filters. */
+	listRoutines(): Promise<Routine[]>;
+	createRoutine(name: string): Promise<Routine>;
+	renameRoutine(id: string, name: string): Promise<Routine>;
+	updateRoutineNote(id: string, note: string | undefined): Promise<Routine>;
+	setRoutineArchived(id: string, archived: boolean): Promise<Routine>;
+	deleteRoutine(id: string): Promise<void>;
+
+	getRoutineSection(id: string): Promise<RoutineSection>;
+	listRoutineSections(routineId: string): Promise<RoutineSection[]>;
+	addRoutineSection(routineId: string, name: string | undefined): Promise<RoutineSection>;
+	renameRoutineSection(id: string, name: string | undefined): Promise<RoutineSection>;
+	/** Rewrites every named section's order to its position in `orderedIds`. */
+	reorderRoutineSections(routineId: string, orderedIds: string[]): Promise<RoutineSection[]>;
+	deleteRoutineSection(id: string): Promise<void>;
+
+	getRoutineSuperset(id: string): Promise<RoutineSuperset>;
+	createRoutineSuperset(
+		routineSectionId: string,
+		colour: string | undefined,
+		autoAdvance: boolean,
+		restMs: number | undefined,
+	): Promise<RoutineSuperset>;
+	deleteRoutineSuperset(id: string): Promise<void>;
+
+	getRoutineExercise(id: string): Promise<RoutineExercise>;
+	listRoutineExercises(routineSectionId: string): Promise<RoutineExercise[]>;
+	addRoutineExercise(routineSectionId: string, exerciseId: string): Promise<RoutineExercise>;
+	/** Rewrites every named exercise's order to its position in `orderedIds`. */
+	reorderRoutineExercises(
+		routineSectionId: string,
+		orderedIds: string[],
+	): Promise<RoutineExercise[]>;
+	/** `assignment: undefined` dissolves this exercise's superset membership; otherwise both the superset id and its 1-indexed position are required together — never one without the other, which would leave an ungrouped exercise with a stale position or a grouped one with none. */
+	setRoutineExerciseSuperset(
+		id: string,
+		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
+	): Promise<RoutineExercise>;
+	updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise>;
+	deleteRoutineExercise(id: string): Promise<void>;
+
+	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;
+	addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate>;
+	deleteSetTemplate(id: string): Promise<void>;
+	/** The most recent completed set for this exercise on or before `onOrBeforeDate`, across every workout, or `null` if there isn't one — a direct lookup for previewing a `"seed-last-performance"` target without fetching an exercise's entire history. */
+	mostRecentCompletedSet(
+		exerciseId: string,
+		onOrBeforeDate: string,
+	): Promise<{
+		weightKg?: number;
+		reps?: number;
+		distanceKm?: number;
+		durationSec?: number;
+	} | null>;
+	/** Materializes a routine section into a real, editable workout (SPEC.md 8.4) — only the exercises named in `selectedRoutineExerciseIds` are carried over, in the order the caller supplies (the reviewed order from the P-20 review screen, not necessarily the routine's own order), with each set template resolved (explicit values copied as-is; `"seed-last-performance"` resolved against the exercise's most recent completed set, left blank with no history) and superset grouping remapped onto the new workout, positions renumbered among the selected members of each group. */
+	materializeRoutineSection(
+		routineSectionId: string,
+		targetDate: string,
+		selectedRoutineExerciseIds: string[],
+	): Promise<Workout>;
+
+	getCategory(id: string): Promise<Category>;
+	/** Every category, archived or not — the category editor (P-35) filters. */
+	listCategories(): Promise<Category[]>;
+	/** `id` is a lowercase, hyphenated slug the caller derives from `name` — matching the seeded
+	 *  categories' existing addressing scheme (`"chest"`, `"back"`, ...) rather than a UUID. */
+	createCategory(
+		id: string,
+		name: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category>;
+	renameCategory(id: string, name: string): Promise<Category>;
+	recolourCategory(
+		id: string,
+		colourBackground: string,
+		colourText: string,
+		colourDot: string,
+	): Promise<Category>;
+	setCategoryArchived(id: string, archived: boolean): Promise<Category>;
+	/** Rejects if any exercise still references this category — reassign them first. */
+	deleteCategory(id: string): Promise<void>;
+	reorderCategories(orderedIds: string[]): Promise<Category[]>;
+
+	getExerciseGoal(id: string): Promise<ExerciseGoal>;
+	listExerciseGoals(exerciseId: string): Promise<ExerciseGoal[]>;
+	createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal>;
+	updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal>;
+	/** A manual toggle, not inferred from history — see the note on ExerciseGoal.achievedAt. */
+	setExerciseGoalAchieved(id: string, achieved: boolean): Promise<ExerciseGoal>;
+	setExerciseGoalArchived(id: string, archived: boolean): Promise<ExerciseGoal>;
+	deleteExerciseGoal(id: string): Promise<void>;
+
+	getMeasurementDefinition(id: string): Promise<MeasurementDefinition>;
+	/** Every definition, archived (disabled) or not — the measurement tracker (P-49) filters to enabled-only. */
+	listMeasurementDefinitions(): Promise<MeasurementDefinition[]>;
+	createMeasurementDefinition(name: string, unit: string): Promise<MeasurementDefinition>;
+	/** Rejects a unit change once the definition has recorded values — see the Rust repo's own doc comment for why. */
+	updateMeasurementDefinition(
+		id: string,
+		name: string,
+		unit: string,
+		goal?: number,
+	): Promise<MeasurementDefinition>;
+	setMeasurementDefinitionArchived(id: string, archived: boolean): Promise<MeasurementDefinition>;
+	reorderMeasurementDefinitions(orderedIds: string[]): Promise<MeasurementDefinition[]>;
+	/** A no-op guard doesn't apply here — deleting a definition cascades to its records, matching the schema's own ON DELETE CASCADE; archiving is the reversible alternative. */
+	deleteMeasurementDefinition(id: string): Promise<void>;
+
+	getMeasurementRecord(id: string): Promise<MeasurementRecord>;
+	listMeasurementRecords(definitionId: string): Promise<MeasurementRecord[]>;
+	/** `recordedAt` is the actual instant the reading happened, for a backfilled or retroactive entry — omitted, it defaults to now. */
+	createMeasurementRecord(
+		definitionId: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+		recordedAt?: string,
+	): Promise<MeasurementRecord>;
+	/** Omitting `recordedAt` leaves the record's existing recorded instant untouched. */
+	updateMeasurementRecord(
+		id: string,
+		date: string,
+		value: number,
+		note: string | undefined,
+		recordedAt?: string,
+	): Promise<MeasurementRecord>;
+	deleteMeasurementRecord(id: string): Promise<void>;
+
+	/** Every completed set with `date` in `[startDate, endDate]` (inclusive), denormalized with exercise/category context — P-47's training analysis aggregates this bulk read entirely in TS. */
+	listAnalysisSets(startDate: string, endDate: string): Promise<AnalysisSetEntry[]>;
+
+	getAnalysisFavourite(id: string): Promise<AnalysisFavourite>;
+	listAnalysisFavourites(): Promise<AnalysisFavourite[]>;
+	/** `config` is an opaque JSON string the caller defines and parses — see computeTrainingAnalysis.ts's `AnalysisFavouriteConfig`. */
+	createAnalysisFavourite(name: string, config: string): Promise<AnalysisFavourite>;
+	updateAnalysisFavourite(id: string, name: string, config: string): Promise<AnalysisFavourite>;
+	reorderAnalysisFavourites(orderedIds: string[]): Promise<AnalysisFavourite[]>;
+	deleteAnalysisFavourite(id: string): Promise<void>;
 }

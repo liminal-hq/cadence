@@ -12,21 +12,54 @@ export type SetStatus = 'planned' | 'completed';
 
 export type WeightUnit = 'kg' | 'lb';
 
+/** A user-owned exercise category — three tonal colour roles, matching
+ *  `src/data/categoryColours.ts`'s `CategoryColour` shape (P-35 retires that hardcoded map in
+ *  favour of reading these rows for real). */
+export interface Category {
+	id: string;
+	name: string;
+	colourBackground: string;
+	colourText: string;
+	colourDot: string;
+	sortOrder: number;
+	archived: boolean;
+}
+
 export interface Exercise {
 	id: string;
 	name: string;
-	/** Category id — see src/data/categoryColours.ts. */
+	/** Category id — see domain/repository.ts's listCategories(). */
 	category: string;
 	metricProfile: MetricProfile;
+	note?: string;
+	url?: string;
 	/** Configured stepper increments, used by StepperCluster. */
 	weightIncrementKg?: number;
 	repsIncrement?: number;
 	distanceIncrementKm?: number;
 	durationIncrementSec?: number;
+	restDefaultMs?: number;
+	/** One of history/computeGraphPoints.ts's GraphMetric keys — the graph tab's initial metric. */
+	graphDefaultMetric?: string;
 	/** Archived exercises keep their history but render italicised and can't be logged fresh. */
 	archived?: boolean;
 	/** P-44's star toggle in the exercise detail header. */
 	favourite?: boolean;
+}
+
+/** Fields a caller supplies when creating or editing an exercise — mirrors Exercise's own editable subset (id/archived/favourite are managed separately, by dedicated calls). */
+export interface ExerciseValues {
+	name: string;
+	category: string;
+	metricProfile: MetricProfile;
+	note?: string;
+	url?: string;
+	weightIncrementKg?: number;
+	repsIncrement?: number;
+	distanceIncrementKm?: number;
+	durationIncrementSec?: number;
+	restDefaultMs?: number;
+	graphDefaultMetric?: string;
 }
 
 export interface WorkoutExercise {
@@ -67,6 +100,10 @@ export interface SetEntry {
 	durationSec?: number;
 	completedAt?: string;
 	note?: string;
+	/** Only ever populated by routine materialization today (SPEC.md 8.4's set-template label, e.g. "warm-up" or "drop"). */
+	setLabel?: string;
+	/** The SetTemplate this set was materialized from (SPEC.md 8.4's provenance requirement) — undefined for any set logged directly rather than via a routine. */
+	sourceTemplateId?: string;
 	isRecord?: boolean;
 	/** True while a watch-logged set hasn't merged back from the phone's perspective. */
 	pendingSync?: boolean;
@@ -172,5 +209,145 @@ export interface Workout {
 	source: WorkoutSource;
 	/** True when any set in this workout was logged from the paired watch. */
 	loggedByWatch?: boolean;
+	/** Set when this workout was created by materializing a routine section (SPEC.md 8.4) — provenance only. */
+	sourceRoutineId?: string;
+	sourceRoutineName?: string;
 	healthConnect?: WorkoutHealthConnectProvenance;
+}
+
+/** A reusable workout template — SPEC.md 8.4: "templates, not a second kind of workout history." */
+export interface Routine {
+	id: string;
+	name: string;
+	note?: string;
+	sortOrder: number;
+	archived: boolean;
+}
+
+/** A named group of exercises within a routine — routines may have one or many sections. */
+export interface RoutineSection {
+	id: string;
+	routineId: string;
+	name?: string;
+	sortOrder: number;
+}
+
+/** A routine-authored superset template; materialization copies these into a workout-level superset, matching how a SetTemplate materializes into a Set. */
+export interface RoutineSuperset {
+	id: string;
+	routineSectionId: string;
+	colour?: string;
+	autoAdvance: boolean;
+	restMs?: number;
+}
+
+/** One exercise slot within a routine section. */
+export interface RoutineExercise {
+	id: string;
+	routineSectionId: string;
+	exerciseId: string;
+	order: number;
+	routineSupersetId?: string;
+	supersetPosition?: number;
+	restMs?: number;
+	note?: string;
+}
+
+/** The only `populationRule` value shipped in v1 — more may be added later. */
+export const SEED_LAST_PERFORMANCE = 'seed-last-performance' as const;
+
+/** A planned set within a routine exercise — either explicit target values, or a rule to seed values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). */
+export interface SetTemplate {
+	id: string;
+	routineExerciseId: string;
+	order: number;
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+	populationRule?: string;
+	setLabel?: string;
+}
+
+/** The subset of SetTemplate's fields a caller supplies when creating one. */
+export interface SetTemplateValues {
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+	populationRule?: string;
+	setLabel?: string;
+}
+
+/** A target attached to an exercise (SPEC.md 8.8). Whether the target has actually been reached is computed over logged history, not stored — achievedAt is a manual toggle, distinct from that calculation. */
+export interface ExerciseGoal {
+	id: string;
+	exerciseId: string;
+	title: string;
+	targetWeightKg?: number;
+	targetReps?: number;
+	targetDistanceKm?: number;
+	targetDurationSec?: number;
+	startDate?: string;
+	targetDate?: string;
+	achievedAt?: string;
+	archived: boolean;
+}
+
+/** Fields a caller supplies when creating or editing a goal. */
+export interface ExerciseGoalValues {
+	exerciseId: string;
+	title: string;
+	targetWeightKg?: number;
+	targetReps?: number;
+	targetDistanceKm?: number;
+	targetDurationSec?: number;
+	startDate?: string;
+	targetDate?: string;
+}
+
+/** A user-owned (or built-in-but-editable) measurement kind (SPEC.md 8.8). `archived` doubles as the enabled state. */
+export interface MeasurementDefinition {
+	id: string;
+	name: string;
+	unit: string;
+	goal?: number;
+	sortOrder: number;
+	archived: boolean;
+}
+
+/** One logged value for a MeasurementDefinition — a distinct entity from a goal. */
+export interface MeasurementRecord {
+	id: string;
+	definitionId: string;
+	date: string;
+	recordedAt: string;
+	value: number;
+	note?: string;
+}
+
+/** One completed set, denormalized with its exercise/category context for P-47's training analysis — grouping and drill-down happen entirely in TS, mirroring computeStats.ts/computeRecords.ts's own "pure function over fetched rows" pattern. */
+export interface AnalysisSetEntry {
+	setId: string;
+	workoutId: string;
+	exerciseId: string;
+	exerciseName: string;
+	categoryId: string;
+	categoryName: string;
+	metricProfile: MetricProfile;
+	date: string;
+	/** This set's order within its own workout-exercise (`SetEntry.order` elsewhere) — distinguishes two completed sets with otherwise-identical logged values in the drill-down list. */
+	setOrder: number;
+	weightKg?: number;
+	reps?: number;
+	distanceKm?: number;
+	durationSec?: number;
+}
+
+/** A pinned P-47 breakdown configuration (SPEC.md 8.7: "pin recurring breakdowns without changing their underlying workout data"). `config` is an opaque JSON blob the frontend defines and parses — the backend never inspects its shape. */
+export interface AnalysisFavourite {
+	id: string;
+	name: string;
+	config: string;
+	sortOrder: number;
 }

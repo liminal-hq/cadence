@@ -23,6 +23,11 @@ import { WatchSyncScreen } from '../../screens/settings/WatchSyncScreen';
 import { PlatesSettingsScreen } from '../../screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from '../../screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from '../../screens/settings/AccessibilitySettingsScreen';
+import { ExerciseLibraryScreen } from '../../screens/exercises/ExerciseLibraryScreen';
+import { ExerciseEditorScreen } from '../../screens/exercises/ExerciseEditorScreen';
+import { CategoryEditorScreen } from '../../screens/exercises/CategoryEditorScreen';
+import { MeasurementTrackerScreen } from '../../screens/measurements/MeasurementTrackerScreen';
+import { MeasurementDetailScreen } from '../../screens/measurements/MeasurementDetailScreen';
 
 /**
  * Keyed by the same `$param`-templated path string each route already declares via
@@ -68,6 +73,15 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
 	// `backTo` search param (only relevant once the screen is really navigated to) doesn't
 	// affect what it looks like.
 	'/exercise/$exerciseId': (params) => <ExerciseDetailScreen exerciseId={params.exerciseId} />,
+	'/measurements': () => <MeasurementTrackerScreen />,
+	'/measurements/$definitionId': (params) => (
+		<MeasurementDetailScreen definitionId={params.definitionId} />
+	),
+	'/exercise-library': () => <ExerciseLibraryScreen />,
+	'/exercise-library/new': () => <ExerciseEditorScreen />,
+	'/exercise-library/$exerciseId/edit': (params) => (
+		<ExerciseEditorScreen exerciseId={params.exerciseId} />
+	),
 	'/settings': () => <SettingsHubScreen />,
 	'/settings/units': () => <UnitsSettingsScreen />,
 	'/settings/timers': () => <TimerSettingsScreen />,
@@ -78,7 +92,7 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
 	'/settings/data': () => <DataManagementScreen />,
 	'/settings/timers/overrides': () => <SettingsComingSoon screen="Per-exercise overrides" />,
 	'/settings/1rm-formula': () => <SettingsComingSoon screen="1RM formula" />,
-	'/settings/categories': () => <SettingsComingSoon screen="Categories" />,
+	'/settings/categories': () => <CategoryEditorScreen />,
 	'/settings/graphs': () => <SettingsComingSoon screen="Week start & graphs" />,
 	'/settings/theme': () => <SettingsComingSoon screen="Theme & wallpaper colours" />,
 	'/settings/health-connect': () => <SettingsComingSoon screen="Health Connect" />,

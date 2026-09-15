@@ -30,3 +30,15 @@
 	stroke: var(--cadence-surface);
 	stroke-width: 2;
 }
+
+.line-chart__goal-line {
+	stroke: var(--cadence-tertiary, var(--cadence-outline));
+	stroke-width: 1;
+	stroke-dasharray: 4 3;
+}
+
+.line-chart__goal-label {
+	font-size: 8px;
+	fill: var(--cadence-tertiary, var(--cadence-outline));
+	text-anchor: end;
+}

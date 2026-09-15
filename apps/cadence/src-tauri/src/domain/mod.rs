@@ -14,10 +14,15 @@ pub mod error;
 pub mod events;
 pub mod units;
 
+pub mod analysis;
 pub mod barbells;
+pub mod categories;
 pub mod exercises;
+pub mod goals;
 pub mod history;
+pub mod measurements;
 pub mod rest_timer;
+pub mod routines;
 pub mod sets;
 pub mod settings;
 pub mod workouts;

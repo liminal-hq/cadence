@@ -6,4 +6,8 @@ import type { WorkoutHealthConnectProvenance } from "./WorkoutHealthConnectProve
  * stored and read separately from `startedAt`/`completedAt` (real instants), matching the
  * near-midnight-timezone invariant already proven out in the frontend's History feature.
  */
-export type Workout = { id: string, date: string, title: string, note?: string, startedAt?: string, completedAt?: string, status: string, source: string, loggedByWatch: boolean, healthConnect?: WorkoutHealthConnectProvenance, };
+export type Workout = { id: string, date: string, title: string, note?: string, startedAt?: string, completedAt?: string, status: string, source: string, loggedByWatch: boolean, 
+/**
+ * Set when this workout was created by materializing a routine section (SPEC.md 8.4) — provenance only, per SPEC.md 10.2's "immutable with respect to already materialized sets."
+ */
+sourceRoutineId?: string, sourceRoutineName?: string, healthConnect?: WorkoutHealthConnectProvenance, };

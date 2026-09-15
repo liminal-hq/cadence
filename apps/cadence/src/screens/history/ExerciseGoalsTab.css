@@ -1,3 +1,72 @@
 .exercise-goals-tab {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
 	padding: var(--cadence-space-4);
+}
+
+.exercise-goals-tab__list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+}
+
+.exercise-goals-tab__row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-1);
+	padding: var(--cadence-space-3);
+}
+
+.exercise-goals-tab__row-header {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.exercise-goals-tab__title {
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+}
+
+.exercise-goals-tab__achieved {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-primary);
+}
+
+.exercise-goals-tab__overdue {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-error);
+}
+
+.exercise-goals-tab__target,
+.exercise-goals-tab__best {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-goals-tab__dates {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.exercise-goals-tab__row-actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--cadence-space-2);
+	margin-top: var(--cadence-space-2);
+}
+
+.exercise-goals-tab__form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3);
+}
+
+.exercise-goals-tab__form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--cadence-space-2);
 }

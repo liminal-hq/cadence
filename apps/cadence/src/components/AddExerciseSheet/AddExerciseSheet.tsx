@@ -46,6 +46,7 @@ export function AddExerciseSheet({
 	const existing = useMemo(() => new Set(existingExerciseIds), [existingExerciseIds]);
 
 	const filtered = exercises.filter((exercise) => {
+		if (exercise.archived) return false;
 		if (favouritesOnly && !exercise.favourite) return false;
 		if (categoryFilter && exercise.category !== categoryFilter) return false;
 		if (query.trim() && !exercise.name.toLowerCase().includes(query.trim().toLowerCase())) {

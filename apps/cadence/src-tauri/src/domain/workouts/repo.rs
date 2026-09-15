@@ -20,6 +20,8 @@ struct WorkoutRow {
     status: String,
     source: String,
     logged_by_watch: i64,
+    source_routine_id: Option<String>,
+    source_routine_name: Option<String>,
     hc_source_app: Option<String>,
     hc_record_id: Option<String>,
     hc_imported_at_ms: Option<i64>,
@@ -75,6 +77,8 @@ impl From<WorkoutRow> for Workout {
             status: row.status,
             source: row.source,
             logged_by_watch: row.logged_by_watch != 0,
+            source_routine_id: row.source_routine_id,
+            source_routine_name: row.source_routine_name,
             health_connect,
         }
     }
@@ -83,8 +87,9 @@ impl From<WorkoutRow> for Workout {
 pub async fn get(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
     let row: WorkoutRow = sqlx::query_as(
         "SELECT id, local_date, title, note, started_at_ms, completed_at_ms, status, source, \
-         logged_by_watch, hc_source_app, hc_record_id, hc_imported_at_ms, hc_unmapped_metrics, \
-         hc_overlaps_workout_id FROM workouts WHERE id = ?",
+         logged_by_watch, source_routine_id, source_routine_name, hc_source_app, hc_record_id, \
+         hc_imported_at_ms, hc_unmapped_metrics, hc_overlaps_workout_id FROM workouts \
+         WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(conn)
@@ -107,9 +112,9 @@ pub async fn list_in_range(
 ) -> Result<Vec<Workout>> {
     let rows: Vec<WorkoutRow> = sqlx::query_as(
         "SELECT id, local_date, title, note, started_at_ms, completed_at_ms, status, source, \
-         logged_by_watch, hc_source_app, hc_record_id, hc_imported_at_ms, hc_unmapped_metrics, \
-         hc_overlaps_workout_id FROM workouts WHERE local_date >= ? AND local_date <= ? \
-         ORDER BY local_date, id",
+         logged_by_watch, source_routine_id, source_routine_name, hc_source_app, hc_record_id, \
+         hc_imported_at_ms, hc_unmapped_metrics, hc_overlaps_workout_id FROM workouts \
+         WHERE local_date >= ? AND local_date <= ? ORDER BY local_date, id",
     )
     .bind(start_date)
     .bind(end_date)

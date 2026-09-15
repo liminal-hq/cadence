@@ -21,7 +21,15 @@ import { HistoryHubScreen } from './screens/history/HistoryHubScreen';
 import { WorkoutDetailScreen } from './screens/history/WorkoutDetailScreen';
 import { ExerciseDetailScreen } from './screens/history/ExerciseDetailScreen';
 import { PlanScreen } from './screens/PlanScreen';
+import { RoutineDetailScreen } from './screens/plan/RoutineDetailScreen';
+import { RoutineEditorScreen } from './screens/plan/RoutineEditorScreen';
+import { RoutineSectionStartScreen } from './screens/plan/RoutineSectionStartScreen';
+import { ExerciseLibraryScreen } from './screens/exercises/ExerciseLibraryScreen';
+import { ExerciseEditorScreen } from './screens/exercises/ExerciseEditorScreen';
+import { CategoryEditorScreen } from './screens/exercises/CategoryEditorScreen';
 import { ProgressScreen } from './screens/ProgressScreen';
+import { MeasurementTrackerScreen } from './screens/measurements/MeasurementTrackerScreen';
+import { MeasurementDetailScreen } from './screens/measurements/MeasurementDetailScreen';
 import { ExerciseLoggingScreen } from './screens/ExerciseLoggingScreen';
 import { ActiveWorkoutScreen } from './screens/ActiveWorkoutScreen';
 import { SettingsHubScreen } from './screens/settings/SettingsHubScreen';
@@ -34,6 +42,7 @@ import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
 import { resolvePlatform } from './platform';
+import './screens/screens.css';
 import './App.css';
 
 function RootLayout() {
@@ -143,6 +152,87 @@ const exerciseDetailRoute = createRoute({
 	component: ExerciseDetailRoute,
 });
 
+function RoutineDetailRoute() {
+	const { routineId } = routineDetailRoute.useParams();
+	return <RoutineDetailScreen routineId={routineId} />;
+}
+
+const routineDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine/$routineId',
+	component: RoutineDetailRoute,
+});
+
+function RoutineEditorRoute() {
+	const { routineId } = routineEditorRoute.useParams();
+	return <RoutineEditorScreen routineId={routineId} />;
+}
+
+const routineEditorRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine/$routineId/edit',
+	component: RoutineEditorRoute,
+});
+
+function RoutineSectionStartRoute() {
+	const { routineSectionId } = routineSectionStartRoute.useParams();
+	return <RoutineSectionStartScreen routineSectionId={routineSectionId} />;
+}
+
+const routineSectionStartRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/plan/routine-section/$routineSectionId/start',
+	component: RoutineSectionStartRoute,
+});
+
+const measurementTrackerRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/measurements',
+	component: MeasurementTrackerScreen,
+});
+
+function MeasurementDetailRoute() {
+	const { definitionId } = measurementDetailRoute.useParams();
+	return <MeasurementDetailScreen definitionId={definitionId} />;
+}
+
+const measurementDetailRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/measurements/$definitionId',
+	component: MeasurementDetailRoute,
+});
+
+const exerciseLibraryRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/exercise-library',
+	component: ExerciseLibraryScreen,
+});
+
+function ExerciseEditorNewRoute() {
+	const { name } = exerciseEditorNewRoute.useSearch();
+	return <ExerciseEditorScreen initialName={name} />;
+}
+
+const exerciseEditorNewRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/exercise-library/new',
+	validateSearch: (search: Record<string, unknown>): { name?: string } => ({
+		name: typeof search.name === 'string' ? search.name : undefined,
+	}),
+	component: ExerciseEditorNewRoute,
+});
+
+function ExerciseEditorEditRoute() {
+	const { exerciseId } = exerciseEditorEditRoute.useParams();
+	return <ExerciseEditorScreen exerciseId={exerciseId} />;
+}
+
+const exerciseEditorEditRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/exercise-library/$exerciseId/edit',
+	component: ExerciseEditorEditRoute,
+});
+
 const settingsRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/settings',
@@ -191,7 +281,11 @@ const settingsPlatesEditorRoute = createRoute({
 	path: '/settings/plates/$barbellId',
 	component: BarbellEditorRoute,
 });
-const settingsCategoriesRoute = settingsStubRoute('/settings/categories', 'Categories');
+const settingsCategoriesRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/categories',
+	component: CategoryEditorScreen,
+});
 const settingsGraphsRoute = settingsStubRoute('/settings/graphs', 'Week start & graphs');
 const settingsThemeRoute = settingsStubRoute('/settings/theme', 'Theme & wallpaper colours');
 const settingsAccessibilityRoute = createRoute({
@@ -226,6 +320,14 @@ const routeTree = rootRoute.addChildren([
 	activeWorkoutRoute,
 	workoutDetailRoute,
 	exerciseDetailRoute,
+	routineDetailRoute,
+	routineEditorRoute,
+	routineSectionStartRoute,
+	measurementTrackerRoute,
+	measurementDetailRoute,
+	exerciseLibraryRoute,
+	exerciseEditorNewRoute,
+	exerciseEditorEditRoute,
 	settingsRoute,
 	settingsUnitsRoute,
 	settingsTimersRoute,

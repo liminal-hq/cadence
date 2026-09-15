@@ -408,44 +408,44 @@ Watch
 **Scope:** Initial basic; Planned advanced  
 **Purpose:** Answer how training volume, frequency, duration, and composition are changing overall.
 
-**Entry:** Progress primary destination.
+**Entry:** Progress primary destination — Cadence's Progress-tab landing screen.
 
-**Content and actions:** period, metric, category/exercise filters, comparison, category/exercise breakdown, drill-down to exercise/workout.
+**Content and actions:** period filter (7/30/90 days, 1 year, all time); metric filter (training days, total sets, volume, total reps, max weight, estimated 1RM, max distance, total distance, duration, avg pace, avg speed — each shown only where its input metrics support it), each metric's definition and unit stated alongside it; group-by toggle (category or exercise); a breakdown table sorted by value; expanding a row reveals the originating sets, each opening its source workout; pin the current period/metric/group-by as a named favourite, shown as a removable chip that reapplies it on tap, and unpin it from there. Comparison and a dedicated single-exercise filter are Planned advanced, not yet built.
 
-**States:** no data; filtered-empty result; long time range computing; data with no volume-compatible sets; accessible table alternative.
+**States:** no data in the period; a metric with no compatible sets in the period; accessible table (the breakdown is a real `<table>`, not a chart, so no separate alternative view is needed); no favourites pinned; a pinned favourite applied; a favourite unpinned.
 
 ### P-48 — Exercise goals
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** Define and review an exercise-specific target.
 
-**Entry:** Exercise detail; Progress.
+**Entry:** Exercise detail. A Progress-tab entry point is deferred to the training-analysis screen (P-47), still a placeholder as of this screen's build.
 
-**Content and actions:** title; target metrics; start/target dates; progress; edit/archive goal; source performance reference.
+**Content and actions:** title; target metrics (weight/reps or distance/duration, matching the exercise's metric profile); start/target dates; progress computed live over logged history (never stored — SPEC.md 8.8); a manual achieved toggle, independent of that computed progress; edit/archive/delete goal.
 
-**States:** no goals; achieved; overdue; no compatible performance yet; metric profile changed.
+**States:** no goals; achieved (met by logged history, or manually toggled); overdue (target date passed unachieved); no compatible performance yet ("No history yet"); metric profile changed since the goal was created (its stored target no longer matches the exercise's current profile — surfaced explicitly rather than silently evaluated against the wrong fields, and resolved by editing the goal to set a new target).
 
 ### P-49 — Measurement tracker
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** Record generic body/custom measurements separately from a workout.
 
-**Entry:** Progress; Today shortcut (optional).
+**Entry:** Reachable at `/measurements`; a Progress-tab entry point is deferred to the training-analysis screen (P-47), still a placeholder as of this screen's build. Today shortcut remains Planned.
 
-**Content and actions:** enabled measurement list, current values, log record, open history/graph, manage definitions.
+**Content and actions:** enabled measurement list with each one's latest value; a quick per-row "log a value" action; a "Manage measurements" mode for add/rename/re-unit/enable-disable/reorder/delete over every definition, enabled or not; open a definition's detail (P-50).
 
-**States:** no enabled measurements; no records; unit-specific values; multiple readings in a day; record imported from Health Connect (Planned — see P-65) shown with source provenance.
+**States:** no measurements enabled (with a path into Manage measurements); a definition with no records yet; unit-specific values; built-in suggestions (bodyweight, body-fat, common circumferences) ship disabled by default; record imported from Health Connect (Planned — see P-65) shown with source provenance.
 
 ### P-50 — Measurement detail and editor
 
-**Scope:** Planned  
+**Scope:** Initial  
 **Purpose:** View a measurement's trend and maintain its definition/records.
 
 **Entry:** Measurement tracker.
 
-**Content and actions:** graph/history; add/edit/delete record; definition name/unit/goal/enabled/order; source/provenance display.
+**Content and actions:** graph (with a table alternative) and history of records; add/edit/delete record; edit the definition's name/unit/goal/archived state inline; archive/unarchive and delete the definition itself.
 
-**States:** empty history; goal line; duplicate timestamp; archived definition; health-imported record (Planned) clearly marked as external and not directly editable to the same degree as a manual entry.
+**States:** empty history; a goal line rendered on the graph once a goal value is set; archived definition; a unit change is rejected once the definition has records or a goal (both are bare values with no unit of their own, so reinterpreting them under a new unit would be wrong); health-imported record (Planned) clearly marked as external and not directly editable to the same degree as a manual entry.
 
 ## 7. Phone: settings, data, and connected devices
 

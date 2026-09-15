@@ -1,11 +1,10 @@
-// P-44 Exercise detail — the durable analytical home for one exercise, reachable from both
-// History (P-42/P-43 drill-down) and Logging's exercise screen. All five tabs stay visible even
-// with no data, per the design's "so nothing unlocks later" intent — Goals is a placeholder.
+// P-44 Exercise detail — the durable analytical home for one exercise, reachable from both History (P-42/P-43 drill-down) and Logging's exercise screen. All five tabs stay visible even with no data, per the design's "so nothing unlocks later" intent.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { DetailAppBar } from '../../components/DetailAppBar/DetailAppBar';
 import { Tabs } from '../../components/ui/Tabs/Tabs';
 import { ExerciseHistoryTab } from './ExerciseHistoryTab';
@@ -41,6 +40,7 @@ export function ExerciseDetailScreen({
 	backTo = '/history',
 }: ExerciseDetailScreenProps) {
 	const repository = useLoggingRepository();
+	const navigate = useNavigate();
 	const [exercise, setExercise] = useState<Exercise | null>(null);
 	const [history, setHistory] = useState<ExerciseHistoryEntry[] | null>(null);
 	const [tab, setTab] = useState<TabValue>('history');
@@ -91,7 +91,12 @@ export function ExerciseDetailScreen({
 						iconFilled: true,
 						onClick: toggleFavourite,
 					},
-					{ icon: 'edit', label: 'Edit exercise' },
+					{
+						icon: 'edit',
+						label: 'Edit exercise',
+						onClick: () =>
+							navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId } }),
+					},
 				]}
 			/>
 			<div className="screen-shell__content exercise-detail">
@@ -106,7 +111,7 @@ export function ExerciseDetailScreen({
 				{tab === 'stats' && (
 					<ExerciseStatsTab history={history} metricProfile={exercise.metricProfile} />
 				)}
-				{tab === 'goals' && <ExerciseGoalsTab />}
+				{tab === 'goals' && <ExerciseGoalsTab exercise={exercise} history={history} />}
 			</div>
 		</div>
 	);

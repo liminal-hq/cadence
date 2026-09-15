@@ -20,10 +20,16 @@ export interface ExerciseHistoryEntry {
 export interface DatedSet {
 	set: SetEntry;
 	date: string;
+	/** The owning workout's id — kept alongside `set.id` so a derived view (a goal's "best attempt",
+	 *  a graph point) can link back to its source, since the calendar date alone is ambiguous when
+	 *  more than one workout or set falls on the same day (SPEC.md 8.8's traceability requirement). */
+	workoutId: string;
 }
 
 export function flattenDatedSets(history: ExerciseHistoryEntry[]): DatedSet[] {
-	return history.flatMap((entry) => entry.sets.map((set) => ({ set, date: entry.workout.date })));
+	return history.flatMap((entry) =>
+		entry.sets.map((set) => ({ set, date: entry.workout.date, workoutId: entry.workout.id })),
+	);
 }
 
 export async function loadExerciseHistory(

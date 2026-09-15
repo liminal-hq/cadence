@@ -172,6 +172,7 @@ export function ExerciseLoggingScreen({
 
 	if (!workoutExercise || !exercise) return null;
 
+	const effectiveRestMs = exercise.restDefaultMs ?? restSettings.defaultRestMs;
 	const effectiveBackTo = backToOwnWorkout ? `/workout/${workoutExercise.workoutId}` : backTo;
 
 	const loadedSet = sets.find((s) => s.id === loadedSetId) ?? null;
@@ -263,7 +264,7 @@ export function ExerciseLoggingScreen({
 					? `${exercise.name} set ${created.order} · ${formatNumber(created.weightKg ?? 0)} × ${created.reps ?? 0}`
 					: `${exercise.name} set ${created.order}`;
 			if (restSettings.restAutoStart) {
-				await repository.startRestTimer(restSettings.defaultRestMs, {
+				await repository.startRestTimer(effectiveRestMs, {
 					forSetId: created.id,
 					nextSetLabel: label,
 					ownerDevice: hasWatch ? 'watch' : 'phone',
@@ -296,7 +297,7 @@ export function ExerciseLoggingScreen({
 				? `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)} · ${formatNumber(upcoming.weightKg ?? 0)} × ${upcoming.reps ?? 0}`
 				: `${exercise.name} set ${upcoming.order + (nextPlanned ? 0 : 1)}`;
 		if (restSettings.restAutoStart) {
-			await repository.startRestTimer(restSettings.defaultRestMs, {
+			await repository.startRestTimer(effectiveRestMs, {
 				forSetId: completed.id,
 				nextSetLabel: label,
 				ownerDevice: hasWatch ? 'watch' : 'phone',

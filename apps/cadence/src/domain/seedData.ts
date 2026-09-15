@@ -7,12 +7,103 @@
 
 import type {
 	BarbellConfig,
+	Category,
 	Exercise,
+	MeasurementDefinition,
 	SetEntry,
 	Settings,
 	Workout,
 	WorkoutExercise,
 } from './types';
+
+// Mirrors 0002_seed_defaults.sql's INSERT INTO categories exactly (same ids/names/colours/order).
+export const CATEGORIES: Category[] = [
+	{
+		id: 'chest',
+		name: 'Chest',
+		colourBackground: '#ffd9dd',
+		colourText: '#5a0f1c',
+		colourDot: '#a83a4c',
+		sortOrder: 0,
+		archived: false,
+	},
+	{
+		id: 'back',
+		name: 'Back',
+		colourBackground: '#ffddb8',
+		colourText: '#3a2200',
+		colourDot: '#9a5b00',
+		sortOrder: 1,
+		archived: false,
+	},
+	{
+		id: 'shoulders',
+		name: 'Shoulders',
+		colourBackground: '#ffe7a3',
+		colourText: '#3e2e00',
+		colourDot: '#7a6000',
+		sortOrder: 2,
+		archived: false,
+	},
+	{
+		id: 'biceps',
+		name: 'Biceps',
+		colourBackground: '#d2efc8',
+		colourText: '#0f2e0b',
+		colourDot: '#3e7a34',
+		sortOrder: 3,
+		archived: false,
+	},
+	{
+		id: 'triceps',
+		name: 'Triceps',
+		colourBackground: '#c8eee6',
+		colourText: '#00302a',
+		colourDot: '#0e7566',
+		sortOrder: 4,
+		archived: false,
+	},
+	{
+		id: 'legs',
+		name: 'Legs',
+		colourBackground: '#d3e4ff',
+		colourText: '#0b2547',
+		colourDot: '#2d5fa8',
+		sortOrder: 5,
+		archived: false,
+	},
+	{
+		id: 'core',
+		name: 'Core',
+		colourBackground: '#e7dff6',
+		colourText: '#1d192b',
+		colourDot: '#6f5aa6',
+		sortOrder: 6,
+		archived: false,
+	},
+	{
+		id: 'cardio',
+		name: 'Cardio',
+		colourBackground: '#e6e0eb',
+		colourText: '#1c1b20',
+		colourDot: '#5f5c68',
+		sortOrder: 7,
+		archived: false,
+	},
+];
+
+// Mirrors 0005_measurement_suggestions.sql's INSERT INTO measurement_definitions exactly (same
+// ids/names/units/order) — all archived (disabled) by default, per SPEC.md 8.8's "all definitions
+// remain editable" reading.
+export const MEASUREMENT_DEFINITIONS: MeasurementDefinition[] = [
+	{ id: 'bodyweight', name: 'Bodyweight', unit: 'kg', sortOrder: 0, archived: true },
+	{ id: 'body-fat', name: 'Body fat', unit: '%', sortOrder: 1, archived: true },
+	{ id: 'waist', name: 'Waist', unit: 'cm', sortOrder: 2, archived: true },
+	{ id: 'hips', name: 'Hips', unit: 'cm', sortOrder: 3, archived: true },
+	{ id: 'chest-circumference', name: 'Chest', unit: 'cm', sortOrder: 4, archived: true },
+	{ id: 'bicep', name: 'Bicep', unit: 'cm', sortOrder: 5, archived: true },
+	{ id: 'thigh', name: 'Thigh', unit: 'cm', sortOrder: 6, archived: true },
+];
 
 export const EXERCISES: Exercise[] = [
 	{

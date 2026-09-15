@@ -1,0 +1,442 @@
+// P-50 Measurement detail and editor — graph/history for one measurement, add/edit/delete records, and edit the definition itself (name/unit/goal/enabled/order)
+//
+// (c) Copyright 2026 Liminal HQ, Scott Morris
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
+import { AppBar } from '../../components/ui/AppBar/AppBar';
+import { Banner } from '../../components/ui/Banner/Banner';
+import { Button } from '../../components/ui/Button/Button';
+import { Dialog } from '../../components/ui/Dialog/Dialog';
+import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
+import { Surface } from '../../components/ui/Surface/Surface';
+import { TextField } from '../../components/ui/TextField/TextField';
+import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { formatNumber, todayLocalDate } from '../../domain/format';
+import { formatCalendarDateLabel } from '../history/historyDates';
+import { LineChart } from '../history/LineChart';
+import type { GraphPoint } from '../history/computeGraphPoints';
+import type { MeasurementDefinition, MeasurementRecord } from '../../domain/types';
+import '../screens.css';
+import './measurements.css';
+
+interface MeasurementDetailScreenProps {
+	definitionId: string;
+}
+
+interface RecordDraft {
+	date: string;
+	value: string;
+	note: string;
+}
+
+function blankDraft(): RecordDraft {
+	return { date: todayLocalDate(), value: '', note: '' };
+}
+
+const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+// `new Date('2026-02-30T00:00:00')` doesn't produce NaN — JS silently normalizes it to 2026-03-02 — so a calendar-invalid date has to be caught by round-tripping the parsed year/month/day back through UTC construction and checking nothing shifted, not just checking for a parse failure.
+export function isValidDate(date: string): boolean {
+	const match = DATE_PATTERN.exec(date);
+	if (!match) return false;
+	const year = Number(match[1]);
+	const month = Number(match[2]);
+	const day = Number(match[3]);
+	const parsed = new Date(Date.UTC(year, month - 1, day));
+	return (
+		parsed.getUTCFullYear() === year &&
+		parsed.getUTCMonth() === month - 1 &&
+		parsed.getUTCDate() === day
+	);
+}
+
+function draftFromRecord(record: MeasurementRecord): RecordDraft {
+	return { date: record.date, value: String(record.value), note: record.note ?? '' };
+}
+
+/** Orders by calendar date, breaking a same-day tie by `recordedAt` rather than leaving it to sort-engine stability — `direction` is 1 for ascending (oldest/earliest-entered first) or -1 for descending (newest/latest-entered first). */
+export function byDateThenRecordedAt(
+	direction: 1 | -1,
+): (a: MeasurementRecord, b: MeasurementRecord) => number {
+	return (a, b) => {
+		if (a.date !== b.date) return a.date < b.date ? -direction : direction;
+		return a.recordedAt < b.recordedAt ? -direction : direction;
+	};
+}
+
+interface DefinitionDraft {
+	name: string;
+	unit: string;
+	goal: string;
+}
+
+export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScreenProps) {
+	const repository = useLoggingRepository();
+	const navigate = useNavigate();
+	const [definition, setDefinition] = useState<MeasurementDefinition | null>(null);
+	const [records, setRecords] = useState<MeasurementRecord[] | null>(null);
+	const [error, setError] = useState<string | null>(null);
+	const [recordDraft, setRecordDraft] = useState<RecordDraft | null>(null);
+	const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+	const [recordPendingDelete, setRecordPendingDelete] = useState<MeasurementRecord | null>(null);
+	const [definitionDraft, setDefinitionDraft] = useState<DefinitionDraft | null>(null);
+	const [showTable, setShowTable] = useState(false);
+	const [definitionPendingDelete, setDefinitionPendingDelete] = useState(false);
+	const [savingRecord, setSavingRecord] = useState(false);
+
+	const reload = useCallback(() => {
+		repository.getMeasurementDefinition(definitionId).then(setDefinition);
+		repository
+			.listMeasurementRecords(definitionId)
+			.then((all) => setRecords([...all].sort(byDateThenRecordedAt(-1))));
+	}, [repository, definitionId]);
+
+	useEffect(reload, [reload]);
+
+	if (!definition || !records) return null;
+
+	async function guarded(action: () => Promise<unknown>): Promise<boolean> {
+		try {
+			setError(null);
+			await action();
+			reload();
+			return true;
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			return false;
+		}
+	}
+
+	async function handleSaveRecord() {
+		if (!recordDraft) return;
+		if (!isValidDate(recordDraft.date)) {
+			setError('Enter a valid date.');
+			return;
+		}
+		const value = Number(recordDraft.value);
+		if (!Number.isFinite(value)) {
+			setError('Enter a numeric value.');
+			return;
+		}
+		const note = recordDraft.note.trim() === '' ? undefined : recordDraft.note.trim();
+		setSavingRecord(true);
+		const succeeded = editingRecordId
+			? await guarded(() =>
+					repository.updateMeasurementRecord(editingRecordId, recordDraft.date, value, note),
+				)
+			: await guarded(() =>
+					repository.createMeasurementRecord(definitionId, recordDraft.date, value, note),
+				);
+		setSavingRecord(false);
+		if (!succeeded) return;
+		setRecordDraft(null);
+		setEditingRecordId(null);
+	}
+
+	async function handleSaveDefinition() {
+		if (!definitionDraft) return;
+		const goal = definitionDraft.goal.trim() === '' ? undefined : Number(definitionDraft.goal);
+		if (goal != null && !Number.isFinite(goal)) {
+			setError('Enter a numeric goal, or leave it blank.');
+			return;
+		}
+		try {
+			setError(null);
+			await repository.updateMeasurementDefinition(
+				definitionId,
+				definitionDraft.name,
+				definitionDraft.unit,
+				goal,
+			);
+			reload();
+			setDefinitionDraft(null);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	}
+
+	// Reflects only what's actually persisted — opening the delete-confirmation dialog must not
+	// itself change what the graph/table show, even though `recordPendingDelete` is already set at
+	// that point (it only becomes true after the delete actually succeeds via `reload()`).
+	const points: GraphPoint[] = [...records]
+		.sort(byDateThenRecordedAt(1))
+		.map((r) => ({ date: r.date, value: r.value, setId: r.id }));
+
+	return (
+		<div className="screen-shell">
+			<AppBar
+				title={definition.name}
+				subtitle={definition.archived ? `${definition.unit} · Archived` : definition.unit}
+				size="medium"
+				back={{ to: '/measurements' }}
+				actions={[
+					{
+						icon: 'edit',
+						label: 'Edit measurement',
+						onClick: () =>
+							setDefinitionDraft({
+								name: definition.name,
+								unit: definition.unit,
+								goal: definition.goal != null ? String(definition.goal) : '',
+							}),
+					},
+				]}
+			/>
+			<div className="screen-shell__content measurement-detail">
+				{error && (
+					<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+				)}
+
+				{definitionDraft && (
+					<Surface tone="container-low" radius="m" className="measurement-detail__form">
+						<TextField
+							label="Name"
+							value={definitionDraft.name}
+							onChange={(name) => setDefinitionDraft({ ...definitionDraft, name })}
+						/>
+						<TextField
+							label="Unit"
+							value={definitionDraft.unit}
+							onChange={(unit) => setDefinitionDraft({ ...definitionDraft, unit })}
+						/>
+						<TextField
+							label="Goal (optional)"
+							type="number"
+							value={definitionDraft.goal}
+							onChange={(goal) => setDefinitionDraft({ ...definitionDraft, goal })}
+						/>
+						<div className="measurement-detail__form-actions">
+							<Button variant="text" onClick={() => setDefinitionDraft(null)}>
+								Cancel
+							</Button>
+							<Button
+								variant="text"
+								onClick={() =>
+									guarded(() =>
+										repository.setMeasurementDefinitionArchived(definitionId, !definition.archived),
+									)
+								}
+							>
+								{definition.archived ? 'Unarchive' : 'Archive'}
+							</Button>
+							<Button
+								variant="text"
+								tone="error"
+								onClick={() => {
+									setDefinitionDraft(null);
+									setDefinitionPendingDelete(true);
+								}}
+							>
+								Delete
+							</Button>
+							<Button
+								variant="filled"
+								disabled={!definitionDraft.name.trim() || !definitionDraft.unit.trim()}
+								onClick={handleSaveDefinition}
+							>
+								Save
+							</Button>
+						</div>
+					</Surface>
+				)}
+
+				{points.length === 0 ? (
+					<EmptyState
+						headline="No records yet"
+						body="Log a value to start tracking this measurement."
+						action={
+							<Button variant="filled" icon="add" onClick={() => setRecordDraft(blankDraft())}>
+								Log a value
+							</Button>
+						}
+					/>
+				) : (
+					<>
+						<LineChart points={points} onSelectPoint={() => {}} goalValue={definition.goal} />
+						<Button variant="text" onClick={() => setShowTable((v) => !v)}>
+							{showTable ? 'Hide table' : 'View as table'}
+						</Button>
+						{showTable && (
+							<table className="measurement-detail__table">
+								<caption className="ui-visually-hidden">{definition.name} over time</caption>
+								<thead>
+									<tr>
+										<th scope="col">Date</th>
+										<th scope="col">Value ({definition.unit})</th>
+									</tr>
+								</thead>
+								<tbody>
+									{points.map((point) => (
+										<tr key={point.setId}>
+											<td>{formatCalendarDateLabel(point.date)}</td>
+											<td>{formatNumber(point.value)}</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						)}
+					</>
+				)}
+
+				<div className="measurement-detail__history">
+					{records.map((record) => (
+						<Surface
+							key={record.id}
+							tone="container-low"
+							radius="m"
+							className="measurement-detail__record"
+						>
+							<span className="measurement-detail__record-date">
+								{formatCalendarDateLabel(record.date)}
+							</span>
+							<span className="measurement-detail__record-value">
+								{formatNumber(record.value)} {definition.unit}
+							</span>
+							{record.note && (
+								<span className="measurement-detail__record-note">{record.note}</span>
+							)}
+							<div className="measurement-detail__record-actions">
+								<Button
+									variant="text"
+									onClick={() => {
+										setEditingRecordId(record.id);
+										setRecordDraft(draftFromRecord(record));
+									}}
+								>
+									Edit
+								</Button>
+								<Button variant="text" tone="error" onClick={() => setRecordPendingDelete(record)}>
+									Delete
+								</Button>
+							</div>
+						</Surface>
+					))}
+					{points.length > 0 && !recordDraft && (
+						<Button variant="tonal" icon="add" onClick={() => setRecordDraft(blankDraft())}>
+							Log a value
+						</Button>
+					)}
+				</div>
+
+				{recordDraft && (
+					<Surface tone="container-low" radius="m" className="measurement-detail__form">
+						<TextField
+							label="Date"
+							type="date"
+							value={recordDraft.date}
+							onChange={(date) => setRecordDraft({ ...recordDraft, date })}
+						/>
+						<TextField
+							label={`Value (${definition.unit})`}
+							type="number"
+							value={recordDraft.value}
+							onChange={(value) => setRecordDraft({ ...recordDraft, value })}
+							autoFocus
+						/>
+						<TextField
+							label="Note"
+							value={recordDraft.note}
+							onChange={(note) => setRecordDraft({ ...recordDraft, note })}
+						/>
+						<div className="measurement-detail__form-actions">
+							<Button
+								variant="text"
+								onClick={() => {
+									setRecordDraft(null);
+									setEditingRecordId(null);
+								}}
+							>
+								Cancel
+							</Button>
+							<Button
+								variant="filled"
+								disabled={
+									!recordDraft.value.trim() || !isValidDate(recordDraft.date) || savingRecord
+								}
+								onClick={handleSaveRecord}
+							>
+								Save
+							</Button>
+						</div>
+					</Surface>
+				)}
+			</div>
+
+			<Dialog
+				open={recordPendingDelete != null}
+				onClose={() => setRecordPendingDelete(null)}
+				headline="Delete this record?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => setRecordPendingDelete(null)}>
+							Cancel
+						</Button>
+						<Button
+							variant="filled"
+							tone="error"
+							onClick={async () => {
+								if (!recordPendingDelete) return;
+								const wasEditingDeletedRecord = editingRecordId === recordPendingDelete.id;
+								const succeeded = await guarded(() =>
+									repository.deleteMeasurementRecord(recordPendingDelete.id),
+								);
+								if (succeeded) {
+									if (wasEditingDeletedRecord) {
+										setRecordDraft(null);
+										setEditingRecordId(null);
+									}
+									setRecordPendingDelete(null);
+								}
+							}}
+						>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<p>
+					This permanently removes the{' '}
+					{recordPendingDelete && formatCalendarDateLabel(recordPendingDelete.date)} record.
+				</p>
+			</Dialog>
+
+			<Dialog
+				open={definitionPendingDelete}
+				onClose={() => setDefinitionPendingDelete(false)}
+				headline="Delete this measurement?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => setDefinitionPendingDelete(false)}>
+							Cancel
+						</Button>
+						<Button
+							variant="filled"
+							tone="error"
+							onClick={async () => {
+								const succeeded = await guarded(() =>
+									repository.deleteMeasurementDefinition(definitionId),
+								);
+								if (succeeded) {
+									setDefinitionPendingDelete(false);
+									navigate({ to: '/measurements' });
+								}
+							}}
+						>
+							Delete
+						</Button>
+					</>
+				}
+			>
+				<p>
+					This permanently removes "{definition.name}" and every logged record for it. Archiving
+					instead keeps the history — edit and archive it from here rather than deleting if you just
+					want it out of the tracker.
+				</p>
+			</Dialog>
+		</div>
+	);
+}

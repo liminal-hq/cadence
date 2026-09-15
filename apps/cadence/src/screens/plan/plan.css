@@ -1,0 +1,205 @@
+.routine-list {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3) var(--cadence-space-4) var(--cadence-space-6);
+}
+
+.routine-list__toolbar {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.routine-list__search {
+	flex: 1;
+	border: 1px solid var(--cadence-outline-variant);
+	border-radius: var(--cadence-shape-full);
+	padding: 10px 16px;
+	font-family: inherit;
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+	background: var(--cadence-surface-container-lowest);
+}
+
+.routine-list__search:focus {
+	outline: 2px solid var(--cadence-primary);
+	outline-offset: -1px;
+}
+
+.routine-list__items {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+}
+
+.routine-list__row-button {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	width: 100%;
+	padding: var(--cadence-space-4);
+	background: none;
+	border: none;
+	text-align: left;
+	cursor: pointer;
+	font-family: inherit;
+}
+
+.routine-list__row-name {
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-list__row-tag {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+/* Routine detail / editor — both are standalone routes (screen-shell + own AppBar). */
+
+.routine-screen__content {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-4);
+	padding: var(--cadence-space-3) var(--cadence-space-4) var(--cadence-space-6);
+}
+
+.routine-screen__note {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+	white-space: pre-wrap;
+}
+
+.routine-section-card {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-4);
+}
+
+.routine-section-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--cadence-space-2);
+}
+
+.routine-section-card__title {
+	font-size: var(--cadence-type-label-l-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface);
+	margin: 0;
+}
+
+.routine-section-card__exercise {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-2) 0;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-section-card__exercise-name {
+	flex: 1;
+	min-width: 0;
+}
+
+.routine-section-card__exercise-templates {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__row {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.routine-editor__row-fields {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+	flex: 1;
+}
+
+.routine-editor__template-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-2) var(--cadence-space-3);
+	border: 1px solid var(--cadence-outline-variant);
+	border-radius: var(--cadence-shape-xs);
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-editor__template-add {
+	display: flex;
+	gap: var(--cadence-space-2);
+	align-items: flex-end;
+	flex-wrap: wrap;
+}
+
+.routine-editor__template-add .ui-text-field {
+	width: 96px;
+}
+
+.routine-picker-list {
+	display: flex;
+	flex-direction: column;
+	max-height: 320px;
+	overflow-y: auto;
+}
+
+.routine-picker-list__row {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+	width: 100%;
+	padding: var(--cadence-space-3);
+	background: none;
+	border: none;
+	border-bottom: 1px solid var(--cadence-outline-variant);
+	text-align: left;
+	cursor: pointer;
+	font-family: inherit;
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-editor__template-error {
+	width: 100%;
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-error);
+}
+
+.routine-review-row {
+	display: flex;
+	align-items: flex-start;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3);
+}
+
+.routine-review-row--excluded {
+	opacity: 0.5;
+}
+
+.routine-review-row__body {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-1);
+}
+
+.routine-review-row__name {
+	font-size: var(--cadence-type-body-l-size);
+	color: var(--cadence-on-surface);
+}
+
+.routine-review-row__target {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}

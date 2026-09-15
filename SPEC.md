@@ -79,10 +79,11 @@ The specification captures the full product direction so that early UI decisions
 - Onboarding that keeps account creation optional, establishes units and timer defaults, and offers import without blocking first use
 - Active-workout notification with safe resume and rest-timer controls
 - Accessibility support for TalkBack, scalable type, non-colour state cues, large targets, reduced motion, and configurable haptics/sound
+- Per-exercise goals, and body measurement tracking separate from workout logging
 
 ### Planned expansion
 
-- Richer analysis, goals, body measurements, calculators, widgets, advanced calendar filtering, workout sharing, and polished backup destinations
+- Richer analysis, calculators, widgets, advanced calendar filtering, workout sharing, and polished backup destinations
 - More routine progression behaviours, saved graph configurations, plate/barbell management, and accessibility refinements
 - Watch tile and complications, additional watch quick starts, and phone home-screen active-workout widgets
 - Opt-in, one-way export of completed Cadence workouts to Health Connect, so a simple session logged in Cadence is visible to other health/fitness apps (see §9.7)
@@ -331,15 +332,15 @@ Calendar day summaries must distinguish multiple workouts on one day and dates w
 
 Exercise history shows the original unit context, note indicators, workout title, and enough set detail to compare sessions. Graphs support metric, date range, aggregation, and optional trendline choices. Missing data is omitted rather than coerced to zero. Every aggregate defines whether it includes incomplete/planned sets; the default is completed sets only.
 
-Training analysis provides category/exercise breakdowns over a selected period, including frequency, sets, reps, volume, duration, and distance as applicable. Analysis favourites let users pin recurring breakdowns without changing their underlying workout data.
+Training analysis (P-47) provides category/exercise breakdowns over a selected period, including frequency, sets, reps, volume, duration, and distance as applicable — each metric applies only to sets whose metric profile supports it, so a weight-reps metric like volume simply excludes distance-duration sets rather than treating them as zero. Selecting a breakdown row reveals the sets it was computed from and their originating workouts. Analysis favourites let users pin recurring breakdowns without changing their underlying workout data.
 
 ### 8.8 Goals and body measurements
 
-Goals attach to an exercise and may target a metric combination, title, start date, and target date. Initial UI may ship a focused goal flow after logging/history is stable.
+Goals attach to an exercise and may target a metric combination, title, start date, and target date (P-48). Progress toward a goal is computed live over logged history, never stored — a goal and a record are different entities, and reaching a goal must not rewrite the record; `achievedAt` is instead an explicit manual toggle, independent of that computed progress. A goal past its target date without being met is surfaced as overdue, distinct from achieved. A goal's stored target belongs to whichever metric profile the exercise had when it was created; if the exercise's profile later changes, the goal is flagged rather than silently evaluated against the wrong fields.
 
-Body tracking uses generic measurement definitions rather than a bodyweight-only silo. A definition has name, unit, optional goal, enabled state, and order. Records store date, optional time, value, and note. Measurements support history and graph views.
+Body tracking uses generic measurement definitions rather than a bodyweight-only silo (P-49 tracker, P-50 detail/editor). A definition has name, unit, optional goal, enabled (archived) state, and order. Records store date, recorded time, value, and note. Measurements support history and graph views, including a goal line on the graph once a definition's goal is set. Changing a definition's unit is rejected once it has recorded values or a goal — both are stored as bare numbers with no unit of their own, so reinterpreting either under a new unit would silently make it wrong.
 
-Built-in measurement suggestions include bodyweight, body-fat percentage, and common circumferences, but all definitions remain editable. A goal and a record are different entities; reaching a goal must not rewrite the record. Health-derived measurements, if later enabled, retain provenance and can be excluded from manually entered trends.
+Built-in measurement suggestions include bodyweight, body-fat percentage, and common circumferences, but all definitions remain editable, and ship disabled by default so a fresh install isn't forced into tracking them. A goal and a record are different entities; reaching a goal must not rewrite the record. Health-derived measurements, if later enabled, retain provenance and can be excluded from manually entered trends.
 
 ### 8.9 Sharing, widgets, and system integration
 

@@ -16,6 +16,8 @@ interface LineChartProps {
 	/** A gap wider than this many days breaks the connecting line, rather than drawing a single
 	 *  long segment across missing data (SPEC.md 8.7: "gaps shown as gaps"). */
 	gapThresholdDays?: number;
+	/** A dashed horizontal reference line (P-50's "goal line" state) — included in the value domain so it stays visible even when every logged point sits on one side of it. */
+	goalValue?: number;
 }
 
 const WIDTH = 320;
@@ -32,9 +34,11 @@ export function LineChart({
 	selectedSetId,
 	onSelectPoint,
 	gapThresholdDays = 21,
+	goalValue,
 }: LineChartProps) {
 	const times = points.map((p) => dateToTime(p.date));
-	const values = points.map((p) => p.value);
+	const values =
+		goalValue == null ? points.map((p) => p.value) : [...points.map((p) => p.value), goalValue];
 	const minTime = Math.min(...times);
 	const maxTime = Math.max(...times);
 	const timeRange = maxTime - minTime || 1;
@@ -87,7 +91,11 @@ export function LineChart({
 			className="line-chart"
 			viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
 			role="img"
-			aria-label="Trend chart — see the table below for exact values"
+			aria-label={
+				goalValue == null
+					? 'Trend chart — see the table below for exact values'
+					: `Trend chart with a goal line at ${formatNumber(goalValue)} — see the table below for exact values`
+			}
 		>
 			{gridlineValues.map((value) => (
 				<g key={value}>
@@ -103,6 +111,25 @@ export function LineChart({
 					</text>
 				</g>
 			))}
+
+			{goalValue != null && (
+				<g>
+					<line
+						className="line-chart__goal-line"
+						x1={PADDING.left}
+						x2={WIDTH - PADDING.right}
+						y1={yFor(goalValue)}
+						y2={yFor(goalValue)}
+					/>
+					<text
+						className="line-chart__goal-label"
+						x={WIDTH - PADDING.right}
+						y={yFor(goalValue) - 4}
+					>
+						Goal
+					</text>
+				</g>
+			)}
 
 			{segments.map((segment, i) => (
 				<polyline

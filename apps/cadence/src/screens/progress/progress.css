@@ -1,0 +1,73 @@
+.training-analysis {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-4);
+}
+
+.training-analysis__filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-2);
+}
+
+.training-analysis__caption {
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.training-analysis__metric-definition {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.training-analysis__table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: var(--cadence-type-body-m-size);
+}
+
+.training-analysis__table th,
+.training-analysis__table td {
+	text-align: left;
+	padding: var(--cadence-space-2);
+	border-bottom: 1px solid var(--cadence-outline-variant);
+}
+
+.training-analysis__row-toggle {
+	background: none;
+	border: none;
+	padding: 0;
+	font: inherit;
+	color: var(--cadence-primary);
+	cursor: pointer;
+	text-align: left;
+}
+
+.training-analysis__detail {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+	padding: var(--cadence-space-3);
+}
+
+.training-analysis__entry {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-3);
+	font-size: var(--cadence-type-body-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.training-analysis__pin-form {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-3);
+}
+
+.training-analysis__pin-form-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--cadence-space-2);
+}
