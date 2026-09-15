@@ -11,7 +11,7 @@ import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatNumber, todayLocalDate } from '../../domain/format';
+import { formatDurationSec, formatNumber, todayLocalDate } from '../../domain/format';
 import { addDays, formatCalendarDateLabel } from '../history/historyDates';
 import type { AnalysisSetEntry, WeightUnit } from '../../domain/types';
 import {
@@ -76,7 +76,10 @@ export function TrainingAnalysisScreen() {
 
 	useEffect(() => {
 		let cancelled = false;
-		setEntries(null);
+		// Deliberately doesn't clear `entries` here — the previous range's breakdown stays on screen
+		// (filters, pin button, and all) until the new one resolves, matching WorkoutHistoryList's
+		// same "refetch from backend on a range change" shape rather than blanking the whole screen
+		// on every period tap.
 		setLoadError(null);
 		Promise.all([repository.getSettings(), repository.listAnalysisSets(startDate, endDate)]).then(
 			([settings, result]) => {
@@ -169,7 +172,7 @@ export function TrainingAnalysisScreen() {
 								<th scope="col">{groupBy === 'category' ? 'Category' : 'Exercise'}</th>
 								<th scope="col">
 									{ANALYSIS_METRIC_LABELS[metric]}
-									{unit ? ` (${unit})` : ''}
+									{unit && metric !== 'duration' ? ` (${unit})` : ''}
 								</th>
 							</tr>
 						</thead>
@@ -188,7 +191,11 @@ export function TrainingAnalysisScreen() {
 												{row.label}
 											</button>
 										</td>
-										<td>{formatNumber(displayMetricValue(row.value, metric, weightUnit))}</td>
+										<td>
+											{metric === 'duration'
+												? formatDurationSec(row.value)
+												: formatNumber(displayMetricValue(row.value, metric, weightUnit))}
+										</td>
 									</tr>
 									{expandedKey === row.key && (
 										<tr>
@@ -202,7 +209,7 @@ export function TrainingAnalysisScreen() {
 														<div key={entry.setId} className="training-analysis__entry">
 															<span>{formatCalendarDateLabel(entry.date)}</span>
 															<span>{entry.exerciseName}</span>
-															<span>{formatEntrySummary(entry)}</span>
+															<span>{formatEntrySummary(entry, weightUnit)}</span>
 															<Button
 																variant="text"
 																onClick={() =>

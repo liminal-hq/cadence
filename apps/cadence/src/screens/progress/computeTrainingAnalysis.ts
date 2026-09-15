@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { AnalysisSetEntry, WeightUnit } from '../../domain/types';
-import { kgToLb } from '../../domain/format';
+import { formatDurationSec, formatNumber, kgToLb } from '../../domain/format';
 import { estimateOneRepMax, ONE_REP_MAX_FORMULA_NAME } from '../history/oneRepMax';
 
 export type AnalysisMetric =
@@ -199,14 +199,18 @@ export function countTrainingDays(entries: AnalysisSetEntry[]): number {
 	return new Set(entries.map((e) => e.date)).size;
 }
 
-/** Distinguishes one set's own values from another's in a drill-down list — several completed sets from the same exercise and workout otherwise render as identical rows. */
-export function formatEntrySummary(entry: AnalysisSetEntry): string {
+/** Distinguishes one set's own values from another's in a drill-down list — several completed sets from the same exercise and workout otherwise render as identical rows. Honours `weightUnit` the same way `displayMetricValue` does for the aggregate row above it, and formats duration through `formatDurationSec` rather than raw seconds, so the drill-down agrees with the rest of the screen. */
+export function formatEntrySummary(entry: AnalysisSetEntry, weightUnit: WeightUnit): string {
 	if (entry.metricProfile === 'weight-reps') {
-		const weight = entry.weightKg != null ? `${entry.weightKg} kg` : '—';
+		const weightKg = entry.weightKg;
+		const weight =
+			weightKg != null
+				? `${formatNumber(weightUnit === 'lb' ? kgToLb(weightKg) : weightKg)} ${weightUnit}`
+				: '—';
 		const reps = entry.reps != null ? entry.reps : '—';
 		return `${weight} × ${reps}`;
 	}
-	const distance = entry.distanceKm != null ? `${entry.distanceKm} km` : '—';
-	const duration = entry.durationSec != null ? `${entry.durationSec}s` : '—';
+	const distance = entry.distanceKm != null ? `${formatNumber(entry.distanceKm)} km` : '—';
+	const duration = entry.durationSec != null ? formatDurationSec(entry.durationSec) : '—';
 	return `${distance} · ${duration}`;
 }

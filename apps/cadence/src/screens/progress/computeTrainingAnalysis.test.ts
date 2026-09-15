@@ -169,6 +169,122 @@ describe('computeBreakdown', () => {
 		expect(rows.find((r) => r.label === 'Running')?.value).toBe(1);
 	});
 
+	it('sums reps within a group', () => {
+		const rows = computeBreakdown(
+			[
+				entry({ setId: 's1', weightKg: 80, reps: 8 }),
+				entry({ setId: 's2', weightKg: 80, reps: 9 }),
+			],
+			'reps',
+			'exercise',
+		);
+		expect(rows[0].value).toBe(17);
+	});
+
+	it('sums total distance within a group', () => {
+		const rows = computeBreakdown(
+			[
+				entry({
+					setId: 's1',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 5,
+					durationSec: 1500,
+				}),
+				entry({
+					setId: 's2',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 3,
+					durationSec: 900,
+				}),
+			],
+			'totalDistance',
+			'exercise',
+		);
+		expect(rows[0].value).toBe(8);
+	});
+
+	it('takes the max, not the sum, for max distance', () => {
+		const rows = computeBreakdown(
+			[
+				entry({
+					setId: 's1',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 5,
+					durationSec: 1500,
+				}),
+				entry({
+					setId: 's2',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 10,
+					durationSec: 3000,
+				}),
+			],
+			'maxDistance',
+			'exercise',
+		);
+		expect(rows[0].value).toBe(10);
+	});
+
+	it('sums duration within a group', () => {
+		const rows = computeBreakdown(
+			[
+				entry({
+					setId: 's1',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 5,
+					durationSec: 1500,
+				}),
+				entry({
+					setId: 's2',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 3,
+					durationSec: 900,
+				}),
+			],
+			'duration',
+			'exercise',
+		);
+		expect(rows[0].value).toBe(2400);
+	});
+
+	it('averages speed rather than summing it', () => {
+		const rows = computeBreakdown(
+			[
+				entry({
+					setId: 's1',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 5,
+					durationSec: 1500,
+				}),
+				entry({
+					setId: 's2',
+					exerciseId: 'ex-running',
+					exerciseName: 'Running',
+					metricProfile: 'distance-duration',
+					distanceKm: 10,
+					durationSec: 3600,
+				}),
+			],
+			'speed',
+			'exercise',
+		);
+		expect(rows[0].value).toBeCloseTo(((5 / 1500) * 3600 + (10 / 3600) * 3600) / 2);
+	});
+
 	it('sorts rows by value, descending', () => {
 		const rows = computeBreakdown(
 			[
@@ -212,20 +328,25 @@ describe('displayMetricUnit and displayMetricValue', () => {
 
 describe('formatEntrySummary', () => {
 	it('formats a weight-reps entry', () => {
-		expect(formatEntrySummary(entry({ weightKg: 80, reps: 8 }))).toBe('80 kg × 8');
+		expect(formatEntrySummary(entry({ weightKg: 80, reps: 8 }), 'kg')).toBe('80 kg × 8');
 	});
 
-	it('formats a distance-duration entry', () => {
+	it('converts weight to pounds when the user has configured that unit, matching the aggregate row', () => {
+		expect(formatEntrySummary(entry({ weightKg: 100, reps: 5 }), 'lb')).toBe('220.46 lb × 5');
+	});
+
+	it('formats a distance-duration entry using the same mm:ss format as the rest of the app', () => {
 		expect(
 			formatEntrySummary(
 				entry({ metricProfile: 'distance-duration', distanceKm: 5, durationSec: 1500 }),
+				'kg',
 			),
-		).toBe('5 km · 1500s');
+		).toBe('5 km · 25:00');
 	});
 
 	it('distinguishes two sets on the same date and exercise', () => {
-		const first = formatEntrySummary(entry({ weightKg: 80, reps: 8 }));
-		const second = formatEntrySummary(entry({ weightKg: 82.5, reps: 6 }));
+		const first = formatEntrySummary(entry({ weightKg: 80, reps: 8 }), 'kg');
+		const second = formatEntrySummary(entry({ weightKg: 82.5, reps: 6 }), 'kg');
 		expect(first).not.toBe(second);
 	});
 });

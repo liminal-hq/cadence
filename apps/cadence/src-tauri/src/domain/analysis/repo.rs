@@ -118,6 +118,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn excludes_a_planned_set_that_was_never_completed() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-06-01", "Session")
+            .await
+            .unwrap();
+        let we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &workout.id,
+            "ex-bench-press",
+        )
+        .await
+        .unwrap();
+        crate::domain::sets::repo::add(&mut conn, &we.id)
+            .await
+            .unwrap();
+
+        let entries = list_completed_sets_in_range(&mut conn, "2026-01-01", "2026-12-31")
+            .await
+            .unwrap();
+        assert!(entries.is_empty());
+    }
+
+    #[tokio::test]
     async fn excludes_sets_outside_the_given_range() {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
