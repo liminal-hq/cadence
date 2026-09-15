@@ -112,17 +112,199 @@
 	color: var(--cadence-on-surface-variant);
 }
 
+.routine-editor__unsaved {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-1);
+	margin: 0;
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-attention);
+}
+
+.routine-editor__unsaved::before {
+	content: '';
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--cadence-attention);
+}
+
+.routine-editor__tabs {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: var(--cadence-space-2);
+}
+
+.routine-editor__tabs .ui-reorderable-list--horizontal {
+	gap: var(--cadence-space-2);
+}
+
+.routine-editor__tab {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--cadence-space-1);
+	height: 32px;
+	padding: 0 var(--cadence-space-3);
+	border: 1px solid var(--cadence-outline-variant);
+	border-radius: var(--cadence-shape-s);
+	background: none;
+	font-family: inherit;
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface);
+	cursor: pointer;
+	white-space: nowrap;
+}
+
+.routine-editor__tab--active {
+	border-color: transparent;
+	background: var(--cadence-secondary-container);
+	color: var(--cadence-on-secondary-container);
+}
+
+.routine-editor__tab--add {
+	border-style: dashed;
+	border-color: var(--cadence-outline);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__tab--add .material-symbols-rounded {
+	font-size: 16px;
+}
+
 .routine-editor__row {
+	display: flex;
+	width: 100%;
+	align-items: center;
+	gap: var(--cadence-space-3);
+	padding: var(--cadence-space-2) var(--cadence-space-3);
+	border: none;
+	border-radius: var(--cadence-shape-m);
+	background: var(--cadence-surface-container-low);
+	font-family: inherit;
+	text-align: left;
+	color: var(--cadence-on-surface);
+	cursor: pointer;
+}
+
+.routine-editor__row--expanded {
+	flex-direction: column;
+	align-items: stretch;
+	background: var(--cadence-surface-container-high);
+	cursor: default;
+}
+
+.routine-editor__row--missing {
+	border: 1px solid var(--cadence-error);
+	cursor: default;
+}
+
+.routine-editor__row-order {
+	flex-shrink: 0;
+	width: 22px;
+	text-align: center;
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__row-body {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-width: 0;
+	gap: 2px;
+	text-align: left;
+}
+
+.routine-editor__row-name {
+	font-size: 15px;
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface);
+}
+
+.routine-editor__row-summary {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__row-error {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-error);
+}
+
+.routine-editor__row-header {
 	display: flex;
 	align-items: center;
 	gap: var(--cadence-space-2);
 }
 
-.routine-editor__row-fields {
+.routine-editor__row-header .routine-editor__row-name {
+	flex: 1;
+}
+
+.routine-editor__population {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-1);
+}
+
+.routine-editor__population-label {
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__templates {
 	display: flex;
 	flex-direction: column;
 	gap: var(--cadence-space-2);
-	flex: 1;
+}
+
+.routine-editor__template-index {
+	width: 20px;
+	font-weight: var(--cadence-type-label-l-weight);
+}
+
+.routine-editor__row-footer {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--cadence-space-2);
+}
+
+.routine-editor__duplicate-last {
+	border: none;
+	background: none;
+	padding: 0;
+	font-family: inherit;
+	font-size: var(--cadence-type-label-m-size);
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-primary);
+	cursor: pointer;
+}
+
+.routine-editor__rest-row {
+	display: flex;
+	align-items: center;
+	gap: var(--cadence-space-2);
+}
+
+.routine-editor__rest-label {
+	font-size: var(--cadence-type-label-m-size);
+	color: var(--cadence-on-surface-variant);
+}
+
+.routine-editor__rest-change {
+	border: none;
+	background: none;
+	padding: 0;
+	font: inherit;
+	font-weight: var(--cadence-type-label-l-weight);
+	color: var(--cadence-primary);
+	cursor: pointer;
 }
 
 .routine-editor__template-row {
