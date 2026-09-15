@@ -240,7 +240,8 @@ export class MockLoggingRepository implements LoggingRepository {
 	async deleteExercise(id: string): Promise<void> {
 		const referenceCount =
 			[...this.workoutExercises.values()].filter((we) => we.exerciseId === id).length +
-			[...this.routineExercises.values()].filter((re) => re.exerciseId === id).length;
+			[...this.routineExercises.values()].filter((re) => re.exerciseId === id).length +
+			[...this.exerciseGoals.values()].filter((g) => g.exerciseId === id).length;
 		if (referenceCount > 0) {
 			throw new Error(
 				`Exercise ${id} is still referenced by ${referenceCount} record(s) — archive it instead`,

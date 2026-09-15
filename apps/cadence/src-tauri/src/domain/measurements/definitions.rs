@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use sqlx::{FromRow, SqliteConnection};
+use sqlx::{Acquire, FromRow, SqliteConnection};
 
 use super::models::MeasurementDefinition;
 use crate::domain::error::{Error, Result};
@@ -90,7 +90,11 @@ pub async fn update(
     unit: &str,
     goal: Option<f64>,
 ) -> Result<MeasurementDefinition> {
-    let current = get(conn, id).await?;
+    // A transaction on this same connection, not just sequential statements: a concurrent
+    // `records::create` landing between the COUNT below and the UPDATE would otherwise be
+    // inserted under the old unit but immediately reinterpreted once the unit changes.
+    let mut tx = conn.begin().await?;
+    let current = get(&mut tx, id).await?;
     if current.unit != unit {
         if current.goal.is_some() {
             return Err(Error::Validation(format!(
@@ -100,7 +104,7 @@ pub async fn update(
         let (record_count,): (i64,) =
             sqlx::query_as("SELECT COUNT(*) FROM measurement_records WHERE definition_id = ?")
                 .bind(id)
-                .fetch_one(&mut *conn)
+                .fetch_one(&mut *tx)
                 .await?;
         if record_count > 0 {
             return Err(Error::Validation(format!(
@@ -109,7 +113,7 @@ pub async fn update(
         }
     }
     let now = chrono::Utc::now().timestamp_millis();
-    let revision = crate::db::next_revision(conn).await?;
+    let revision = crate::db::next_revision(&mut tx).await?;
     let result = sqlx::query(
         "UPDATE measurement_definitions SET name = ?, unit = ?, goal_milli = ?, \
          updated_at_ms = ?, revision = ? WHERE id = ?",
@@ -120,7 +124,7 @@ pub async fn update(
     .bind(now)
     .bind(revision)
     .bind(id)
-    .execute(&mut *conn)
+    .execute(&mut *tx)
     .await?;
     if result.rows_affected() == 0 {
         return Err(Error::NotFound {
@@ -128,7 +132,9 @@ pub async fn update(
             id: id.to_string(),
         });
     }
-    get(conn, id).await
+    let updated = get(&mut tx, id).await?;
+    tx.commit().await?;
+    Ok(updated)
 }
 
 pub async fn set_archived(

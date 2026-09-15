@@ -305,6 +305,12 @@ describe('MockLoggingRepository', () => {
 		it('refuses to delete an exercise referenced by a workout', async () => {
 			await expect(repo.deleteExercise('ex-bench-press')).rejects.toThrow();
 		});
+
+		it('refuses to delete an exercise referenced only by a goal', async () => {
+			const created = await repo.createExercise(sampleValues());
+			await repo.createExerciseGoal({ exerciseId: created.id, title: 'Hit a new max' });
+			await expect(repo.deleteExercise(created.id)).rejects.toThrow();
+		});
 	});
 
 	describe('workouts', () => {
