@@ -781,6 +781,23 @@ describe('MockLoggingRepository', () => {
 			).rejects.toThrow();
 		});
 
+		it('rejects creating a category with a duplicate name case-insensitively', async () => {
+			await expect(
+				repo.createCategory('chest-2', 'CHEST', '#eee', '#111', '#999'),
+			).rejects.toThrow();
+		});
+
+		it("rejects renaming a category to match another category's name", async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			await expect(repo.renameCategory(created.id, 'chest')).rejects.toThrow();
+		});
+
+		it('allows renaming a category to its own current name', async () => {
+			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
+			const renamed = await repo.renameCategory(created.id, 'Grip');
+			expect(renamed.name).toBe('Grip');
+		});
+
 		it('renames and recolours a category', async () => {
 			const created = await repo.createCategory('grip', 'Grip', '#eee', '#111', '#999');
 			const renamed = await repo.renameCategory(created.id, 'Grip Strength');

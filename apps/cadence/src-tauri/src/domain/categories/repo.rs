@@ -57,6 +57,26 @@ pub async fn list(conn: &mut SqliteConnection) -> Result<Vec<Category>> {
     Ok(rows.into_iter().map(Category::from).collect())
 }
 
+async fn reject_duplicate_name(
+    conn: &mut SqliteConnection,
+    name: &str,
+    excluding_id: Option<&str>,
+) -> Result<()> {
+    let (count,): (i64,) = sqlx::query_as(
+        "SELECT COUNT(*) FROM categories WHERE lower(name) = lower(?) AND id IS NOT ?",
+    )
+    .bind(name)
+    .bind(excluding_id.unwrap_or(""))
+    .fetch_one(&mut *conn)
+    .await?;
+    if count > 0 {
+        return Err(Error::Validation(format!(
+            "a category named {name:?} already exists"
+        )));
+    }
+    Ok(())
+}
+
 /// The id is a lowercase, hyphenated slug derived from `name` at the call site (Coordinator), not a random UUID — every other entity in this crate uses opaque UUIDs, but categories are already referenced by human-legible slugs (`"chest"`, `"back"`, ...) throughout the seeded exercise library and the frontend's `CATEGORY_COLOURS` map, so a freshly created category keeps that convention rather than introducing a second addressing scheme.
 pub async fn create(
     conn: &mut SqliteConnection,
@@ -66,6 +86,7 @@ pub async fn create(
     colour_text: &str,
     colour_dot: &str,
 ) -> Result<Category> {
+    reject_duplicate_name(conn, name, None).await?;
     let existing = list(conn).await?;
     if existing.iter().any(|c| c.id == id) {
         return Err(Error::Validation(format!(
@@ -95,6 +116,7 @@ pub async fn create(
 }
 
 pub async fn rename(conn: &mut SqliteConnection, id: &str, name: &str) -> Result<Category> {
+    reject_duplicate_name(conn, name, Some(id)).await?;
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result =
@@ -289,6 +311,38 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_creating_a_category_with_a_duplicate_name_case_insensitively() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let err = create(&mut conn, "chest-2", "CHEST", "#eee", "#111", "#999")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_renaming_a_category_to_match_another_categorys_name() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "grip", "Grip", "#eee", "#111", "#999")
+            .await
+            .unwrap();
+        let err = rename(&mut conn, &created.id, "chest").await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn allows_renaming_a_category_to_its_own_current_name() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "grip", "Grip", "#eee", "#111", "#999")
+            .await
+            .unwrap();
+        let renamed = rename(&mut conn, &created.id, "Grip").await.unwrap();
+        assert_eq!(renamed.name, "Grip");
     }
 
     #[tokio::test]

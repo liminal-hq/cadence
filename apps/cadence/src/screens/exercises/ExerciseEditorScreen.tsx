@@ -145,28 +145,39 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	}
 
 	async function handleSave() {
+		let saved: Exercise;
+		const wasExisting = existing;
 		try {
 			setError(null);
-			const wasExisting = existing;
-			const saved = existing
+			saved = existing
 				? await repository.updateExercise(existing.id, values)
 				: await repository.createExercise(values);
-			if (!wasExisting && draftFavourite) {
-				await repository.updateExerciseFavourite(saved.id, true);
-			}
-			setExisting(saved);
-			const savedValues = valuesFromExercise(saved);
-			// The backend can normalize values on save (trimming, rounding an increment to its
-			// canonical unit) — sync the controlled form to that normalized result too, not just the
-			// dirty-check baseline, so a successful save doesn't leave the form still reporting
-			// unsaved changes.
-			setValues(savedValues);
-			baselineRef.current = { values: savedValues, favourite: saved.favourite ?? false };
-			if (!wasExisting) {
-				navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
-			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+			return;
+		}
+		// The exercise itself is already persisted at this point — everything below reflects that,
+		// even if the favourite follow-up call below fails, so a transient error there can't strand
+		// the UI on a blank "New exercise" form pointing at an exercise that already exists.
+		setExisting(saved);
+		const savedValues = valuesFromExercise(saved);
+		// The backend can normalize values on save (trimming, rounding an increment to its
+		// canonical unit) — sync the controlled form to that normalized result too, not just the
+		// dirty-check baseline, so a successful save doesn't leave the form still reporting
+		// unsaved changes.
+		setValues(savedValues);
+		baselineRef.current = { values: savedValues, favourite: saved.favourite ?? false };
+		if (!wasExisting) {
+			navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
+		}
+		if (!wasExisting && draftFavourite) {
+			try {
+				const withFavourite = await repository.updateExerciseFavourite(saved.id, true);
+				setExisting(withFavourite);
+				baselineRef.current.favourite = withFavourite.favourite ?? false;
+			} catch (err) {
+				setError(err instanceof Error ? err.message : String(err));
+			}
 		}
 	}
 
@@ -271,13 +282,13 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 				<TextField
 					label="Note"
 					value={values.note ?? ''}
-					onChange={(note) => setValues({ ...values, note })}
+					onChange={(note) => setValues({ ...values, note: note.trim() === '' ? undefined : note })}
 					multiline
 				/>
 				<TextField
 					label="URL"
 					value={values.url ?? ''}
-					onChange={(url) => setValues({ ...values, url })}
+					onChange={(url) => setValues({ ...values, url: url.trim() === '' ? undefined : url })}
 				/>
 				<TextField
 					label="Default rest (seconds)"

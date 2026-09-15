@@ -1048,6 +1048,13 @@ export class MockLoggingRepository implements LoggingRepository {
 		return [...this.categories.values()].sort((a, b) => a.sortOrder - b.sortOrder);
 	}
 
+	private rejectDuplicateCategoryName(name: string, excludingId?: string) {
+		const collides = [...this.categories.values()].some(
+			(c) => c.id !== excludingId && c.name.toLowerCase() === name.toLowerCase(),
+		);
+		if (collides) throw new Error(`A category named "${name}" already exists`);
+	}
+
 	async createCategory(
 		id: string,
 		name: string,
@@ -1058,6 +1065,7 @@ export class MockLoggingRepository implements LoggingRepository {
 		if (this.categories.has(id)) {
 			throw new Error(`A category with id ${id} already exists`);
 		}
+		this.rejectDuplicateCategoryName(name);
 		const existing = [...this.categories.values()];
 		const nextOrder = existing.reduce((max, c) => Math.max(max, c.sortOrder), 0) + 1;
 		const created: Category = {
@@ -1075,6 +1083,7 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async renameCategory(id: string, name: string): Promise<Category> {
 		const existing = await this.getCategory(id);
+		this.rejectDuplicateCategoryName(name, id);
 		const updated = { ...existing, name };
 		this.categories.set(id, updated);
 		return updated;
