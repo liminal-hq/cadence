@@ -92,13 +92,15 @@ export function CategoryEditorScreen() {
 		return null;
 	}
 
-	async function guarded(action: () => Promise<unknown>) {
+	async function guarded(action: () => Promise<unknown>): Promise<boolean> {
 		try {
 			setError(null);
 			await action();
 			reload();
+			return true;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+			return false;
 		}
 	}
 
@@ -136,7 +138,10 @@ export function CategoryEditorScreen() {
 
 	async function handleCreate() {
 		if (!draft) return;
-		await guarded(() =>
+		// Only clear the draft on success -- a rejected create (e.g. a duplicate name) previously
+		// discarded the user's name and colour choices anyway, forcing them to re-enter everything
+		// on top of reading the error banner.
+		const created = await guarded(() =>
 			repository.createCategory(
 				slugify(draft.name),
 				draft.name,
@@ -145,7 +150,7 @@ export function CategoryEditorScreen() {
 				draft.colourDot,
 			),
 		);
-		setDraft(null);
+		if (created) setDraft(null);
 	}
 
 	return (
@@ -184,6 +189,10 @@ export function CategoryEditorScreen() {
 									)
 								}
 								onBlur={() =>
+									// Patches only this one field from the response, not all three -- this
+									// request's payload is a snapshot of colourText/colourDot taken when this
+									// field blurred, so echoing them back could stomp a same-row sibling field
+									// the user has since started (but not yet finished) editing.
 									saveCategoryField(
 										() =>
 											repository.recolourCategory(
@@ -192,11 +201,7 @@ export function CategoryEditorScreen() {
 												category.colourText,
 												category.colourDot,
 											),
-										(updated) => ({
-											colourBackground: updated.colourBackground,
-											colourText: updated.colourText,
-											colourDot: updated.colourDot,
-										}),
+										(updated) => ({ colourBackground: updated.colourBackground }),
 									)
 								}
 							/>
@@ -217,11 +222,7 @@ export function CategoryEditorScreen() {
 												category.colourText,
 												category.colourDot,
 											),
-										(updated) => ({
-											colourBackground: updated.colourBackground,
-											colourText: updated.colourText,
-											colourDot: updated.colourDot,
-										}),
+										(updated) => ({ colourText: updated.colourText }),
 									)
 								}
 							/>
@@ -242,11 +243,7 @@ export function CategoryEditorScreen() {
 												category.colourText,
 												category.colourDot,
 											),
-										(updated) => ({
-											colourBackground: updated.colourBackground,
-											colourText: updated.colourText,
-											colourDot: updated.colourDot,
-										}),
+										(updated) => ({ colourDot: updated.colourDot }),
 									)
 								}
 							/>

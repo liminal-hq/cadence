@@ -157,11 +157,17 @@ export class MockLoggingRepository implements LoggingRepository {
 		if (values.weightIncrementKg != null && !(values.weightIncrementKg > 0)) {
 			throw new Error('Weight increment must be positive');
 		}
+		if (values.weightIncrementKg != null && Math.round(values.weightIncrementKg * 1000) < 1) {
+			throw new Error('Weight increment is too small to represent in whole grams');
+		}
 		if (values.repsIncrement != null && !(values.repsIncrement > 0)) {
 			throw new Error('Reps increment must be positive');
 		}
 		if (values.distanceIncrementKm != null && !(values.distanceIncrementKm > 0)) {
 			throw new Error('Distance increment must be positive');
+		}
+		if (values.distanceIncrementKm != null && Math.round(values.distanceIncrementKm * 1000) < 1) {
+			throw new Error('Distance increment is too small to represent in whole metres');
 		}
 		if (values.durationIncrementSec != null && !(values.durationIncrementSec > 0)) {
 			throw new Error('Duration increment must be positive');
@@ -198,6 +204,19 @@ export class MockLoggingRepository implements LoggingRepository {
 		const name = values.name.trim();
 		this.rejectDuplicateExerciseName(name, id);
 		const existing = await this.getExercise(id);
+		// Mirrors the real backend's guard: the frontend's own metric-profile lock only looks at
+		// workout history, so an exercise referenced solely by a routine's set templates would
+		// otherwise still be editable here.
+		if (existing.metricProfile !== values.metricProfile) {
+			const routineReferenced = [...this.routineExercises.values()].some(
+				(re) => re.exerciseId === id,
+			);
+			if (routineReferenced) {
+				throw new Error(
+					"This exercise is used in a routine — its metric profile can't change while a routine still references it",
+				);
+			}
+		}
 		const updated: Exercise = { ...existing, ...values, name };
 		this.exercises.set(id, updated);
 		return updated;
