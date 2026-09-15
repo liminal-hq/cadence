@@ -58,6 +58,12 @@
 	flex-direction: column;
 	gap: 2px;
 	font-size: var(--cadence-type-body-m-size);
+	line-height: var(--cadence-type-body-m-line);
+	/* Running's second row is a 4px progress bar, not a text line, so without a floor here its
+	   text column falls shorter than paused/elapsed's two full lines -- sizing to the two-line
+	   case keeps the bar's overall height fixed across every state instead of resizing on
+	   pause/resume. */
+	min-height: calc(var(--cadence-type-body-m-line) * 2 + 2px);
 }
 
 .rest-timer-bar__running-row {
