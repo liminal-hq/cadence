@@ -1,8 +1,4 @@
-// Regression coverage for a real crash: Rust's `Option<f64>` fields (nearestLower/nearestHigher)
-// serialize to JSON `null` over Tauri's IPC, not `undefined` -- even though the ts-rs-generated
-// TypeScript type says `nearestLower?: number`. The mock repository below is "too honest" and
-// returns real `undefined`, which is exactly why this never showed up in a JS unit test before;
-// this test stubs the repository response the way the real backend actually behaves.
+// Regression coverage for the plate calculator crashing on a null nearestLower/nearestHigher
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -13,6 +9,12 @@ import { PlateCalculatorSheet } from './PlateCalculatorSheet';
 import { RepositoryProvider } from '../../domain/RepositoryProvider';
 import { MockLoggingRepository } from '../../domain/mockRepository';
 import type { BarbellConfig, PlateCalculationResult } from '../../domain/types';
+
+// Rust's `Option<f64>` fields (nearestLower/nearestHigher) serialize to JSON `null` over Tauri's
+// IPC, not `undefined` -- even though the ts-rs-generated TypeScript type says
+// `nearestLower?: number`. The mock repository is "too honest" and returns real `undefined`,
+// which is exactly why this never showed up in a JS unit test before; this test stubs the
+// repository response the way the real backend actually behaves.
 
 const BARBELL: BarbellConfig = {
 	id: 'barbell-olympic',

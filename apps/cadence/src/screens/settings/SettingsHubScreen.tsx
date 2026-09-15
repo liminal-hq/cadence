@@ -10,6 +10,7 @@ import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { SettingsRow } from './SettingsRow';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { Settings } from '../../domain/types';
+import '../screens.css';
 import './settings.css';
 
 const CADENCE_VERSION = '2026.9.0';
@@ -135,12 +136,12 @@ export function SettingsHubScreen() {
 	];
 
 	return (
-		<div className="settings-screen">
+		<div className="screen-shell settings-screen">
 			{/* Settings is a top-level route outside TabsLayout (like /log/$scenario), so it has
 			    no bottom nav — back is the only way out until a real caller (History's own
 			    screen, once PR C lands) replaces this fallback with its own contextual origin. */}
 			<AppBar title="Settings" size="large" back={{ to: '/today' }} />
-			<div className="settings-screen__content">
+			<div className="screen-shell__content settings-screen__content">
 				{sections.map((section) => (
 					<section key={section.title}>
 						<h2 className="settings-section__title">{section.title}</h2>
