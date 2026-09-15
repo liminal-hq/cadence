@@ -83,13 +83,15 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 
 	if (!definition || !records) return null;
 
-	async function guarded(action: () => Promise<unknown>) {
+	async function guarded(action: () => Promise<unknown>): Promise<boolean> {
 		try {
 			setError(null);
 			await action();
 			reload();
+			return true;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+			return false;
 		}
 	}
 
@@ -362,8 +364,10 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 									setRecordDraft(null);
 									setEditingRecordId(null);
 								}
-								await guarded(() => repository.deleteMeasurementRecord(recordPendingDelete.id));
-								setRecordPendingDelete(null);
+								const succeeded = await guarded(() =>
+									repository.deleteMeasurementRecord(recordPendingDelete.id),
+								);
+								if (succeeded) setRecordPendingDelete(null);
 							}}
 						>
 							Delete
@@ -391,9 +395,13 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 							variant="filled"
 							tone="error"
 							onClick={async () => {
-								await guarded(() => repository.deleteMeasurementDefinition(definitionId));
-								setDefinitionPendingDelete(false);
-								navigate({ to: '/measurements' });
+								const succeeded = await guarded(() =>
+									repository.deleteMeasurementDefinition(definitionId),
+								);
+								if (succeeded) {
+									setDefinitionPendingDelete(false);
+									navigate({ to: '/measurements' });
+								}
 							}}
 						>
 							Delete

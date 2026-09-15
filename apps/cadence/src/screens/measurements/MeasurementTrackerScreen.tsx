@@ -16,6 +16,7 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { formatNumber, todayLocalDate } from '../../domain/format';
+import { byDateThenRecordedAt } from './MeasurementDetailScreen';
 import type { MeasurementDefinition } from '../../domain/types';
 import '../screens.css';
 import './measurements.css';
@@ -49,7 +50,7 @@ export function MeasurementTrackerScreen() {
 			);
 			const next: Record<string, { value: number; date: string }> = {};
 			enabled.forEach((d, i) => {
-				const sorted = [...records[i]].sort((a, b) => (a.date < b.date ? 1 : -1));
+				const sorted = [...records[i]].sort(byDateThenRecordedAt(-1));
 				if (sorted[0]) next[d.id] = { value: sorted[0].value, date: sorted[0].date };
 			});
 			setLatest(next);
