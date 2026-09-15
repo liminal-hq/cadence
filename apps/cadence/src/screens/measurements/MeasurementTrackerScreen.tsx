@@ -61,7 +61,9 @@ export function MeasurementTrackerScreen() {
 
 	if (!definitions) return null;
 
-	// Always reloads, on success or failure — a rejected update (e.g. a unit change once records or a goal exist) must not leave the optimistic edit from onChange sitting in local state, since the persisted definition never actually changed.
+	// Always reloads, on success or failure — a rejected update (e.g. a unit change once records or
+	// a goal exist) must not leave the optimistic edit from onChange sitting in local state, since
+	// the persisted definition never actually changed.
 	async function guarded(action: () => Promise<unknown>) {
 		try {
 			setError(null);
