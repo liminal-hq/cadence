@@ -117,6 +117,15 @@ function newId(prefix: string): string {
 	return `${prefix}-${crypto.randomUUID()}`;
 }
 
+/** Mirrors the real repository's `iso_to_ms` validation — rejects a malformed instant rather than silently storing it, since `new Date(garbage)` would otherwise produce an `Invalid Date` that only fails much later, at display time. */
+function validateRecordedAt(recordedAt: string | undefined): string | undefined {
+	if (recordedAt === undefined) return undefined;
+	if (Number.isNaN(new Date(recordedAt).getTime())) {
+		throw new Error(`Invalid ISO 8601 instant: ${recordedAt}`);
+	}
+	return recordedAt;
+}
+
 export class MockLoggingRepository implements LoggingRepository {
 	private exercises = new Map(EXERCISES.map((e) => [e.id, e]));
 	private workoutExercises = new Map(WORKOUT_EXERCISES.map((we) => [we.id, { ...we }]));
@@ -1178,6 +1187,9 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async createExerciseGoal(values: ExerciseGoalValues): Promise<ExerciseGoal> {
+		if (!this.exercises.has(values.exerciseId)) {
+			throw new Error(`Unknown exercise: ${values.exerciseId}`);
+		}
 		const goal: ExerciseGoal = { ...values, id: newId('goal'), archived: false };
 		this.exerciseGoals.set(goal.id, goal);
 		return goal;
@@ -1323,11 +1335,14 @@ export class MockLoggingRepository implements LoggingRepository {
 		note: string | undefined,
 		recordedAt?: string,
 	): Promise<MeasurementRecord> {
+		if (!this.measurementDefinitions.has(definitionId)) {
+			throw new Error(`Unknown measurement definition: ${definitionId}`);
+		}
 		const record: MeasurementRecord = {
 			id: newId('measurement-record'),
 			definitionId,
 			date,
-			recordedAt: recordedAt ?? new Date().toISOString(),
+			recordedAt: validateRecordedAt(recordedAt) ?? new Date().toISOString(),
 			value,
 			note,
 		};
@@ -1348,7 +1363,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			date,
 			value,
 			note,
-			recordedAt: recordedAt ?? existing.recordedAt,
+			recordedAt: validateRecordedAt(recordedAt) ?? existing.recordedAt,
 		};
 		this.measurementRecords.set(id, updated);
 		return updated;

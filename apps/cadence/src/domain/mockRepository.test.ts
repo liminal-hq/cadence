@@ -914,6 +914,12 @@ describe('MockLoggingRepository', () => {
 			await repo.deleteExerciseGoal(created.id);
 			await expect(repo.getExerciseGoal(created.id)).rejects.toThrow();
 		});
+
+		it('rejects creating a goal for an unknown exercise', async () => {
+			await expect(
+				repo.createExerciseGoal({ ...sampleValues(), exerciseId: 'no-such-exercise' }),
+			).rejects.toThrow();
+		});
 	});
 
 	describe('measurements', () => {
@@ -1038,6 +1044,28 @@ describe('MockLoggingRepository', () => {
 
 			await repo.deleteMeasurementRecord(created.id);
 			await expect(repo.getMeasurementRecord(created.id)).rejects.toThrow();
+		});
+
+		it('rejects a record for an unknown definition', async () => {
+			await expect(
+				repo.createMeasurementRecord('no-such-definition', '2026-09-14', 82.5, undefined),
+			).rejects.toThrow();
+		});
+
+		it('rejects a malformed recordedAt on create and update', async () => {
+			await expect(
+				repo.createMeasurementRecord('bodyweight', '2026-09-14', 82.5, undefined, 'not-a-date'),
+			).rejects.toThrow();
+
+			const created = await repo.createMeasurementRecord(
+				'bodyweight',
+				'2026-09-14',
+				82.5,
+				undefined,
+			);
+			await expect(
+				repo.updateMeasurementRecord(created.id, '2026-09-15', 82, undefined, 'not-a-date'),
+			).rejects.toThrow();
 		});
 	});
 
