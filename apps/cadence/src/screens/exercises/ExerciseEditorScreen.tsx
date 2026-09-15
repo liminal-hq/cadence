@@ -84,7 +84,8 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	const [error, setError] = useState<string | null>(null);
 	const [deletePendingConfirm, setDeletePendingConfirm] = useState(false);
 	const [draftFavourite, setDraftFavourite] = useState(false);
-	// Stays false forever on a failed lookup, not just while pending — Save must never be allowed to treat an existing exercise it couldn't confirm as a brand-new one.
+	// Stays false forever on a failed lookup, not just while pending — Save must never be allowed
+	// to treat an existing exercise it couldn't confirm as a brand-new one.
 	const [existingLoaded, setExistingLoaded] = useState(!exerciseId);
 	const baselineRef = useRef<{ values: ExerciseValues; favourite: boolean } | null>(null);
 
@@ -125,7 +126,8 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			currentFavourite !== baselineRef.current.favourite),
 	);
 
-	// Blocks every navigation path away from a dirty draft, not just the app bar's back button — predictive back and hardware/browser back both go through the router's history, same as this.
+	// Blocks every navigation path away from a dirty draft, not just the app bar's back button —
+	// predictive back and hardware/browser back both go through the router's history, same as this.
 	const blocker = useBlocker({ shouldBlockFn: () => isDirty, withResolver: true });
 
 	const graphMetricOptions =
@@ -154,7 +156,10 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 			}
 			setExisting(saved);
 			const savedValues = valuesFromExercise(saved);
-			// The backend can normalize values on save (trimming, rounding an increment to its canonical unit) — sync the controlled form to that normalized result too, not just the dirty-check baseline, so a successful save doesn't leave the form still reporting unsaved changes.
+			// The backend can normalize values on save (trimming, rounding an increment to its
+			// canonical unit) — sync the controlled form to that normalized result too, not just the
+			// dirty-check baseline, so a successful save doesn't leave the form still reporting
+			// unsaved changes.
 			setValues(savedValues);
 			baselineRef.current = { values: savedValues, favourite: saved.favourite ?? false };
 			if (!wasExisting) {

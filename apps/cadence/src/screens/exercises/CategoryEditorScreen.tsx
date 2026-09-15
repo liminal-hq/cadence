@@ -70,7 +70,10 @@ export function CategoryEditorScreen() {
 		}
 	}
 
-	// Merges only the fields `action` actually saved into that one row, rather than reload()'s full re-fetch of every category — a blur-triggered save that lands while the user has already tabbed into and started editing a sibling field on the same row must not overwrite that in-progress edit.
+	// Merges only the fields `action` actually saved into that one row, rather than reload()'s full
+	// re-fetch of every category — a blur-triggered save that lands while the user has already
+	// tabbed into and started editing a sibling field on the same row must not overwrite that
+	// in-progress edit.
 	async function saveCategoryField(
 		action: () => Promise<Category>,
 		patch: (updated: Category) => Partial<Category>,
