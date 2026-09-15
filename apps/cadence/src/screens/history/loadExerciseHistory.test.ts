@@ -135,6 +135,7 @@ describe('flattenDatedSets', () => {
 			{
 				set: { id: 's', workoutExerciseId: 'we', order: 1, status: 'completed' },
 				date: '2026-09-01',
+				workoutId: 'w',
 			},
 		]);
 	});

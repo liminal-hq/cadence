@@ -11,6 +11,7 @@ import type { ExerciseGoal, SetEntry } from '../../domain/types';
 function dated(date: string, overrides: Partial<SetEntry>): DatedSet {
 	return {
 		date,
+		workoutId: 'w',
 		set: { id: 's', workoutExerciseId: 'we', order: 1, status: 'completed', ...overrides },
 	};
 }
@@ -134,6 +135,22 @@ describe('computeGoalProgress', () => {
 	it('reports no history yet when only blank completed sets exist', () => {
 		const result = computeGoalProgress(goal({ targetWeightKg: 100 }), [dated('2026-09-01', {})]);
 		expect(result.best).toBeUndefined();
+	});
+
+	it('requires every targeted metric present, not just the ranking one, for a best attempt', () => {
+		const result = computeGoalProgress(goal({ targetWeightKg: 100, targetReps: 8 }), [
+			// Heavier, but missing the targeted reps -- must not outrank a complete lighter attempt.
+			dated('2026-09-01', { weightKg: 99, reps: undefined }),
+			dated('2026-09-10', { weightKg: 90, reps: 9 }),
+		]);
+		expect(result.best).toMatchObject({ weightKg: 90, reps: 9, date: '2026-09-10' });
+	});
+
+	it('carries the source set and workout id on the best attempt for drill-down', () => {
+		const result = computeGoalProgress(goal({ targetWeightKg: 100 }), [
+			dated('2026-09-10', { id: 's-90', weightKg: 90, reps: 3 }),
+		]);
+		expect(result.best).toMatchObject({ setId: 's-90', workoutId: 'w' });
 	});
 
 	it('is overdue once the target date has passed unachieved', () => {

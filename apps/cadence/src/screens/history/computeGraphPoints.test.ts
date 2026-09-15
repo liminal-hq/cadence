@@ -11,6 +11,7 @@ import type { SetEntry } from '../../domain/types';
 function dated(date: string, overrides: Partial<SetEntry>): DatedSet {
 	return {
 		date,
+		workoutId: 'w',
 		set: { id: 's', workoutExerciseId: 'we', order: 1, status: 'completed', ...overrides },
 	};
 }

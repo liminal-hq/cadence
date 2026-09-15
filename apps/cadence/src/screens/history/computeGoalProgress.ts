@@ -13,6 +13,11 @@ export interface GoalProgressBest {
 	distanceKm?: number;
 	durationSec?: number;
 	date: string;
+	/** The originating set/workout — SPEC.md 8.8 requires a derived view like this to stay traceable
+	 *  back to the set it was computed from, and a date alone is ambiguous across multiple sets or
+	 *  workouts on the same day. */
+	setId: string;
+	workoutId: string;
 }
 
 export interface GoalProgress {
@@ -74,14 +79,15 @@ export function computeGoalProgress(
 	};
 	// A set can be marked completed without every field filled in (SetEditorSheet permits a blank
 	// weight-reps set); such a set has nothing to rank and must not be picked as "best" over having
-	// no compatible performance at all.
+	// no compatible performance at all. Every target field the goal specifies must be present, not
+	// just the one `rank` sorts by — a goal targeting both weight and reps must not let a heavy set
+	// with no rep count outrank a lighter set that actually hit the rep target too.
 	const hasRankedMetric = (entry: DatedSet) => {
-		if (isWeightReps) {
-			return goal.targetWeightKg != null ? entry.set.weightKg != null : entry.set.reps != null;
-		}
-		return goal.targetDistanceKm != null
-			? entry.set.distanceKm != null
-			: entry.set.durationSec != null;
+		if (goal.targetWeightKg != null && entry.set.weightKg == null) return false;
+		if (goal.targetReps != null && entry.set.reps == null) return false;
+		if (goal.targetDistanceKm != null && entry.set.distanceKm == null) return false;
+		if (goal.targetDurationSec != null && entry.set.durationSec == null) return false;
+		return true;
 	};
 	const best = eligible
 		.filter(hasRankedMetric)
@@ -100,6 +106,8 @@ export function computeGoalProgress(
 					distanceKm: best.set.distanceKm,
 					durationSec: best.set.durationSec,
 					date: best.date,
+					setId: best.set.id,
+					workoutId: best.workoutId,
 				}
 			: undefined,
 	};

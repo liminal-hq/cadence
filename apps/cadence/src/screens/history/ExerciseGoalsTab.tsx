@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
 import { Chip } from '../../components/ui/Chip/Chip';
@@ -13,8 +14,8 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { Switch } from '../../components/ui/Switch/Switch';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatDurationSec, formatNumber } from '../../domain/format';
-import type { Exercise, ExerciseGoal, ExerciseGoalValues } from '../../domain/types';
+import { formatDurationSec, formatNumber, kgToLb, lbToKg } from '../../domain/format';
+import type { Exercise, ExerciseGoal, ExerciseGoalValues, WeightUnit } from '../../domain/types';
 import { computeGoalProgress } from './computeGoalProgress';
 import { formatCalendarDateLabel } from './historyDates';
 import { flattenDatedSets, type ExerciseHistoryEntry } from './loadExerciseHistory';
@@ -29,9 +30,18 @@ function blankValues(exerciseId: string): ExerciseGoalValues {
 	return { exerciseId, title: '' };
 }
 
-function targetLabel(goal: ExerciseGoal, metricProfile: Exercise['metricProfile']): string {
+function displayWeight(weightKg: number, weightUnit: WeightUnit): string {
+	return `${formatNumber(weightUnit === 'lb' ? kgToLb(weightKg) : weightKg)} ${weightUnit}`;
+}
+
+function targetLabel(
+	goal: ExerciseGoal,
+	metricProfile: Exercise['metricProfile'],
+	weightUnit: WeightUnit,
+): string {
 	if (metricProfile === 'weight-reps') {
-		const weight = goal.targetWeightKg != null ? `${formatNumber(goal.targetWeightKg)} kg` : '—';
+		const weight =
+			goal.targetWeightKg != null ? displayWeight(goal.targetWeightKg, weightUnit) : '—';
 		const reps = goal.targetReps != null ? goal.targetReps : '—';
 		return `${weight} × ${reps}`;
 	}
@@ -44,12 +54,13 @@ function targetLabel(goal: ExerciseGoal, metricProfile: Exercise['metricProfile'
 function bestLabel(
 	best: ReturnType<typeof computeGoalProgress>['best'],
 	metricProfile: Exercise['metricProfile'],
+	weightUnit: WeightUnit,
 ): string {
 	if (!best) return 'No history yet';
 	const date = formatCalendarDateLabel(best.date);
 	if (metricProfile === 'weight-reps') {
-		const weight = best.weightKg != null ? formatNumber(best.weightKg) : '—';
-		return `Best so far: ${weight} kg × ${best.reps ?? '—'} (${date})`;
+		const weight = best.weightKg != null ? displayWeight(best.weightKg, weightUnit) : '—';
+		return `Best so far: ${weight} × ${best.reps ?? '—'} (${date})`;
 	}
 	const distance = best.distanceKm != null ? formatNumber(best.distanceKm) : '—';
 	const duration = best.durationSec != null ? formatDurationSec(best.durationSec) : '—';
@@ -113,19 +124,27 @@ function dateRangeLabel(goal: ExerciseGoal): string | undefined {
 
 export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	const repository = useLoggingRepository();
+	const navigate = useNavigate();
 	const [goals, setGoals] = useState<ExerciseGoal[] | null>(null);
+	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
 	const [draft, setDraft] = useState<ExerciseGoalValues | null>(null);
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
+	const [loadError, setLoadError] = useState<string | null>(null);
 	const [goalPendingDelete, setGoalPendingDelete] = useState<ExerciseGoal | null>(null);
 	const [showArchived, setShowArchived] = useState(false);
 	const [saving, setSaving] = useState(false);
 
 	const reload = () => {
-		repository.listExerciseGoals(exercise.id).then(setGoals);
+		repository.listExerciseGoals(exercise.id).then(setGoals, (err) => {
+			setLoadError(err instanceof Error ? err.message : String(err));
+		});
 	};
 
 	useEffect(reload, [repository, exercise.id]);
+	useEffect(() => {
+		repository.getSettings().then((settings) => setWeightUnit(settings.weightUnit));
+	}, [repository]);
 
 	const hasArchived = Boolean(goals?.some((goal) => goal.archived));
 	useEffect(() => {
@@ -134,27 +153,56 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 		if (!hasArchived) setShowArchived(false);
 	}, [hasArchived]);
 
-	if (!goals) return null;
+	if (!goals) {
+		// A rejected initial load previously left this screen blank forever with no way to retry.
+		if (loadError) {
+			return (
+				<EmptyState
+					headline="Couldn't load goals"
+					body={loadError}
+					action={
+						<Button
+							variant="filled"
+							onClick={() => {
+								setLoadError(null);
+								reload();
+							}}
+						>
+							Try again
+						</Button>
+					}
+				/>
+			);
+		}
+		return null;
+	}
 
 	const datedSets = flattenDatedSets(history);
 	const visibleGoals = goals.filter((goal) => goal.archived === showArchived);
 
-	async function guarded(action: () => Promise<unknown>) {
+	async function guarded(action: () => Promise<unknown>): Promise<boolean> {
 		try {
 			setError(null);
 			await action();
 			reload();
+			return true;
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+			return false;
 		}
 	}
 
 	function startCreate() {
+		// Guards against silently discarding an already-open draft's unsaved title/target/dates —
+		// the buttons that call this are also disabled while a draft is open, but keep this as a
+		// defensive backstop.
+		if (draft) return;
 		setEditingId(null);
 		setDraft(blankValues(exercise.id));
 	}
 
 	function startEdit(goal: ExerciseGoal) {
+		if (draft) return;
 		const goalProfile = goalMetricProfile(goal);
 		const drifted = goalProfile != null && goalProfile !== exercise.metricProfile;
 		setEditingId(goal.id);
@@ -259,7 +307,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 								) : (
 									<>
 										<span className="exercise-goals-tab__target">
-											Target: {targetLabel(goal, exercise.metricProfile)}
+											Target: {targetLabel(goal, exercise.metricProfile, weightUnit)}
 										</span>
 										{dateRangeLabel(goal) && (
 											<span className="exercise-goals-tab__dates">{dateRangeLabel(goal)}</span>
@@ -267,8 +315,21 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 										<span className="exercise-goals-tab__best">
 											{progress?.achieved
 												? 'Goal met by logged history'
-												: bestLabel(progress?.best, exercise.metricProfile)}
+												: bestLabel(progress?.best, exercise.metricProfile, weightUnit)}
 										</span>
+										{!progress?.achieved && progress?.best && (
+											<Button
+												variant="text"
+												onClick={() =>
+													navigate({
+														to: '/history/workout/$workoutId',
+														params: { workoutId: progress.best!.workoutId },
+													})
+												}
+											>
+												Open workout
+											</Button>
+										)}
 									</>
 								)}
 								<div className="exercise-goals-tab__row-actions">
@@ -281,7 +342,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 											label={goal.achievedAt ? 'Mark not achieved' : 'Mark achieved'}
 										/>
 									)}
-									<Button variant="text" onClick={() => startEdit(goal)}>
+									<Button variant="text" disabled={draft != null} onClick={() => startEdit(goal)}>
 										Edit
 									</Button>
 									<Button
@@ -318,13 +379,27 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 					{exercise.metricProfile === 'weight-reps' ? (
 						<>
 							<TextField
-								label="Target weight (kg)"
+								label={`Target weight (${weightUnit})`}
 								type="number"
-								value={draft.targetWeightKg != null ? String(draft.targetWeightKg) : ''}
+								value={
+									draft.targetWeightKg != null
+										? String(
+												weightUnit === 'lb' ? kgToLb(draft.targetWeightKg) : draft.targetWeightKg,
+											)
+										: ''
+								}
 								onChange={(raw) =>
 									setDraft({
 										...draft,
-										targetWeightKg: raw.trim() === '' ? undefined : Number(raw),
+										// Canonical storage is always kg (matching SetEditorSheet's own kg-only
+										// precedent) -- convert the user's entry from their configured unit at
+										// this boundary, not at the point of use.
+										targetWeightKg:
+											raw.trim() === ''
+												? undefined
+												: weightUnit === 'lb'
+													? lbToKg(Number(raw))
+													: Number(raw),
 									})
 								}
 							/>
@@ -413,11 +488,16 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 							tone="error"
 							onClick={async () => {
 								if (!goalPendingDelete) return;
-								if (editingId === goalPendingDelete.id) {
+								const succeeded = await guarded(() =>
+									repository.deleteExerciseGoal(goalPendingDelete.id),
+								);
+								// Only clear a draft editing this goal once the delete actually succeeds — a
+								// failed delete must leave the in-progress edit intact rather than silently
+								// discarding it underneath the error banner.
+								if (succeeded && editingId === goalPendingDelete.id) {
 									setDraft(null);
 									setEditingId(null);
 								}
-								await guarded(() => repository.deleteExerciseGoal(goalPendingDelete.id));
 								setGoalPendingDelete(null);
 							}}
 						>
