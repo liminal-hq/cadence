@@ -994,6 +994,27 @@ describe('MockLoggingRepository', () => {
 			expect(records.map((r) => r.date)).toEqual(['2026-09-05', '2026-09-10']);
 		});
 
+		it('breaks a same-day tie by actual instant, not by comparing recordedAt text', async () => {
+			// A textual comparison would sort '06:00Z' before '10:00+05:00' even though the latter (05:00Z) is the earlier instant — these two records share a date but not an offset.
+			await repo.createMeasurementRecord(
+				'bodyweight',
+				'2026-09-05',
+				84,
+				undefined,
+				'2026-09-05T06:00:00.000Z',
+			);
+			await repo.createMeasurementRecord(
+				'bodyweight',
+				'2026-09-05',
+				83,
+				undefined,
+				'2026-09-05T10:00:00.000+05:00',
+			);
+
+			const records = await repo.listMeasurementRecords('bodyweight');
+			expect(records.map((r) => r.value)).toEqual([83, 84]);
+		});
+
 		it('updates and deletes a record', async () => {
 			const created = await repo.createMeasurementRecord(
 				'bodyweight',

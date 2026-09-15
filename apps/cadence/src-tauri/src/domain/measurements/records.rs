@@ -1,4 +1,4 @@
-// Row mapping and persistence for measurement records.
+// Row mapping and persistence for measurement records
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
