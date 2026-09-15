@@ -351,7 +351,7 @@ export function ExerciseLoggingScreen({
 		: undefined;
 
 	return (
-		<div className="exercise-logging">
+		<div className="screen-shell exercise-logging">
 			<DetailAppBar
 				title={exercise.name}
 				category={exercise.category}
@@ -372,7 +372,7 @@ export function ExerciseLoggingScreen({
 				]}
 			/>
 
-			<div className="exercise-logging__content">
+			<div className="screen-shell__content exercise-logging__content">
 				{workoutExercise.offlineSince && (
 					<div className="exercise-logging__offline-banner">
 						<span className="material-symbols-rounded">watch_off</span>

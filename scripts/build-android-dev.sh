@@ -11,7 +11,7 @@
 # always restores it back to the committed (real-app) state afterward -- even on failure.
 # It also carries a distinct launcher icon (the real Cadence mark plus a small "Dev" ribbon,
 # matching Threshold's own dev build) so it's never mistaken for the real app on a home screen
-# -- see DEV_ICON_MANIFEST below for how that gets stamped on.
+# — see DEV_ICON_MANIFEST below for how that gets stamped on.
 #
 # Builds a single-ABI APK by default (aarch64 -- virtually all modern Android phones) to
 # keep the install (and local disk usage) small; a "universal" all-ABI debug build easily
@@ -39,17 +39,7 @@ OUT_DIR="${CADENCE_DEV_APK_DIR:-$HOME/cadence-dev-builds}"
 GEN_ANDROID="apps/cadence/src-tauri/gen/android"
 TARGET="${CADENCE_DEV_TARGET:-aarch64}"
 
-# `tauri icon` has an undocumented side effect: whenever its -o output directory resolves
-# to somewhere inside the Tauri project tree, it also patches any already-initialized
-# mobile platform project's icons in place (gen/android's res/mipmap-* here), in addition
-# to writing the requested output. We rely on that deliberately below to stamp the dev-only
-# "Dev" ribbon icon (cadence-icon-dev.svg / cadence-icon-android-dev.svg under assets/icon/)
-# onto the freshly-regenerated gen/android, right before building it -- gen/android is
-# already force-restored to HEAD on exit regardless (see restore_gen_android), so mutating it
-# mid-script here is exactly as safe as the identifier/name override above. If -o pointed
-# outside the project tree instead, this patch would silently not happen and the dev build
-# would carry the real production icon with no error -- confirmed empirically, not from docs
-# (see Threshold's identical build-android-dev.sh, which this is ported from).
+# `tauri icon` has an undocumented side effect: whenever its -o output directory resolves to somewhere inside the Tauri project tree, it also patches any already-initialized mobile platform project's icons in place (gen/android's res/mipmap-* here), in addition to writing the requested output. We rely on that deliberately below to stamp the dev-only "Dev" ribbon icon (cadence-icon-dev.svg / cadence-icon-android-dev.svg under assets/icon/) onto the freshly-regenerated gen/android, right before building it — gen/android is already force-restored to HEAD on exit regardless (see restore_gen_android), so mutating it mid-script here is exactly as safe as the identifier/name override above. If -o pointed outside the project tree instead, this patch would silently not happen and the dev build would carry the real production icon with no error — confirmed empirically, not from docs (see Threshold's identical build-android-dev.sh, which this is ported from).
 DEV_ICON_MANIFEST='{"default": "/workspace/assets/icon/cadence-icon-dev.svg", "android_fg": "/workspace/assets/icon/cadence-icon-android-dev.svg"}'
 
 if [ -t 1 ]; then
