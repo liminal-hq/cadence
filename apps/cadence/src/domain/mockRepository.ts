@@ -1394,6 +1394,7 @@ export class MockLoggingRepository implements LoggingRepository {
 				categoryName: category?.name ?? exercise.category,
 				metricProfile: exercise.metricProfile,
 				date: workout.date,
+				setOrder: set.order,
 				weightKg: set.weightKg,
 				reps: set.reps,
 				distanceKm: set.distanceKm,

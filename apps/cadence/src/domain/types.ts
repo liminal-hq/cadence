@@ -336,6 +336,8 @@ export interface AnalysisSetEntry {
 	categoryName: string;
 	metricProfile: MetricProfile;
 	date: string;
+	/** This set's order within its own workout-exercise (`SetEntry.order` elsewhere) — distinguishes two completed sets with otherwise-identical logged values in the drill-down list. */
+	setOrder: number;
 	weightKg?: number;
 	reps?: number;
 	distanceKm?: number;

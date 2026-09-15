@@ -19,6 +19,10 @@ pub struct AnalysisSetEntry {
     pub category_name: String,
     pub metric_profile: String,
     pub date: String,
+    /// This set's `sort_order` within its own workout-exercise — the same ordinal a user sees as
+    /// "Set N" while logging (`SetEntry.order` elsewhere). Two completed sets with identical
+    /// logged values are otherwise indistinguishable in the drill-down list.
+    pub set_order: i32,
     #[cfg_attr(test, ts(optional))]
     pub weight_kg: Option<f64>,
     #[cfg_attr(test, ts(optional))]

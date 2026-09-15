@@ -23,6 +23,7 @@ function entry(overrides: Partial<AnalysisSetEntry>): AnalysisSetEntry {
 		categoryName: 'Chest',
 		metricProfile: 'weight-reps',
 		date: '2026-09-01',
+		setOrder: 1,
 		...overrides,
 	};
 }

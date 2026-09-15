@@ -207,7 +207,9 @@ export function TrainingAnalysisScreen() {
 												>
 													{row.entries.map((entry) => (
 														<div key={entry.setId} className="training-analysis__entry">
-															<span>{formatCalendarDateLabel(entry.date)}</span>
+															<span>
+																{formatCalendarDateLabel(entry.date)} · Set {entry.setOrder}
+															</span>
 															<span>{entry.exerciseName}</span>
 															<span>{formatEntrySummary(entry, weightUnit)}</span>
 															<Button

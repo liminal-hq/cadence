@@ -19,6 +19,7 @@ struct AnalysisRow {
     category_name: String,
     metric_profile: String,
     date: String,
+    sort_order: i32,
     weight_g: Option<i64>,
     reps: Option<i32>,
     distance_m: Option<i64>,
@@ -36,6 +37,7 @@ impl From<AnalysisRow> for AnalysisSetEntry {
             category_name: row.category_name,
             metric_profile: row.metric_profile,
             date: row.date,
+            set_order: row.sort_order,
             weight_kg: row.weight_g.map(g_to_kg),
             reps: row.reps,
             distance_km: row.distance_m.map(m_to_km),
@@ -46,7 +48,7 @@ impl From<AnalysisRow> for AnalysisSetEntry {
 
 const SELECT_IN_RANGE: &str = "SELECT s.id AS set_id, s.workout_id, s.exercise_id, \
      e.name AS exercise_name, e.category_id, c.name AS category_name, e.metric_profile, \
-     w.local_date AS date, s.weight_g, s.reps, s.distance_m, s.duration_s \
+     w.local_date AS date, s.sort_order, s.weight_g, s.reps, s.distance_m, s.duration_s \
      FROM sets s \
      JOIN workouts w ON w.id = s.workout_id \
      JOIN exercises e ON e.id = s.exercise_id \
@@ -115,6 +117,42 @@ mod tests {
         assert_eq!(entries[0].category_name, "Chest");
         assert_eq!(entries[0].weight_kg, Some(80.0));
         assert_eq!(entries[0].reps, Some(5));
+    }
+
+    #[tokio::test]
+    async fn exposes_each_sets_order_within_its_workout_exercise() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let workout = crate::domain::workouts::repo::create(&mut conn, "2026-06-01", "Session")
+            .await
+            .unwrap();
+        let we = crate::domain::workouts::workout_exercises::add(
+            &mut conn,
+            &workout.id,
+            "ex-bench-press",
+        )
+        .await
+        .unwrap();
+        let values = SetValues {
+            weight_kg: Some(80.0),
+            reps: Some(5),
+            ..Default::default()
+        };
+        crate::domain::sets::repo::log_new(&mut conn, &we.id, &values)
+            .await
+            .unwrap();
+        crate::domain::sets::repo::log_new(&mut conn, &we.id, &values)
+            .await
+            .unwrap();
+
+        let entries = list_completed_sets_in_range(&mut conn, "2026-01-01", "2026-12-31")
+            .await
+            .unwrap();
+        assert_eq!(entries.len(), 2);
+        assert_ne!(
+            entries[0].set_order, entries[1].set_order,
+            "two identically-valued sets in the same workout-exercise must still carry distinct set_order"
+        );
     }
 
     #[tokio::test]
