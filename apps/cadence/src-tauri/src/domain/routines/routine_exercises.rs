@@ -169,12 +169,7 @@ pub async fn update_note(
     get(conn, id).await
 }
 
-/// A per-exercise rest override for this routine template only — `rest_ms` was a real schema
-/// column and DTO field with no writer anywhere until now. Deliberately not carried into
-/// `materialize_routine_section`'s output: `workout_exercises` has no rest column to receive it,
-/// and wiring a routine-template override into the live rest timer is a separate, unbuilt
-/// live-workout feature (the same "P-19 out of scope" boundary this domain module has already
-/// drawn around superset auto-advance/rest behaviour).
+/// A per-exercise rest override for this routine template only — `rest_ms` was a real schema column and DTO field with no writer anywhere until now. Deliberately not carried into `materialize_routine_section`'s output: `workout_exercises` has no rest column to receive it, and wiring a routine-template override into the live rest timer is a separate, unbuilt live-workout feature (the same "P-19 out of scope" boundary this domain module has already drawn around superset auto-advance/rest behaviour).
 pub async fn update_rest(
     conn: &mut SqliteConnection,
     id: &str,

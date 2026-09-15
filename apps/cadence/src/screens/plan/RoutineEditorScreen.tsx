@@ -42,8 +42,7 @@ interface RoutineEditorScreenProps {
 
 interface EditorExercise {
 	routineExercise: RoutineExercise;
-	/** `null` when the referenced exercise no longer exists in the library — rendered as a
-	 *  "missing exercise" row with only a Remove action, rather than blanking the whole screen. */
+	/** `null` when the referenced exercise no longer exists in the library — rendered as a "missing exercise" row with only a Remove action, rather than blanking the whole screen. */
 	exercise: Exercise | null;
 	templates: SetTemplate[];
 }
@@ -119,8 +118,7 @@ function isBlankTemplate(template: SetTemplate): boolean {
 	);
 }
 
-/** Which of the three "values come from" states a set most recently added to this exercise used —
- *  a pure UI default, not persisted, since it just steers what "+ Add set" does next. */
+/** Which of the three "values come from" states a set most recently added to this exercise used — a pure UI default, not persisted, since it just steers what "+ Add set" does next. */
 export function defaultPopulationMode(templates: SetTemplate[]): PopulationMode {
 	const last = templates[templates.length - 1];
 	if (!last) return 'fixed';
@@ -272,10 +270,7 @@ function draftFromState(state: EditorState): Draft {
 	};
 }
 
-/** Adds `fresh`'s entries for any section/exercise `existing` doesn't know about yet (created by a
- *  structural op — add section, add exercise — which persist immediately and then reload), while
- *  keeping `existing`'s own values for everything it already has, so a reload never discards an
- *  in-progress, not-yet-saved edit. */
+/** Adds `fresh`'s entries for any section/exercise `existing` doesn't know about yet (created by a structural op — add section, add exercise — which persist immediately and then reload), while keeping `existing`'s own values for everything it already has, so a reload never discards an in-progress, not-yet-saved edit. */
 function mergeDraft(fresh: Draft, existing: Draft): Draft {
 	return {
 		routineName: existing.routineName,
@@ -300,9 +295,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	const [exercisePendingDelete, setExercisePendingDelete] = useState<EditorExercise | null>(null);
 	const [saving, setSaving] = useState(false);
 	const [saveError, setSaveError] = useState<string | null>(null);
-	// A brand-new draft's baseline is the just-loaded values -- a ref, not state, so the router's
-	// dirty blocker (see ExerciseEditorScreen's own note on this exact pattern) can read the latest
-	// baseline even from a stale render's closure.
+	// A brand-new draft's baseline is the just-loaded values — a ref, not state, so the router's dirty blocker (see ExerciseEditorScreen's own note on this exact pattern) can read the latest baseline even from a stale render's closure.
 	const baselineRef = useRef<Draft | null>(null);
 	const skipNextBlockRef = useRef(false);
 
@@ -329,8 +322,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		draft && baselineRef.current && JSON.stringify(draft) !== JSON.stringify(baselineRef.current),
 	);
 
-	// Blocks every navigation path away from a dirty draft, not just the app bar's back button —
-	// predictive back and hardware/browser back both go through the router's history, same as this.
+	// Blocks every navigation path away from a dirty draft, not just the app bar's back button — predictive back and hardware/browser back both go through the router's history, same as this.
 	const blocker = useBlocker({
 		shouldBlockFn: () => {
 			if (skipNextBlockRef.current) {
