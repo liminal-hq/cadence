@@ -290,6 +290,7 @@ struct MostRecentCompletedRow {
 
 /// The most recent completed set for this exercise, across every workout — the pure lookup behind routine materialization's "seed from most recent comparable performance" rule (SPEC.md 8.4).
 /// Ordered by the owning workout's `local_date` first, then `completed_at_ms` as a same-day tiebreaker — not `completed_at_ms` alone, since entering or completing an older workout after a newer one would otherwise make its later timestamp win over the actually-more-recent training day.
+/// A final `sort_order` tiebreaker handles two sets logged fast enough to land in the same millisecond (real timestamp precision, not just a test artefact) — otherwise `completed_at_ms` ties resolve to whichever row SQLite happens to return first, which isn't necessarily the one actually completed last.
 /// `on_or_before_date` excludes a completed set from a workout dated after it — materializing a backdated routine section must not seed from performance that, relative to the workout being created, hasn't happened yet.
 pub async fn most_recent_completed(
     conn: &mut SqliteConnection,
@@ -300,7 +301,7 @@ pub async fn most_recent_completed(
         "SELECT s.weight_g, s.reps, s.distance_m, s.duration_s FROM sets s \
          JOIN workouts w ON w.id = s.workout_id \
          WHERE s.exercise_id = ? AND s.status = 'completed' AND w.local_date <= ? \
-         ORDER BY w.local_date DESC, s.completed_at_ms DESC LIMIT 1",
+         ORDER BY w.local_date DESC, s.completed_at_ms DESC, s.sort_order DESC LIMIT 1",
     )
     .bind(exercise_id)
     .bind(on_or_before_date)
