@@ -1,11 +1,16 @@
 .ui-app-bar {
 	/* On Android the WebView draws edge-to-edge behind the status bar, so the bar's own
-	 * tap-target height sits below env(safe-area-inset-top) rather than being squeezed by it. */
-	height: calc(var(--cadence-top-bar-height) + env(safe-area-inset-top, 0px));
-	padding-top: env(safe-area-inset-top, 0px);
+	 * tap-target height sits below env(safe-area-inset-top) rather than being squeezed by it.
+	 * The extra 8px is a fixed breathing-room floor on top of that inset, not a substitute for
+	 * it -- the Android activity doesn't actually enable edge-to-edge drawing yet (no
+	 * WindowCompat.setDecorFitsSystemWindows call), so env(safe-area-inset-top) reports 0px on
+	 * every device today and the title would otherwise sit flush against the status bar. */
+	height: calc(var(--cadence-top-bar-height) + env(safe-area-inset-top, 0px) + 8px);
+	padding-top: calc(env(safe-area-inset-top, 0px) + 8px);
 	display: flex;
 	align-items: center;
 	background: var(--cadence-surface);
+	border-bottom: 1px solid var(--cadence-outline-variant);
 	flex-shrink: 0;
 }
 
