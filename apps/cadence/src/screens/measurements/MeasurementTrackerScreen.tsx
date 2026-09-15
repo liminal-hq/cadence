@@ -60,14 +60,32 @@ export function MeasurementTrackerScreen() {
 
 	if (!definitions) return null;
 
+	// Always reloads, on success or failure — a rejected update (e.g. a unit change once records or a goal exist) must not leave the optimistic edit from onChange sitting in local state, since the persisted definition never actually changed.
 	async function guarded(action: () => Promise<unknown>) {
 		try {
 			setError(null);
 			await action();
-			reload();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
+		} finally {
+			reload();
 		}
+	}
+
+	function saveDefinitionField(definition: MeasurementDefinition) {
+		if (!definition.name.trim() || !definition.unit.trim()) {
+			setError('Enter a name and unit.');
+			reload();
+			return;
+		}
+		guarded(() =>
+			repository.updateMeasurementDefinition(
+				definition.id,
+				definition.name,
+				definition.unit,
+				definition.goal,
+			),
+		);
 	}
 
 	async function handleCreate() {
@@ -183,16 +201,7 @@ export function MeasurementTrackerScreen() {
 												definitions.map((d) => (d.id === definition.id ? { ...d, name } : d)),
 											)
 										}
-										onBlur={() =>
-											guarded(() =>
-												repository.updateMeasurementDefinition(
-													definition.id,
-													definition.name,
-													definition.unit,
-													definition.goal,
-												),
-											)
-										}
+										onBlur={() => saveDefinitionField(definition)}
 									/>
 									<TextField
 										label="Unit"
@@ -202,16 +211,7 @@ export function MeasurementTrackerScreen() {
 												definitions.map((d) => (d.id === definition.id ? { ...d, unit } : d)),
 											)
 										}
-										onBlur={() =>
-											guarded(() =>
-												repository.updateMeasurementDefinition(
-													definition.id,
-													definition.name,
-													definition.unit,
-													definition.goal,
-												),
-											)
-										}
+										onBlur={() => saveDefinitionField(definition)}
 									/>
 									<IconButton
 										icon={definition.archived ? 'toggle_off' : 'toggle_on'}

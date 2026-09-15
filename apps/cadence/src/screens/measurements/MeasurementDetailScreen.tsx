@@ -43,6 +43,16 @@ function draftFromRecord(record: MeasurementRecord): RecordDraft {
 	return { date: record.date, value: String(record.value), note: record.note ?? '' };
 }
 
+/** Orders by calendar date, breaking a same-day tie by `recordedAt` rather than leaving it to sort-engine stability — `direction` is 1 for ascending (oldest/earliest-entered first) or -1 for descending (newest/latest-entered first). */
+export function byDateThenRecordedAt(
+	direction: 1 | -1,
+): (a: MeasurementRecord, b: MeasurementRecord) => number {
+	return (a, b) => {
+		if (a.date !== b.date) return a.date < b.date ? -direction : direction;
+		return a.recordedAt < b.recordedAt ? -direction : direction;
+	};
+}
+
 interface DefinitionDraft {
 	name: string;
 	unit: string;
@@ -66,7 +76,7 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 		repository.getMeasurementDefinition(definitionId).then(setDefinition);
 		repository
 			.listMeasurementRecords(definitionId)
-			.then((all) => setRecords([...all].sort((a, b) => (a.date < b.date ? 1 : -1))));
+			.then((all) => setRecords([...all].sort(byDateThenRecordedAt(-1))));
 	}, [repository, definitionId]);
 
 	useEffect(reload, [reload]);
@@ -132,8 +142,8 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 
 	const points: GraphPoint[] = records
 		.filter((r) => !recordPendingDelete || r.id !== recordPendingDelete.id)
-		.map((r) => ({ date: r.date, value: r.value, setId: r.id }))
-		.sort((a, b) => (a.date < b.date ? -1 : 1));
+		.sort(byDateThenRecordedAt(1))
+		.map((r) => ({ date: r.date, value: r.value, setId: r.id }));
 
 	return (
 		<div className="screen-shell">
@@ -348,6 +358,10 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 							tone="error"
 							onClick={async () => {
 								if (!recordPendingDelete) return;
+								if (editingRecordId === recordPendingDelete.id) {
+									setRecordDraft(null);
+									setEditingRecordId(null);
+								}
 								await guarded(() => repository.deleteMeasurementRecord(recordPendingDelete.id));
 								setRecordPendingDelete(null);
 							}}
