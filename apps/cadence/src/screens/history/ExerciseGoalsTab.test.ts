@@ -20,9 +20,51 @@ describe('draftValidationError', () => {
 		expect(draftValidationError(draft({ title: '  ' }), 'weight-reps')).toBeDefined();
 	});
 
+	it('rejects a draft with no target field set at all', () => {
+		expect(draftValidationError(draft({ targetWeightKg: undefined }), 'weight-reps')).toBe(
+			'Enter a target.',
+		);
+	});
+
 	it('rejects a fractional target reps', () => {
 		expect(draftValidationError(draft({ targetReps: 2.5 }), 'weight-reps')).toBe(
 			'Target reps must be a whole number.',
+		);
+	});
+
+	it('rejects a zero or negative target weight', () => {
+		expect(draftValidationError(draft({ targetWeightKg: 0 }), 'weight-reps')).toBe(
+			'Target weight must be greater than zero.',
+		);
+		expect(draftValidationError(draft({ targetWeightKg: -10 }), 'weight-reps')).toBe(
+			'Target weight must be greater than zero.',
+		);
+	});
+
+	it('rejects a zero or negative target reps', () => {
+		expect(
+			draftValidationError(draft({ targetWeightKg: undefined, targetReps: 0 }), 'weight-reps'),
+		).toBe('Target reps must be greater than zero.');
+		expect(
+			draftValidationError(draft({ targetWeightKg: undefined, targetReps: -5 }), 'weight-reps'),
+		).toBe('Target reps must be greater than zero.');
+	});
+
+	it('rejects a zero or negative target distance', () => {
+		const value = draft({ targetWeightKg: undefined, targetDistanceKm: -5 });
+		expect(draftValidationError(value, 'distance-duration')).toBe(
+			'Target distance must be greater than zero.',
+		);
+	});
+
+	it('rejects a zero or negative target duration', () => {
+		const value = draft({
+			targetWeightKg: undefined,
+			targetDistanceKm: 5,
+			targetDurationSec: -90,
+		});
+		expect(draftValidationError(value, 'distance-duration')).toBe(
+			'Target duration must be greater than zero.',
 		);
 	});
 

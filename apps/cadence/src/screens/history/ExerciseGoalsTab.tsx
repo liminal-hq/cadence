@@ -13,6 +13,7 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { Switch } from '../../components/ui/Switch/Switch';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { formatDurationSec, formatNumber } from '../../domain/format';
 import type { Exercise, ExerciseGoal, ExerciseGoalValues } from '../../domain/types';
 import { computeGoalProgress } from './computeGoalProgress';
 import { formatCalendarDateLabel } from './historyDates';
@@ -30,12 +31,13 @@ function blankValues(exerciseId: string): ExerciseGoalValues {
 
 function targetLabel(goal: ExerciseGoal, metricProfile: Exercise['metricProfile']): string {
 	if (metricProfile === 'weight-reps') {
-		const weight = goal.targetWeightKg != null ? `${goal.targetWeightKg} kg` : '—';
+		const weight = goal.targetWeightKg != null ? `${formatNumber(goal.targetWeightKg)} kg` : '—';
 		const reps = goal.targetReps != null ? goal.targetReps : '—';
 		return `${weight} × ${reps}`;
 	}
-	const distance = goal.targetDistanceKm != null ? `${goal.targetDistanceKm} km` : '—';
-	const duration = goal.targetDurationSec != null ? `${goal.targetDurationSec}s` : '—';
+	const distance =
+		goal.targetDistanceKm != null ? `${formatNumber(goal.targetDistanceKm)} km` : '—';
+	const duration = goal.targetDurationSec != null ? formatDurationSec(goal.targetDurationSec) : '—';
 	return `${distance} · ${duration}`;
 }
 
@@ -44,10 +46,14 @@ function bestLabel(
 	metricProfile: Exercise['metricProfile'],
 ): string {
 	if (!best) return 'No history yet';
+	const date = formatCalendarDateLabel(best.date);
 	if (metricProfile === 'weight-reps') {
-		return `Best so far: ${best.weightKg ?? '—'} kg × ${best.reps ?? '—'} (${best.date})`;
+		const weight = best.weightKg != null ? formatNumber(best.weightKg) : '—';
+		return `Best so far: ${weight} kg × ${best.reps ?? '—'} (${date})`;
 	}
-	return `Best so far: ${best.distanceKm ?? '—'} km · ${best.durationSec ?? '—'}s (${best.date})`;
+	const distance = best.distanceKm != null ? formatNumber(best.distanceKm) : '—';
+	const duration = best.durationSec != null ? formatDurationSec(best.durationSec) : '—';
+	return `Best so far: ${distance} km · ${duration} (${date})`;
 }
 
 /** Which profile a goal's own stored target fields belong to — `undefined` for a targetless goal. Distinct from `exercise.metricProfile`, which can drift away from it if the exercise's profile changes after the goal was created (nothing currently locks that for a history-free exercise). */
@@ -73,11 +79,23 @@ export function draftValidationError(
 ): string | undefined {
 	if (!draft.title.trim()) return 'Enter a title.';
 	if (!draftHasTarget(draft, metricProfile)) return 'Enter a target.';
+	if (draft.targetWeightKg != null && !(draft.targetWeightKg > 0)) {
+		return 'Target weight must be greater than zero.';
+	}
 	if (draft.targetReps != null && !Number.isInteger(draft.targetReps)) {
 		return 'Target reps must be a whole number.';
 	}
+	if (draft.targetReps != null && !(draft.targetReps > 0)) {
+		return 'Target reps must be greater than zero.';
+	}
+	if (draft.targetDistanceKm != null && !(draft.targetDistanceKm > 0)) {
+		return 'Target distance must be greater than zero.';
+	}
 	if (draft.targetDurationSec != null && !Number.isInteger(draft.targetDurationSec)) {
 		return 'Target duration must be a whole number of seconds.';
+	}
+	if (draft.targetDurationSec != null && !(draft.targetDurationSec > 0)) {
+		return 'Target duration must be greater than zero.';
 	}
 	if (draft.startDate && draft.targetDate && draft.targetDate < draft.startDate) {
 		return 'Target date must be on or after the start date.';
@@ -395,6 +413,10 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 							tone="error"
 							onClick={async () => {
 								if (!goalPendingDelete) return;
+								if (editingId === goalPendingDelete.id) {
+									setDraft(null);
+									setEditingId(null);
+								}
 								await guarded(() => repository.deleteExerciseGoal(goalPendingDelete.id));
 								setGoalPendingDelete(null);
 							}}
