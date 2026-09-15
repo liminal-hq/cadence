@@ -3,11 +3,11 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { MouseEventHandler } from 'react';
+import type { ButtonHTMLAttributes, MouseEventHandler } from 'react';
 import { classNames } from '../classNames';
 import './IconButton.css';
 
-export interface IconButtonProps {
+export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 	icon: string;
 	label: string;
 	variant?: 'standard' | 'tonal' | 'filled';
@@ -26,14 +26,25 @@ export function IconButton({
 	iconFilled = false,
 	disabled = false,
 	onClick,
+	className,
+	// Spread onto the native button -- dnd-kit's `listeners`/`attributes` (onPointerDown,
+	// onKeyDown, tabIndex, role, aria-describedby, etc.) need to land on the real DOM element
+	// for a drag-handle IconButton to actually be draggable.
+	...rest
 }: IconButtonProps) {
 	return (
 		<button
 			type="button"
-			className={`ui-icon-button ui-icon-button--${variant} ui-icon-button--size-${size}`}
+			className={classNames(
+				'ui-icon-button',
+				`ui-icon-button--${variant}`,
+				`ui-icon-button--size-${size}`,
+				className,
+			)}
 			aria-label={label}
 			disabled={disabled}
 			onClick={onClick}
+			{...rest}
 		>
 			<span
 				className={classNames(

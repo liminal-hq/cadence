@@ -1,11 +1,13 @@
-// Up/down controls report the whole reordered array, disabled at each boundary
+// The reorder math (reorderByKeys) and structural rendering -- a real dnd-kit drag gesture
+// can't be meaningfully simulated under happy-dom, which reports zero-sized rects for every
+// element, so the id-to-index logic is tested directly instead
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ReorderableList } from './ReorderableList';
+import { ReorderableList, reorderByKeys } from './ReorderableList';
 
 const ITEMS = [
 	{ id: 'a', label: 'A' },
@@ -13,46 +15,35 @@ const ITEMS = [
 	{ id: 'c', label: 'C' },
 ];
 
+describe('reorderByKeys', () => {
+	it('moves an item to a later position', () => {
+		expect(reorderByKeys(ITEMS, (i) => i.id, 'a', 'c')).toEqual([
+			{ id: 'b', label: 'B' },
+			{ id: 'c', label: 'C' },
+			{ id: 'a', label: 'A' },
+		]);
+	});
+
+	it('moves an item to an earlier position', () => {
+		expect(reorderByKeys(ITEMS, (i) => i.id, 'c', 'a')).toEqual([
+			{ id: 'c', label: 'C' },
+			{ id: 'a', label: 'A' },
+			{ id: 'b', label: 'B' },
+		]);
+	});
+
+	it('returns the same array reference for a drop on itself', () => {
+		expect(reorderByKeys(ITEMS, (i) => i.id, 'b', 'b')).toBe(ITEMS);
+	});
+
+	it('returns the same array reference for an unknown key', () => {
+		expect(reorderByKeys(ITEMS, (i) => i.id, 'a', 'no-such-id')).toBe(ITEMS);
+		expect(reorderByKeys(ITEMS, (i) => i.id, 'no-such-id', 'a')).toBe(ITEMS);
+	});
+});
+
 describe('ReorderableList', () => {
-	it('moves an item down and reports the new order', () => {
-		const onReorder = vi.fn();
-		render(
-			<ReorderableList
-				items={ITEMS}
-				getKey={(item) => item.id}
-				onReorder={onReorder}
-				renderItem={(item) => item.label}
-			/>,
-		);
-
-		fireEvent.click(screen.getAllByRole('button', { name: 'Move down' })[0]);
-		expect(onReorder).toHaveBeenCalledWith([
-			{ id: 'b', label: 'B' },
-			{ id: 'a', label: 'A' },
-			{ id: 'c', label: 'C' },
-		]);
-	});
-
-	it('moves an item up and reports the new order', () => {
-		const onReorder = vi.fn();
-		render(
-			<ReorderableList
-				items={ITEMS}
-				getKey={(item) => item.id}
-				onReorder={onReorder}
-				renderItem={(item) => item.label}
-			/>,
-		);
-
-		fireEvent.click(screen.getAllByRole('button', { name: 'Move up' })[2]);
-		expect(onReorder).toHaveBeenCalledWith([
-			{ id: 'a', label: 'A' },
-			{ id: 'c', label: 'C' },
-			{ id: 'b', label: 'B' },
-		]);
-	});
-
-	it('disables move-up on the first row and move-down on the last', () => {
+	it('renders every item with one drag handle each', () => {
 		render(
 			<ReorderableList
 				items={ITEMS}
@@ -62,7 +53,23 @@ describe('ReorderableList', () => {
 			/>,
 		);
 
-		expect(screen.getAllByRole('button', { name: 'Move up' })[0]).toBeDisabled();
-		expect(screen.getAllByRole('button', { name: 'Move down' })[2]).toBeDisabled();
+		expect(screen.getByText('A')).toBeInTheDocument();
+		expect(screen.getByText('B')).toBeInTheDocument();
+		expect(screen.getByText('C')).toBeInTheDocument();
+		expect(screen.getAllByRole('button', { name: 'Reorder' })).toHaveLength(3);
+	});
+
+	it('never calls onReorder on its own', () => {
+		const onReorder = vi.fn();
+		render(
+			<ReorderableList
+				items={ITEMS}
+				getKey={(item) => item.id}
+				onReorder={onReorder}
+				renderItem={(item) => item.label}
+			/>,
+		);
+
+		expect(onReorder).not.toHaveBeenCalled();
 	});
 });

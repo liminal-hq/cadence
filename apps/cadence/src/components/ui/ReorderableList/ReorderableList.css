@@ -15,7 +15,11 @@
 	min-width: 0;
 }
 
-.ui-reorderable-list__controls {
-	display: flex;
-	flex-direction: column;
+.ui-reorderable-list__handle {
+	cursor: grab;
+	touch-action: none;
+}
+
+.ui-reorderable-list__handle:active {
+	cursor: grabbing;
 }
