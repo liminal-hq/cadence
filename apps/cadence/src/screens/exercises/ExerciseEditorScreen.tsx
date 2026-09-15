@@ -87,17 +87,35 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	// Stays false forever on a failed lookup, not just while pending — Save must never be allowed
 	// to treat an existing exercise it couldn't confirm as a brand-new one.
 	const [existingLoaded, setExistingLoaded] = useState(!exerciseId);
-	const baselineRef = useRef<{ values: ExerciseValues; favourite: boolean } | null>(null);
+	const [saving, setSaving] = useState(false);
+	// A brand-new exercise's baseline is the true starting values, set synchronously at mount —
+	// not deferred into the categories effect below, which used to build it from `current` (the
+	// live, possibly-already-edited state) if the user started typing before listCategories()
+	// resolved, silently adopting their in-progress edit as the "clean" baseline.
+	const baselineRef = useRef<{ values: ExerciseValues; favourite: boolean } | null>(
+		exerciseId ? null : { values: { ...BLANK_VALUES, name: initialName ?? '' }, favourite: false },
+	);
+	// Sidesteps a stale-closure race in the router's dirty blocker: `handleSave`/`handleDelete`
+	// update `values`/`baselineRef` and then navigate synchronously, before React has re-rendered
+	// with the now-clean state -- the blocker's `shouldBlockFn` from the *previous* render (still
+	// closing over the old, dirty `isDirty`) is what actually runs. Reading this ref instead
+	// works regardless of which render's closure is invoked, since the ref object itself is
+	// stable across renders and mutating it doesn't require a re-render to take effect.
+	const skipNextBlockRef = useRef(false);
 
 	useEffect(() => {
 		repository.listCategories().then((all) => {
 			setCategories(all);
-			setValues((current) => {
-				if (current.category) return current;
-				const next = { ...current, category: all.find((c) => !c.archived)?.id ?? '' };
-				if (!exerciseId) baselineRef.current = { values: next, favourite: false };
-				return next;
-			});
+			const defaultCategory = all.find((c) => !c.archived)?.id ?? '';
+			setValues((current) =>
+				current.category ? current : { ...current, category: defaultCategory },
+			);
+			if (!exerciseId && baselineRef.current && !baselineRef.current.values.category) {
+				baselineRef.current = {
+					...baselineRef.current,
+					values: { ...baselineRef.current.values, category: defaultCategory },
+				};
+			}
 		});
 	}, [repository, exerciseId]);
 
@@ -128,7 +146,16 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 
 	// Blocks every navigation path away from a dirty draft, not just the app bar's back button —
 	// predictive back and hardware/browser back both go through the router's history, same as this.
-	const blocker = useBlocker({ shouldBlockFn: () => isDirty, withResolver: true });
+	const blocker = useBlocker({
+		shouldBlockFn: () => {
+			if (skipNextBlockRef.current) {
+				skipNextBlockRef.current = false;
+				return false;
+			}
+			return isDirty;
+		},
+		withResolver: true,
+	});
 
 	const graphMetricOptions =
 		values.metricProfile === 'weight-reps'
@@ -145,9 +172,11 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 	}
 
 	async function handleSave() {
+		if (saving) return;
 		let saved: Exercise;
 		const wasExisting = existing;
 		try {
+			setSaving(true);
 			setError(null);
 			saved = existing
 				? await repository.updateExercise(existing.id, values)
@@ -155,6 +184,8 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
 			return;
+		} finally {
+			setSaving(false);
 		}
 		// The exercise itself is already persisted at this point — everything below reflects that,
 		// even if the favourite follow-up call below fails, so a transient error there can't strand
@@ -168,6 +199,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 		setValues(savedValues);
 		baselineRef.current = { values: savedValues, favourite: saved.favourite ?? false };
 		if (!wasExisting) {
+			skipNextBlockRef.current = true;
 			navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
 		}
 		if (!wasExisting && draftFavourite) {
@@ -197,6 +229,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 		try {
 			setError(null);
 			await repository.deleteExercise(existing.id);
+			skipNextBlockRef.current = true;
 			navigate({ to: '/exercise-library' });
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
@@ -212,7 +245,7 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 				trailingContent={
 					<Button
 						variant="text"
-						disabled={!values.name.trim() || !values.category || !existingLoaded}
+						disabled={!values.name.trim() || !values.category || !existingLoaded || saving}
 						onClick={handleSave}
 					>
 						Save
