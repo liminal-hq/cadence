@@ -706,6 +706,15 @@ impl<R: Runtime> Coordinator<R> {
         routines::routine_exercises::update_note(&mut conn, id, note).await
     }
 
+    pub async fn update_routine_exercise_rest(
+        &self,
+        id: &str,
+        rest_ms: Option<i64>,
+    ) -> Result<RoutineExercise> {
+        let mut conn = self.pool.acquire().await?;
+        routines::routine_exercises::update_rest(&mut conn, id, rest_ms).await
+    }
+
     pub async fn delete_routine_exercise(&self, id: &str) -> Result<()> {
         let mut conn = self.pool.acquire().await?;
         routines::routine_exercises::delete(&mut conn, id).await

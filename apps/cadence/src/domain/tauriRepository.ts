@@ -361,6 +361,13 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('update_routine_exercise_note', { id, note });
 	}
 
+	async updateRoutineExerciseRest(
+		id: string,
+		restMs: number | undefined,
+	): Promise<RoutineExercise> {
+		return call('update_routine_exercise_rest', { id, restMs });
+	}
+
 	async deleteRoutineExercise(id: string): Promise<void> {
 		return call('delete_routine_exercise', { id });
 	}
