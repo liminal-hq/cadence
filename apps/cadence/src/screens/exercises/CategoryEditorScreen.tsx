@@ -70,6 +70,23 @@ export function CategoryEditorScreen() {
 		}
 	}
 
+	// Merges only the fields `action` actually saved into that one row, rather than reload()'s full re-fetch of every category — a blur-triggered save that lands while the user has already tabbed into and started editing a sibling field on the same row must not overwrite that in-progress edit.
+	async function saveCategoryField(
+		action: () => Promise<Category>,
+		patch: (updated: Category) => Partial<Category>,
+	) {
+		try {
+			setError(null);
+			const updated = await action();
+			setCategories(
+				(current) =>
+					current?.map((c) => (c.id === updated.id ? { ...c, ...patch(updated) } : c)) ?? current,
+			);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	}
+
 	async function handleCreate() {
 		if (!draft) return;
 		await guarded(() =>
@@ -109,7 +126,12 @@ export function CategoryEditorScreen() {
 								onChange={(name) =>
 									setCategories(categories.map((c) => (c.id === category.id ? { ...c, name } : c)))
 								}
-								onBlur={() => guarded(() => repository.renameCategory(category.id, category.name))}
+								onBlur={() =>
+									saveCategoryField(
+										() => repository.renameCategory(category.id, category.name),
+										(updated) => ({ name: updated.name }),
+									)
+								}
 							/>
 							<TextField
 								label="Background"
@@ -120,13 +142,19 @@ export function CategoryEditorScreen() {
 									)
 								}
 								onBlur={() =>
-									guarded(() =>
-										repository.recolourCategory(
-											category.id,
-											category.colourBackground,
-											category.colourText,
-											category.colourDot,
-										),
+									saveCategoryField(
+										() =>
+											repository.recolourCategory(
+												category.id,
+												category.colourBackground,
+												category.colourText,
+												category.colourDot,
+											),
+										(updated) => ({
+											colourBackground: updated.colourBackground,
+											colourText: updated.colourText,
+											colourDot: updated.colourDot,
+										}),
 									)
 								}
 							/>
@@ -139,13 +167,19 @@ export function CategoryEditorScreen() {
 									)
 								}
 								onBlur={() =>
-									guarded(() =>
-										repository.recolourCategory(
-											category.id,
-											category.colourBackground,
-											category.colourText,
-											category.colourDot,
-										),
+									saveCategoryField(
+										() =>
+											repository.recolourCategory(
+												category.id,
+												category.colourBackground,
+												category.colourText,
+												category.colourDot,
+											),
+										(updated) => ({
+											colourBackground: updated.colourBackground,
+											colourText: updated.colourText,
+											colourDot: updated.colourDot,
+										}),
 									)
 								}
 							/>
@@ -158,13 +192,19 @@ export function CategoryEditorScreen() {
 									)
 								}
 								onBlur={() =>
-									guarded(() =>
-										repository.recolourCategory(
-											category.id,
-											category.colourBackground,
-											category.colourText,
-											category.colourDot,
-										),
+									saveCategoryField(
+										() =>
+											repository.recolourCategory(
+												category.id,
+												category.colourBackground,
+												category.colourText,
+												category.colourDot,
+											),
+										(updated) => ({
+											colourBackground: updated.colourBackground,
+											colourText: updated.colourText,
+											colourDot: updated.colourDot,
+										}),
 									)
 								}
 							/>

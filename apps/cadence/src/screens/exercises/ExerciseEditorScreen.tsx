@@ -150,10 +150,10 @@ export function ExerciseEditorScreen({ exerciseId, initialName }: ExerciseEditor
 				await repository.updateExerciseFavourite(saved.id, true);
 			}
 			setExisting(saved);
-			baselineRef.current = {
-				values: valuesFromExercise(saved),
-				favourite: saved.favourite ?? false,
-			};
+			const savedValues = valuesFromExercise(saved);
+			// The backend can normalize values on save (trimming, rounding an increment to its canonical unit) — sync the controlled form to that normalized result too, not just the dirty-check baseline, so a successful save doesn't leave the form still reporting unsaved changes.
+			setValues(savedValues);
+			baselineRef.current = { values: savedValues, favourite: saved.favourite ?? false };
 			if (!wasExisting) {
 				navigate({ to: '/exercise-library/$exerciseId/edit', params: { exerciseId: saved.id } });
 			}
