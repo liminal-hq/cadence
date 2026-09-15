@@ -104,10 +104,7 @@ pub async fn create(
     get(conn, &id).await
 }
 
-/// Deliberately never writes `values.exercise_id` — unlike `create`, which uses it to attach the
-/// new goal to an exercise, `update` edits an existing goal in place and must not let a caller
-/// silently reassign it to a different exercise (whose metric profile could be entirely
-/// incompatible with the goal's already-stored target fields).
+/// Deliberately never writes `values.exercise_id` — unlike `create`, which uses it to attach the new goal to an exercise, `update` edits an existing goal in place and must not let a caller silently reassign it to a different exercise (whose metric profile could be entirely incompatible with the goal's already-stored target fields).
 pub async fn update(
     conn: &mut SqliteConnection,
     id: &str,

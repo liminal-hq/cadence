@@ -56,16 +56,18 @@ pub async fn list(conn: &mut SqliteConnection) -> Result<Vec<MeasurementDefiniti
     Ok(rows.into_iter().map(MeasurementDefinition::from).collect())
 }
 
+/// Runs the "find the next `sort_order`, then insert" sequence inside one transaction — otherwise two overlapping creates could both read the same max and land on the same `sort_order`.
 pub async fn create(
     conn: &mut SqliteConnection,
     name: &str,
     unit: &str,
 ) -> Result<MeasurementDefinition> {
-    let existing = list(conn).await?;
+    let mut tx = conn.begin().await?;
+    let existing = list(&mut tx).await?;
     let next_order = existing.iter().map(|d| d.sort_order).max().unwrap_or(0) + 1;
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
-    let revision = crate::db::next_revision(conn).await?;
+    let revision = crate::db::next_revision(&mut tx).await?;
     sqlx::query(
         "INSERT INTO measurement_definitions (id, name, unit, sort_order, archived, \
          created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, ?, 0, ?, ?, ?)",
@@ -77,9 +79,11 @@ pub async fn create(
     .bind(now)
     .bind(now)
     .bind(revision)
-    .execute(&mut *conn)
+    .execute(&mut *tx)
     .await?;
-    get(conn, &id).await
+    let created = get(&mut tx, &id).await?;
+    tx.commit().await?;
+    Ok(created)
 }
 
 /// Rejects a unit change once records exist, or once the definition already carries a goal — both `measurement_records.value_milli` and `measurement_definitions.goal_milli` store a bare value with no unit of their own, so silently reinterpreting either under a new unit (e.g. kg becoming lb) would make its displayed value wrong.
