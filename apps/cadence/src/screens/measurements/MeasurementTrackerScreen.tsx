@@ -15,7 +15,7 @@ import { ReorderableList } from '../../components/ui/ReorderableList/Reorderable
 import { Surface } from '../../components/ui/Surface/Surface';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatNumber } from '../../domain/format';
+import { formatNumber, todayLocalDate } from '../../domain/format';
 import type { MeasurementDefinition } from '../../domain/types';
 import '../screens.css';
 import './measurements.css';
@@ -83,12 +83,7 @@ export function MeasurementTrackerScreen() {
 			return;
 		}
 		await guarded(() =>
-			repository.createMeasurementRecord(
-				definitionId,
-				new Date().toISOString().slice(0, 10),
-				value,
-				undefined,
-			),
+			repository.createMeasurementRecord(definitionId, todayLocalDate(), value, undefined),
 		);
 		setQuickLogId(null);
 		setQuickLogValue('');
@@ -255,7 +250,11 @@ export function MeasurementTrackerScreen() {
 								<Button variant="text" onClick={() => setNewDraft(null)}>
 									Cancel
 								</Button>
-								<Button variant="filled" disabled={!newDraft.name.trim()} onClick={handleCreate}>
+								<Button
+									variant="filled"
+									disabled={!newDraft.name.trim() || !newDraft.unit.trim()}
+									onClick={handleCreate}
+								>
 									Add
 								</Button>
 							</Surface>

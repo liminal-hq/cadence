@@ -13,7 +13,7 @@ import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import { formatNumber } from '../../domain/format';
+import { formatNumber, todayLocalDate } from '../../domain/format';
 import { formatCalendarDateLabel } from '../history/historyDates';
 import { LineChart } from '../history/LineChart';
 import type { GraphPoint } from '../history/computeGraphPoints';
@@ -32,7 +32,11 @@ interface RecordDraft {
 }
 
 function blankDraft(): RecordDraft {
-	return { date: new Date().toISOString().slice(0, 10), value: '', note: '' };
+	return { date: todayLocalDate(), value: '', note: '' };
+}
+
+function isValidDate(date: string): boolean {
+	return date.trim() !== '' && !Number.isNaN(new Date(`${date}T00:00:00`).getTime());
 }
 
 function draftFromRecord(record: MeasurementRecord): RecordDraft {
@@ -81,6 +85,10 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 
 	async function handleSaveRecord() {
 		if (!recordDraft) return;
+		if (!isValidDate(recordDraft.date)) {
+			setError('Enter a valid date.');
+			return;
+		}
 		const value = Number(recordDraft.value);
 		if (!Number.isFinite(value)) {
 			setError('Enter a numeric value.');
@@ -107,15 +115,19 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 			setError('Enter a numeric goal, or leave it blank.');
 			return;
 		}
-		await guarded(() =>
-			repository.updateMeasurementDefinition(
+		try {
+			setError(null);
+			await repository.updateMeasurementDefinition(
 				definitionId,
 				definitionDraft.name,
 				definitionDraft.unit,
 				goal,
-			),
-		);
-		setDefinitionDraft(null);
+			);
+			reload();
+			setDefinitionDraft(null);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	const points: GraphPoint[] = records
@@ -311,7 +323,7 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 							</Button>
 							<Button
 								variant="filled"
-								disabled={!recordDraft.value.trim()}
+								disabled={!recordDraft.value.trim() || !isValidDate(recordDraft.date)}
 								onClick={handleSaveRecord}
 							>
 								Save
