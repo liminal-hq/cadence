@@ -56,7 +56,9 @@ export function computeGoalProgress(
 	const withinDeadline = eligible.filter(({ date }) => !goal.targetDate || date <= goal.targetDate);
 
 	const achieved = hasTarget(goal) && withinDeadline.some((entry) => meetsTarget(goal, entry));
-	// A manually-achieved goal (SPEC.md 8.8's toggle, independent of this computed history check) is an achieved state, full stop — it must not also read as overdue just because the deadline has since passed.
+	// A manually-achieved goal (SPEC.md 8.8's toggle, independent of this computed history check) is
+	// an achieved state, full stop — it must not also read as overdue just because the deadline has
+	// since passed.
 	const overdue = Boolean(
 		goal.targetDate && today > goal.targetDate && !achieved && goal.achievedAt == null,
 	);
@@ -70,7 +72,9 @@ export function computeGoalProgress(
 			? (entry.set.distanceKm ?? 0)
 			: (entry.set.durationSec ?? 0);
 	};
-	// A set can be marked completed without every field filled in (SetEditorSheet permits a blank weight-reps set); such a set has nothing to rank and must not be picked as "best" over having no compatible performance at all.
+	// A set can be marked completed without every field filled in (SetEditorSheet permits a blank
+	// weight-reps set); such a set has nothing to rank and must not be picked as "best" over having
+	// no compatible performance at all.
 	const hasRankedMetric = (entry: DatedSet) => {
 		if (isWeightReps) {
 			return goal.targetWeightKg != null ? entry.set.weightKg != null : entry.set.reps != null;

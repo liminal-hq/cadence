@@ -111,7 +111,8 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 
 	const hasArchived = Boolean(goals?.some((goal) => goal.archived));
 	useEffect(() => {
-		// The last archived goal being unarchived or deleted must not strand the view on an empty "No archived goals" state with no chip left to get back to the active list.
+		// The last archived goal being unarchived or deleted must not strand the view on an empty
+		// "No archived goals" state with no chip left to get back to the active list.
 		if (!hasArchived) setShowArchived(false);
 	}, [hasArchived]);
 
@@ -142,7 +143,9 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 		setDraft({
 			exerciseId: goal.exerciseId,
 			title: goal.title,
-			// A drifted goal's stored fields belong to the exercise's *previous* metric profile — carrying them into the draft would let a save persist both profiles' fields at once (see goalMetricProfile), so they're dropped here and the user fills in a fresh target instead.
+			// A drifted goal's stored fields belong to the exercise's *previous* metric profile —
+			// carrying them into the draft would let a save persist both profiles' fields at once (see
+			// goalMetricProfile), so they're dropped here and the user fills in a fresh target instead.
 			targetWeightKg: drifted ? undefined : goal.targetWeightKg,
 			targetReps: drifted ? undefined : goal.targetReps,
 			targetDistanceKm: drifted ? undefined : goal.targetDistanceKm,
