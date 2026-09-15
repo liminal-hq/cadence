@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
+import { Chip } from '../../components/ui/Chip/Chip';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
 import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { Surface } from '../../components/ui/Surface/Surface';
@@ -71,6 +72,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	const [editingId, setEditingId] = useState<string | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [goalPendingDelete, setGoalPendingDelete] = useState<ExerciseGoal | null>(null);
+	const [showArchived, setShowArchived] = useState(false);
 
 	const reload = () => {
 		repository.listExerciseGoals(exercise.id).then(setGoals);
@@ -81,6 +83,8 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	if (!goals) return null;
 
 	const datedSets = flattenDatedSets(history);
+	const visibleGoals = goals.filter((goal) => goal.archived === showArchived);
+	const hasArchived = goals.some((goal) => goal.archived);
 
 	async function guarded(action: () => Promise<unknown>) {
 		try {
@@ -98,14 +102,17 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 	}
 
 	function startEdit(goal: ExerciseGoal) {
+		const goalProfile = goalMetricProfile(goal);
+		const drifted = goalProfile != null && goalProfile !== exercise.metricProfile;
 		setEditingId(goal.id);
 		setDraft({
 			exerciseId: goal.exerciseId,
 			title: goal.title,
-			targetWeightKg: goal.targetWeightKg,
-			targetReps: goal.targetReps,
-			targetDistanceKm: goal.targetDistanceKm,
-			targetDurationSec: goal.targetDurationSec,
+			// A drifted goal's stored fields belong to the exercise's *previous* metric profile — carrying them into the draft would let a save persist both profiles' fields at once (see goalMetricProfile), so they're dropped here and the user fills in a fresh target instead.
+			targetWeightKg: drifted ? undefined : goal.targetWeightKg,
+			targetReps: drifted ? undefined : goal.targetReps,
+			targetDistanceKm: drifted ? undefined : goal.targetDistanceKm,
+			targetDurationSec: drifted ? undefined : goal.targetDurationSec,
 			startDate: goal.startDate,
 			targetDate: goal.targetDate,
 		});
@@ -134,19 +141,34 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 				<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
 			)}
 
-			{goals.length === 0 && !draft ? (
+			{hasArchived && (
+				<Chip
+					variant="filter"
+					label="Archived"
+					selected={showArchived}
+					onClick={() => setShowArchived((current) => !current)}
+				/>
+			)}
+
+			{visibleGoals.length === 0 && !draft ? (
 				<EmptyState
-					headline="No goals yet"
-					body="Set a target for this exercise to track progress toward it."
+					headline={showArchived ? 'No archived goals' : 'No goals yet'}
+					body={
+						showArchived
+							? 'Goals you archive appear here.'
+							: 'Set a target for this exercise to track progress toward it.'
+					}
 					action={
-						<Button variant="filled" icon="add" onClick={startCreate}>
-							Add goal
-						</Button>
+						showArchived ? undefined : (
+							<Button variant="filled" icon="add" onClick={startCreate}>
+								Add goal
+							</Button>
+						)
 					}
 				/>
 			) : (
 				<div className="exercise-goals-tab__list">
-					{goals.map((goal) => {
+					{visibleGoals.map((goal) => {
 						const goalProfile = goalMetricProfile(goal);
 						const profileMismatch = goalProfile != null && goalProfile !== exercise.metricProfile;
 						const progress = profileMismatch ? null : computeGoalProgress(goal, datedSets);
@@ -211,7 +233,7 @@ export function ExerciseGoalsTab({ exercise, history }: ExerciseGoalsTabProps) {
 							</Surface>
 						);
 					})}
-					{!draft && (
+					{!draft && !showArchived && (
 						<Button variant="tonal" icon="add" onClick={startCreate}>
 							Add goal
 						</Button>

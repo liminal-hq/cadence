@@ -70,6 +70,25 @@ describe('computeGoalProgress', () => {
 		expect(result.best).toMatchObject({ distanceKm: 8, durationSec: 2700 });
 	});
 
+	it('ranks the closest attempt by reps for a reps-only goal', () => {
+		const result = computeGoalProgress(goal({ targetReps: 20 }), [
+			dated('2026-09-01', { weightKg: 100, reps: 5 }),
+			dated('2026-09-10', { weightKg: 60, reps: 15 }),
+		]);
+		expect(result.best).toMatchObject({ weightKg: 60, reps: 15, date: '2026-09-10' });
+	});
+
+	it('ranks the closest attempt by duration for a duration-only goal', () => {
+		const result = computeGoalProgress(
+			goal({ exerciseId: 'ex-plank', title: 'Plank 2 minutes', targetDurationSec: 120 }),
+			[
+				dated('2026-09-01', { distanceKm: 3, durationSec: 40 }),
+				dated('2026-09-10', { distanceKm: 1, durationSec: 90 }),
+			],
+		);
+		expect(result.best).toMatchObject({ distanceKm: 1, durationSec: 90, date: '2026-09-10' });
+	});
+
 	it('excludes sets before the goal start date', () => {
 		const result = computeGoalProgress(goal({ targetWeightKg: 100, startDate: '2026-09-05' }), [
 			dated('2026-09-01', { weightKg: 100, reps: 1 }),

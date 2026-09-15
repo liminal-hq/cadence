@@ -5,6 +5,7 @@
 
 import type { DatedSet } from './loadExerciseHistory';
 import type { ExerciseGoal } from '../../domain/types';
+import { todayLocalDate } from '../../domain/format';
 
 export interface GoalProgressBest {
 	weightKg?: number;
@@ -46,7 +47,7 @@ function meetsTarget(goal: ExerciseGoal, entry: DatedSet): boolean {
 export function computeGoalProgress(
 	goal: ExerciseGoal,
 	datedSets: DatedSet[],
-	today: string = new Date().toISOString().slice(0, 10),
+	today: string = todayLocalDate(),
 ): GoalProgress {
 	const eligible = datedSets.filter(
 		({ set, date }) => set.status === 'completed' && (!goal.startDate || date >= goal.startDate),
@@ -58,8 +59,14 @@ export function computeGoalProgress(
 	const overdue = Boolean(goal.targetDate && today > goal.targetDate && !achieved);
 
 	const isWeightReps = goal.targetWeightKg != null || goal.targetReps != null;
-	const rank = (entry: DatedSet) =>
-		isWeightReps ? (entry.set.weightKg ?? 0) : (entry.set.distanceKm ?? 0);
+	const rank = (entry: DatedSet) => {
+		if (isWeightReps) {
+			return goal.targetWeightKg != null ? (entry.set.weightKg ?? 0) : (entry.set.reps ?? 0);
+		}
+		return goal.targetDistanceKm != null
+			? (entry.set.distanceKm ?? 0)
+			: (entry.set.durationSec ?? 0);
+	};
 	const best = eligible.reduce<DatedSet | undefined>(
 		(top, entry) => (!top || rank(entry) > rank(top) ? entry : top),
 		undefined,
