@@ -502,6 +502,16 @@ impl<R: Runtime> Coordinator<R> {
         routines::set_templates::delete(&mut conn, id).await
     }
 
+    /// The most recent completed set for this exercise on or before `on_or_before_date`, across every workout — exposed directly so callers like the P-20 materialization review screen can preview a seeded target with one lookup instead of fetching each exercise's entire history.
+    pub async fn most_recent_completed_set(
+        &self,
+        exercise_id: &str,
+        on_or_before_date: &str,
+    ) -> Result<Option<SetValues>> {
+        let mut conn = self.pool.acquire().await?;
+        sets::repo::most_recent_completed(&mut conn, exercise_id, on_or_before_date).await
+    }
+
     /// Materializes a routine section into a real, editable workout (SPEC.md 8.4's "reviewed materialization" step) — only the exercises named in `selected_routine_exercise_ids` are carried over, in the order the caller supplies (the reviewed order from the P-20 review screen, not the routine's own order), densely renumbered; each set template resolved into a real planned `Set` (explicit values copied as-is; `SEED_LAST_PERFORMANCE` resolved against the exercise's most recent completed set, or left blank with no fallback value when there's no history yet); and superset grouping remapped into new workout-level supersets exactly like `duplicate_workout` remaps them, with each group's `superset_position` also densely renumbered among only its selected members — a routine section's own superset-membership invariant (enforced in `routine_exercises::set_superset`) guarantees every superset referenced here belongs to this same section.
     pub async fn materialize_routine_section(
         &self,
@@ -1508,6 +1518,50 @@ mod tests {
         let result = c.calculate_plates(100.0, &olympic);
         assert!(result.loadable);
         assert_eq!(result.achieved_total, 100.0);
+    }
+
+    #[tokio::test]
+    async fn most_recent_completed_set_delegates_to_the_repo_lookup() {
+        let c = test_coordinator().await;
+        assert_eq!(
+            c.most_recent_completed_set("ex-bench-press", "2026-09-20")
+                .await
+                .unwrap(),
+            None
+        );
+
+        let workout = c.create_workout("2026-09-01", "Session").await.unwrap();
+        let we = c
+            .add_workout_exercise(&workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.log_new_set(
+            &we.id,
+            &SetValues {
+                weight_kg: Some(82.5),
+                reps: Some(6),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+
+        let result = c
+            .most_recent_completed_set("ex-bench-press", "2026-09-20")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(result.weight_kg, Some(82.5));
+        assert_eq!(result.reps, Some(6));
+
+        // Excludes a set from a workout dated after `on_or_before_date`, same as the internal
+        // lookup `materialize_routine_section` resolves seeded templates against.
+        assert_eq!(
+            c.most_recent_completed_set("ex-bench-press", "2026-08-31")
+                .await
+                .unwrap(),
+            None
+        );
     }
 
     #[tokio::test]

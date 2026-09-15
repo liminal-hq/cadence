@@ -147,6 +147,16 @@ export interface LoggingRepository {
 	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;
 	addSetTemplate(routineExerciseId: string, values: SetTemplateValues): Promise<SetTemplate>;
 	deleteSetTemplate(id: string): Promise<void>;
+	/** The most recent completed set for this exercise on or before `onOrBeforeDate`, across every workout, or `null` if there isn't one — a direct lookup for previewing a `"seed-last-performance"` target without fetching an exercise's entire history. */
+	mostRecentCompletedSet(
+		exerciseId: string,
+		onOrBeforeDate: string,
+	): Promise<{
+		weightKg?: number;
+		reps?: number;
+		distanceKm?: number;
+		durationSec?: number;
+	} | null>;
 	/** Materializes a routine section into a real, editable workout (SPEC.md 8.4) — only the exercises named in `selectedRoutineExerciseIds` are carried over, in the order the caller supplies (the reviewed order from the P-20 review screen, not necessarily the routine's own order), with each set template resolved (explicit values copied as-is; `"seed-last-performance"` resolved against the exercise's most recent completed set, left blank with no history) and superset grouping remapped onto the new workout, positions renumbered among the selected members of each group. */
 	materializeRoutineSection(
 		routineSectionId: string,

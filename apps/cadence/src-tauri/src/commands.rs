@@ -430,6 +430,17 @@ pub async fn delete_set_template(state: State<'_, Coordinator>, id: String) -> R
 }
 
 #[tauri::command]
+pub async fn most_recent_completed_set(
+    state: State<'_, Coordinator>,
+    exercise_id: String,
+    on_or_before_date: String,
+) -> Result<Option<SetValues>, Error> {
+    state
+        .most_recent_completed_set(&exercise_id, &on_or_before_date)
+        .await
+}
+
+#[tauri::command]
 pub async fn materialize_routine_section(
     state: State<'_, Coordinator>,
     routine_section_id: String,

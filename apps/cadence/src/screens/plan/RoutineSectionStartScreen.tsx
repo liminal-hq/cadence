@@ -24,7 +24,6 @@ import type {
 } from '../../domain/types';
 import { SEED_LAST_PERFORMANCE } from '../../domain/types';
 import { formatNumber, todayLocalDate } from '../../domain/format';
-import { loadExerciseHistory } from '../history/loadExerciseHistory';
 import '../screens.css';
 import './plan.css';
 
@@ -50,45 +49,30 @@ interface ReviewExercise {
 interface ReviewState {
 	routineSection: RoutineSection;
 	exercises: ReviewExercise[];
+	/** An already in-progress workout dated `targetDate`, if one exists — SPEC.md §6 requires asking to finish, pause, or switch rather than silently starting a second one, so materializing is blocked while this is set (mirrors the same check `TodayScreen` uses to decide between "Start workout" and "Continue workout"). */
+	activeWorkoutId: string | null;
 }
 
-/** Mirrors the backend's `most_recent_completed` lookup (the same source `materializeRoutineSection` itself resolves against) — the most recently completed set for this exercise on or before `targetDate`, across every eligible workout, preferring the owning workout's date over completion order (mirrors `mockRepository.ts`'s `mostRecentCompletedValues`). */
-async function resolveSeedPreview(
+/** The most recently completed set for this exercise on or before `targetDate` — a direct lookup mirroring the same `most_recent_completed` query `materializeRoutineSection` itself resolves a `"seed-last-performance"` target against, rather than fetching and scanning the exercise's entire history just to preview one value (a routine with several long-lived exercises could otherwise mean thousands of round trips just to open this screen). */
+export async function resolveSeedPreview(
 	repository: LoggingRepository,
 	exerciseId: string,
 	targetDate: string,
 ): Promise<SeedPreview | null> {
-	const history = await loadExerciseHistory(repository, exerciseId);
-	const onOrBefore = history.filter((entry) => entry.workout.date <= targetDate);
-
-	let best: SeedPreview | undefined;
-	let bestDate: string | undefined;
-	let bestCompletedAt: string | undefined;
-	for (const entry of onOrBefore) {
-		for (const set of entry.sets) {
-			if (set.status !== 'completed') continue;
-			const isBetter =
-				!best ||
-				entry.workout.date > (bestDate ?? '') ||
-				(entry.workout.date === bestDate && (set.completedAt ?? '') > (bestCompletedAt ?? ''));
-			if (isBetter) {
-				const { weightKg, reps, distanceKm, durationSec } = set;
-				best = { weightKg, reps, distanceKm, durationSec };
-				bestDate = entry.workout.date;
-				bestCompletedAt = set.completedAt;
-			}
-		}
-	}
-	return best ?? null;
+	return repository.mostRecentCompletedSet(exerciseId, targetDate);
 }
 
-async function loadReviewState(
+export async function loadReviewState(
 	repository: LoggingRepository,
 	routineSectionId: string,
 	targetDate: string,
 ): Promise<ReviewState> {
-	const routineSection = await repository.getRoutineSection(routineSectionId);
-	const routineExercises = await repository.listRoutineExercises(routineSectionId);
+	const [routineSection, routineExercises, workoutsToday] = await Promise.all([
+		repository.getRoutineSection(routineSectionId),
+		repository.listRoutineExercises(routineSectionId),
+		repository.listWorkoutsInRange(targetDate, targetDate),
+	]);
+	const activeWorkoutId = workoutsToday.find((w) => w.status === 'in-progress')?.id ?? null;
 	const exercises = await Promise.all(
 		routineExercises.map(async (routineExercise) => {
 			const [exercise, templates] = await Promise.all([
@@ -104,7 +88,7 @@ async function loadReviewState(
 			return { routineExercise, exercise, templates, included: true, seedPreview };
 		}),
 	);
-	return { routineSection, exercises };
+	return { routineSection, exercises, activeWorkoutId };
 }
 
 const MISSING_VALUE = '—';
@@ -148,7 +132,7 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 	}, [repository, routineSectionId, targetDate]);
 
 	if (!state) return null;
-	const { routineSection, exercises } = state;
+	const { routineSection, exercises, activeWorkoutId } = state;
 
 	function setExercises(next: ReviewExercise[]) {
 		setState((prev) => (prev ? { ...prev, exercises: next } : prev));
@@ -165,6 +149,7 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 	}
 
 	async function handleStart() {
+		if (activeWorkoutId) return;
 		setStarting(true);
 		const selectedIds = exercises
 			.filter((item) => item.included)
@@ -185,7 +170,22 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 				back={{ to: `/plan/routine/${routineSection.routineId}` }}
 			/>
 			<div className="screen-shell__content routine-screen__content">
-				{exercises.length === 0 ? (
+				{activeWorkoutId ? (
+					<EmptyState
+						headline="Workout in progress"
+						body="Finish or continue today's workout before starting another."
+						action={
+							<Button
+								variant="filled"
+								onClick={() =>
+									navigate({ to: '/workout/$workoutId', params: { workoutId: activeWorkoutId } })
+								}
+							>
+								Continue workout
+							</Button>
+						}
+					/>
+				) : exercises.length === 0 ? (
 					<EmptyState headline="Nothing to start" body="This section has no exercises yet." />
 				) : (
 					<ReorderableList
@@ -224,9 +224,11 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 					/>
 				)}
 
-				<Button variant="filled" onClick={handleStart} disabled={starting}>
-					Start workout
-				</Button>
+				{!activeWorkoutId && (
+					<Button variant="filled" onClick={handleStart} disabled={starting}>
+						Start workout
+					</Button>
+				)}
 			</div>
 		</div>
 	);

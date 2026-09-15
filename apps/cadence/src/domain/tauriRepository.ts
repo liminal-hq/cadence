@@ -354,6 +354,18 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('delete_set_template', { id });
 	}
 
+	async mostRecentCompletedSet(
+		exerciseId: string,
+		onOrBeforeDate: string,
+	): Promise<{
+		weightKg?: number;
+		reps?: number;
+		distanceKm?: number;
+		durationSec?: number;
+	} | null> {
+		return call('most_recent_completed_set', { exerciseId, onOrBeforeDate });
+	}
+
 	async materializeRoutineSection(
 		routineSectionId: string,
 		targetDate: string,

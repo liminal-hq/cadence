@@ -91,6 +91,7 @@ pub fn run() {
             commands::list_set_templates,
             commands::add_set_template,
             commands::delete_set_template,
+            commands::most_recent_completed_set,
             commands::materialize_routine_section,
             commands::list_sets,
             commands::save_set,

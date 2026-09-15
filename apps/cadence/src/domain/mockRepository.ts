@@ -824,11 +824,11 @@ export class MockLoggingRepository implements LoggingRepository {
 		this.setTemplates.delete(id);
 	}
 
-	/** The most recent completed set for this exercise, across every workout — mirrors the Rust Coordinator's `sets::repo::most_recent_completed`, preferring the owning workout's date over completion order. */
-	private mostRecentCompletedValues(
+	/** The most recent completed set for this exercise, across every workout — mirrors the Rust Coordinator's `sets::repo::most_recent_completed`, preferring the owning workout's date over completion order. `null` when there's no history yet, matching the real backend's `Option<SetValues>` (which serializes to `null` over Tauri's IPC, not `undefined`). */
+	async mostRecentCompletedSet(
 		exerciseId: string,
 		onOrBeforeDate: string,
-	): Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'> {
+	): Promise<Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'> | null> {
 		let best: SetEntry | undefined;
 		let bestDate: string | undefined;
 		for (const we of this.workoutExercises.values()) {
@@ -851,7 +851,7 @@ export class MockLoggingRepository implements LoggingRepository {
 				}
 			}
 		}
-		if (!best) return {};
+		if (!best) return null;
 		return {
 			weightKg: best.weightKg,
 			reps: best.reps,
@@ -926,7 +926,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			for (const template of templates) {
 				const values =
 					template.populationRule === SEED_LAST_PERFORMANCE
-						? this.mostRecentCompletedValues(re.exerciseId, targetDate)
+						? ((await this.mostRecentCompletedSet(re.exerciseId, targetDate)) ?? {})
 						: {
 								weightKg: template.weightKg,
 								reps: template.reps,
