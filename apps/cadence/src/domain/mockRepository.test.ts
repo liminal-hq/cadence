@@ -884,6 +884,15 @@ describe('MockLoggingRepository', () => {
 			expect(updated.title).toBe('Bench 110kg');
 		});
 
+		it('update never reassigns the goal to a different exercise', async () => {
+			const created = await repo.createExerciseGoal(sampleValues());
+			const updated = await repo.updateExerciseGoal(created.id, {
+				...sampleValues(),
+				exerciseId: 'ex-running',
+			});
+			expect(updated.exerciseId).toBe('ex-bench-press');
+		});
+
 		it('sets and clears achieved', async () => {
 			const created = await repo.createExerciseGoal(sampleValues());
 			const achieved = await repo.setExerciseGoalAchieved(created.id, true);

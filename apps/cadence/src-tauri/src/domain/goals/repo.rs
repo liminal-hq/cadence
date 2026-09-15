@@ -48,7 +48,7 @@ const SELECT_BY_ID: &str = "SELECT id, exercise_id, title, target_weight_g, targ
 
 const SELECT_BY_EXERCISE: &str = "SELECT id, exercise_id, title, target_weight_g, target_reps, \
      target_distance_m, target_duration_s, start_date, target_date, achieved_at_ms, archived \
-     FROM exercise_goals WHERE exercise_id = ? ORDER BY created_at_ms";
+     FROM exercise_goals WHERE exercise_id = ? ORDER BY created_at_ms, id";
 
 pub async fn get(conn: &mut SqliteConnection, id: &str) -> Result<ExerciseGoal> {
     let row: GoalRow = sqlx::query_as(SELECT_BY_ID)
@@ -104,6 +104,10 @@ pub async fn create(
     get(conn, &id).await
 }
 
+/// Deliberately never writes `values.exercise_id` — unlike `create`, which uses it to attach the
+/// new goal to an exercise, `update` edits an existing goal in place and must not let a caller
+/// silently reassign it to a different exercise (whose metric profile could be entirely
+/// incompatible with the goal's already-stored target fields).
 pub async fn update(
     conn: &mut SqliteConnection,
     id: &str,
@@ -112,11 +116,10 @@ pub async fn update(
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
-        "UPDATE exercise_goals SET exercise_id = ?, title = ?, target_weight_g = ?, \
+        "UPDATE exercise_goals SET title = ?, target_weight_g = ?, \
          target_reps = ?, target_distance_m = ?, target_duration_s = ?, start_date = ?, \
          target_date = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
     )
-    .bind(&values.exercise_id)
     .bind(&values.title)
     .bind(values.target_weight_kg.map(kg_to_g))
     .bind(values.target_reps)
@@ -270,6 +273,45 @@ mod tests {
         let updated = update(&mut conn, &created.id, &values).await.unwrap();
         assert_eq!(updated.title, "Bench 110kg");
         assert_eq!(updated.target_weight_kg, Some(110.0));
+    }
+
+    #[tokio::test]
+    async fn update_never_reassigns_the_goal_to_a_different_exercise() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, &sample_values()).await.unwrap();
+        let mut values = sample_values();
+        values.exercise_id = "ex-running".to_string();
+        let updated = update(&mut conn, &created.id, &values).await.unwrap();
+        assert_eq!(updated.exercise_id, "ex-bench-press");
+    }
+
+    #[tokio::test]
+    async fn round_trips_distance_and_duration_target_fields() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let mut values = sample_values();
+        values.exercise_id = "ex-running".to_string();
+        values.target_weight_kg = None;
+        values.target_reps = None;
+        values.target_distance_km = Some(5.0);
+        values.target_duration_sec = Some(1800);
+        let created = create(&mut conn, &values).await.unwrap();
+        assert_eq!(created.target_distance_km, Some(5.0));
+        assert_eq!(created.target_duration_sec, Some(1800));
+
+        let mut updated_values = values.clone();
+        updated_values.target_distance_km = Some(10.0);
+        updated_values.target_duration_sec = Some(3600);
+        let updated = update(&mut conn, &created.id, &updated_values)
+            .await
+            .unwrap();
+        assert_eq!(updated.target_distance_km, Some(10.0));
+        assert_eq!(updated.target_duration_sec, Some(3600));
+
+        let fetched = get(&mut conn, &created.id).await.unwrap();
+        assert_eq!(fetched.target_distance_km, Some(10.0));
+        assert_eq!(fetched.target_duration_sec, Some(3600));
     }
 
     #[tokio::test]

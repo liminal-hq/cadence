@@ -1183,9 +1183,12 @@ export class MockLoggingRepository implements LoggingRepository {
 		return goal;
 	}
 
+	// Deliberately never applies values.exerciseId — mirrors the real backend's goals::repo::update,
+	// which must not let a caller silently reassign a goal to a different exercise.
 	async updateExerciseGoal(id: string, values: ExerciseGoalValues): Promise<ExerciseGoal> {
 		const existing = await this.getExerciseGoal(id);
-		const updated: ExerciseGoal = { ...existing, ...values };
+		const { exerciseId: _exerciseId, ...editable } = values;
+		const updated: ExerciseGoal = { ...existing, ...editable };
 		this.exerciseGoals.set(id, updated);
 		return updated;
 	}
