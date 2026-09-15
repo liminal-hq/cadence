@@ -91,7 +91,11 @@ export function LineChart({
 			className="line-chart"
 			viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
 			role="img"
-			aria-label="Trend chart — see the table below for exact values"
+			aria-label={
+				goalValue == null
+					? 'Trend chart — see the table below for exact values'
+					: `Trend chart with a goal line at ${formatNumber(goalValue)} — see the table below for exact values`
+			}
 		>
 			{gridlineValues.map((value) => (
 				<g key={value}>

@@ -40,6 +40,8 @@ export function MeasurementTrackerScreen() {
 		useState<MeasurementDefinition | null>(null);
 	const [quickLogId, setQuickLogId] = useState<string | null>(null);
 	const [quickLogValue, setQuickLogValue] = useState('');
+	const [savingQuickLog, setSavingQuickLog] = useState(false);
+	const [creatingDefinition, setCreatingDefinition] = useState(false);
 
 	const reload = useCallback(() => {
 		repository.listMeasurementDefinitions().then(async (all) => {
@@ -79,27 +81,44 @@ export function MeasurementTrackerScreen() {
 		}
 	}
 
-	function saveDefinitionField(definition: MeasurementDefinition) {
+	// Merges only the fields this save actually touched into that one row, rather than reload()'s
+	// full re-fetch of every definition — a blur-triggered save that lands while the user has
+	// already tabbed into and started editing a sibling field on the same row must not overwrite
+	// that in-progress edit. A rejected save still reloads, rolling the optimistic local edit back
+	// to the persisted definition (e.g. a unit change once records or a goal exist).
+	async function saveDefinitionField(definition: MeasurementDefinition) {
 		if (!definition.name.trim() || !definition.unit.trim()) {
 			setError('Enter a name and unit.');
 			reload();
 			return;
 		}
-		guarded(() =>
-			repository.updateMeasurementDefinition(
+		try {
+			setError(null);
+			const updated = await repository.updateMeasurementDefinition(
 				definition.id,
 				definition.name,
 				definition.unit,
 				definition.goal,
-			),
-		);
+			);
+			setDefinitions(
+				(current) =>
+					current?.map((d) =>
+						d.id === updated.id ? { ...d, name: updated.name, unit: updated.unit } : d,
+					) ?? current,
+			);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			reload();
+		}
 	}
 
 	async function handleCreate() {
 		if (!newDraft) return;
+		setCreatingDefinition(true);
 		const succeeded = await guarded(() =>
 			repository.createMeasurementDefinition(newDraft.name, newDraft.unit),
 		);
+		setCreatingDefinition(false);
 		if (succeeded) setNewDraft(null);
 	}
 
@@ -109,9 +128,11 @@ export function MeasurementTrackerScreen() {
 			setError('Enter a numeric value.');
 			return;
 		}
+		setSavingQuickLog(true);
 		const succeeded = await guarded(() =>
 			repository.createMeasurementRecord(definitionId, todayLocalDate(), value, undefined),
 		);
+		setSavingQuickLog(false);
 		if (succeeded) {
 			setQuickLogId(null);
 			setQuickLogValue('');
@@ -263,7 +284,7 @@ export function MeasurementTrackerScreen() {
 								</Button>
 								<Button
 									variant="filled"
-									disabled={!newDraft.name.trim() || !newDraft.unit.trim()}
+									disabled={!newDraft.name.trim() || !newDraft.unit.trim() || creatingDefinition}
 									onClick={handleCreate}
 								>
 									Add
@@ -290,7 +311,7 @@ export function MeasurementTrackerScreen() {
 						</Button>
 						<Button
 							variant="filled"
-							disabled={quickLogValue.trim() === ''}
+							disabled={quickLogValue.trim() === '' || savingQuickLog}
 							onClick={() => quickLogId && handleQuickLog(quickLogId)}
 						>
 							Save

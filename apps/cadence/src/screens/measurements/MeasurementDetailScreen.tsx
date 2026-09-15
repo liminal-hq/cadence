@@ -37,10 +37,7 @@ function blankDraft(): RecordDraft {
 
 const DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
-// `new Date('2026-02-30T00:00:00')` doesn't produce NaN — JS silently normalizes it to
-// 2026-03-02 — so a calendar-invalid date has to be caught by round-tripping the parsed
-// year/month/day back through UTC construction and checking nothing shifted, not just checking
-// for a parse failure.
+// `new Date('2026-02-30T00:00:00')` doesn't produce NaN — JS silently normalizes it to 2026-03-02 — so a calendar-invalid date has to be caught by round-tripping the parsed year/month/day back through UTC construction and checking nothing shifted, not just checking for a parse failure.
 export function isValidDate(date: string): boolean {
 	const match = DATE_PATTERN.exec(date);
 	if (!match) return false;
@@ -87,6 +84,7 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 	const [definitionDraft, setDefinitionDraft] = useState<DefinitionDraft | null>(null);
 	const [showTable, setShowTable] = useState(false);
 	const [definitionPendingDelete, setDefinitionPendingDelete] = useState(false);
+	const [savingRecord, setSavingRecord] = useState(false);
 
 	const reload = useCallback(() => {
 		repository.getMeasurementDefinition(definitionId).then(setDefinition);
@@ -123,6 +121,7 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 			return;
 		}
 		const note = recordDraft.note.trim() === '' ? undefined : recordDraft.note.trim();
+		setSavingRecord(true);
 		const succeeded = editingRecordId
 			? await guarded(() =>
 					repository.updateMeasurementRecord(editingRecordId, recordDraft.date, value, note),
@@ -130,6 +129,7 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 			: await guarded(() =>
 					repository.createMeasurementRecord(definitionId, recordDraft.date, value, note),
 				);
+		setSavingRecord(false);
 		if (!succeeded) return;
 		setRecordDraft(null);
 		setEditingRecordId(null);
@@ -352,7 +352,9 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 							</Button>
 							<Button
 								variant="filled"
-								disabled={!recordDraft.value.trim() || !isValidDate(recordDraft.date)}
+								disabled={
+									!recordDraft.value.trim() || !isValidDate(recordDraft.date) || savingRecord
+								}
 								onClick={handleSaveRecord}
 							>
 								Save
@@ -377,14 +379,17 @@ export function MeasurementDetailScreen({ definitionId }: MeasurementDetailScree
 							tone="error"
 							onClick={async () => {
 								if (!recordPendingDelete) return;
-								if (editingRecordId === recordPendingDelete.id) {
-									setRecordDraft(null);
-									setEditingRecordId(null);
-								}
+								const wasEditingDeletedRecord = editingRecordId === recordPendingDelete.id;
 								const succeeded = await guarded(() =>
 									repository.deleteMeasurementRecord(recordPendingDelete.id),
 								);
-								if (succeeded) setRecordPendingDelete(null);
+								if (succeeded) {
+									if (wasEditingDeletedRecord) {
+										setRecordDraft(null);
+										setEditingRecordId(null);
+									}
+									setRecordPendingDelete(null);
+								}
 							}}
 						>
 							Delete
