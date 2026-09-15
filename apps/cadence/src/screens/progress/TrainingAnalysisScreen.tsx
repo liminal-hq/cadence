@@ -43,7 +43,8 @@ const GROUP_BY_OPTIONS: { value: AnalysisGroupBy; label: string }[] = [
 	{ value: 'exercise', label: 'By exercise' },
 ];
 
-// A true minimum, not an arbitrary cutoff — workout dates are plain 'YYYY-MM-DD' strings compared lexicographically by the backend's BETWEEN, and a FitNotes import can legitimately predate 2000.
+// A true minimum, not an arbitrary cutoff — workout dates are plain 'YYYY-MM-DD' strings compared
+// lexicographically by the backend's BETWEEN, and a FitNotes import can legitimately predate 2000.
 const EARLIEST_DATE = '0001-01-01';
 
 export function dateRangeFor(
@@ -52,7 +53,8 @@ export function dateRangeFor(
 ): { startDate: string; endDate: string } {
 	if (period === 'all') return { startDate: EARLIEST_DATE, endDate: today };
 	const days = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }[period];
-	// The backend's BETWEEN range is inclusive of both endpoints, so a window of exactly `days` dates ending on `today` starts `days - 1` days earlier, not `days` days earlier.
+	// The backend's BETWEEN range is inclusive of both endpoints, so a window of exactly `days`
+	// dates ending on `today` starts `days - 1` days earlier, not `days` days earlier.
 	return { startDate: addDays(today, -(days - 1)), endDate: today };
 }
 

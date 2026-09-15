@@ -120,7 +120,8 @@ function metricValue(entry: AnalysisSetEntry, metric: AnalysisMetric): number | 
 		case 'maxWeight':
 			return entry.weightKg ?? undefined;
 		case 'estimated1RM':
-			// reps <= 0 has nothing to estimate from — estimateOneRepMax's own reps <= 1 branch returns the bare weight, which would let a failed zero-rep attempt read as a real 1RM.
+			// reps <= 0 has nothing to estimate from — estimateOneRepMax's own reps <= 1 branch returns
+			// the bare weight, which would let a failed zero-rep attempt read as a real 1RM.
 			return entry.weightKg != null && entry.reps != null && entry.reps > 0
 				? estimateOneRepMax(entry.weightKg, entry.reps)
 				: undefined;
