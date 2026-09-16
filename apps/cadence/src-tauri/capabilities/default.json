@@ -16,6 +16,7 @@
 		"core:webview:default",
 		"os:default",
 		"mcp-bridge:default",
-		"predictive-back:default"
+		"predictive-back:default",
+		"material-you:default"
 	]
 }

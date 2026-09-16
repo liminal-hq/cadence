@@ -25,6 +25,7 @@ pub struct Settings {
     pub reduced_motion: bool,
     pub notifications_denied: bool,
     pub automatic_backup_enabled: bool,
+    pub use_material_you: bool,
 }
 
 /// Mirrors `updateSettings`'s `Partial<Settings>` parameter — every field optional, `None` means
@@ -62,4 +63,6 @@ pub struct SettingsPatch {
     pub notifications_denied: Option<bool>,
     #[cfg_attr(test, ts(optional))]
     pub automatic_backup_enabled: Option<bool>,
+    #[cfg_attr(test, ts(optional))]
+    pub use_material_you: Option<bool>,
 }

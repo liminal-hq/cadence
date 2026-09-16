@@ -24,6 +24,7 @@ struct SettingsRow {
     reduced_motion: i64,
     notifications_denied: i64,
     automatic_backup_enabled: i64,
+    use_material_you: i64,
 }
 
 impl From<SettingsRow> for Settings {
@@ -43,6 +44,7 @@ impl From<SettingsRow> for Settings {
             reduced_motion: row.reduced_motion != 0,
             notifications_denied: row.notifications_denied != 0,
             automatic_backup_enabled: row.automatic_backup_enabled != 0,
+            use_material_you: row.use_material_you != 0,
         }
     }
 }
@@ -50,7 +52,8 @@ impl From<SettingsRow> for Settings {
 const SELECT: &str = "SELECT weight_unit, default_rest_ms, rest_auto_start, \
      rest_replaces_running, vibrate_enabled, sound_enabled, rest_feedback_device, \
      workout_timer_auto_start, keep_screen_on_during_workout, haptic_on_set_complete, \
-     haptic_on_rest_end, reduced_motion, notifications_denied, automatic_backup_enabled \
+     haptic_on_rest_end, reduced_motion, notifications_denied, automatic_backup_enabled, \
+     use_material_you \
      FROM app_settings WHERE id = 1";
 
 pub async fn get(conn: &mut SqliteConnection) -> Result<Settings> {
@@ -78,6 +81,7 @@ pub async fn update(conn: &mut SqliteConnection, patch: &SettingsPatch) -> Resul
          reduced_motion = COALESCE(?, reduced_motion), \
          notifications_denied = COALESCE(?, notifications_denied), \
          automatic_backup_enabled = COALESCE(?, automatic_backup_enabled), \
+         use_material_you = COALESCE(?, use_material_you), \
          updated_at_ms = ? \
          WHERE id = 1",
     )
@@ -95,6 +99,7 @@ pub async fn update(conn: &mut SqliteConnection, patch: &SettingsPatch) -> Resul
     .bind(patch.reduced_motion)
     .bind(patch.notifications_denied)
     .bind(patch.automatic_backup_enabled)
+    .bind(patch.use_material_you)
     .bind(now)
     .execute(&mut *conn)
     .await?;
@@ -115,6 +120,7 @@ mod tests {
         assert_eq!(settings.default_rest_ms, 120_000);
         assert!(settings.notifications_denied);
         assert!(settings.automatic_backup_enabled);
+        assert!(settings.use_material_you);
     }
 
     #[tokio::test]
@@ -132,6 +138,20 @@ mod tests {
         // Untouched fields keep their prior values.
         assert_eq!(updated.default_rest_ms, 120_000);
         assert!(updated.notifications_denied);
+    }
+
+    #[tokio::test]
+    async fn update_patches_use_material_you_independently_of_other_fields() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let patch = SettingsPatch {
+            use_material_you: Some(false),
+            ..Default::default()
+        };
+        let updated = update(&mut conn, &patch).await.unwrap();
+        assert!(!updated.use_material_you);
+        // Untouched fields keep their prior values.
+        assert_eq!(updated.weight_unit, "kg");
     }
 
     #[tokio::test]

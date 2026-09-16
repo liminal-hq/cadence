@@ -16,7 +16,8 @@ pub fn run() {
     let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_prevent_default::debug())
-        .plugin(tauri_plugin_predictive_back::init());
+        .plugin(tauri_plugin_predictive_back::init())
+        .plugin(tauri_plugin_material_you::init());
 
     #[cfg(desktop)]
     {
