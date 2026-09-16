@@ -8,19 +8,21 @@
 import { useEffect, useState } from 'react';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { DeleteAllHistoryDialog } from './DeleteAllHistoryDialog';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { Button } from '../../components/ui/Button/Button';
 import { Switch } from '../../components/ui/Switch/Switch';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
 import './settings.css';
 import './DataManagementScreen.css';
 
 export function DataManagementScreen() {
 	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings, error, clearError, updateSettings: patchSettings } = useSettings();
 	const [historySummary, setHistorySummary] = useState<{
 		workoutCount: number;
 		setCount: number;
@@ -32,26 +34,26 @@ export function DataManagementScreen() {
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	useEffect(() => {
-		repository.getSettings().then(setSettings);
 		repository.getHistorySummary().then(setHistorySummary);
 	}, [repository]);
-
-	function patchSettings(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
 
 	async function handleDeleteAll() {
 		await repository.deleteAllHistory();
 		setHistorySummary(await repository.getHistorySummary());
 	}
 
-	if (!settings || !historySummary) return null;
+	if (!settings) return <SettingsLoadFailure title="Backup & data" />;
+	if (!historySummary) return null;
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Backup & data" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				<section>
 					<div className="settings-section__body settings-section__body--padded">
 						<Surface tone="container-high" radius="l" className="data-backup-card">

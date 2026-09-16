@@ -8,13 +8,16 @@ import ReactDOM from 'react-dom/client';
 import { RouterProvider } from '@tanstack/react-router';
 import { router } from './router';
 import { RepositoryProvider } from './domain/RepositoryProvider';
+import { SettingsProvider } from './domain/SettingsProvider';
 import { tauriRepository } from './domain/tauriRepository';
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
 	<React.StrictMode>
 		<RepositoryProvider repository={tauriRepository}>
-			<RouterProvider router={router} />
+			<SettingsProvider>
+				<RouterProvider router={router} />
+			</SettingsProvider>
 		</RepositoryProvider>
 	</React.StrictMode>,
 );

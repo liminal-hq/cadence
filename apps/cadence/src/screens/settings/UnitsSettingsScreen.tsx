@@ -4,30 +4,32 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { Banner } from '../../components/ui/Banner/Banner';
+import { useSettings } from '../../domain/SettingsProvider';
 import type { WeightUnit } from '../../domain/types';
 import './settings.css';
 
 export function UnitsSettingsScreen() {
-	const repository = useLoggingRepository();
-	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+	const { settings, error, clearError, updateSettings } = useSettings();
 
-	useEffect(() => {
-		repository.getSettings().then((settings) => setWeightUnit(settings.weightUnit));
-	}, [repository]);
+	if (!settings) return <SettingsLoadFailure title="Units" />;
 
 	function handleChange(next: WeightUnit) {
-		setWeightUnit(next);
-		repository.updateSettings({ weightUnit: next });
+		updateSettings({ weightUnit: next });
 	}
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Units" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				<section>
 					<h2 className="settings-section__title">Weight</h2>
 					<div className="settings-section__body settings-section__body--padded">
@@ -36,7 +38,7 @@ export function UnitsSettingsScreen() {
 								{ value: 'kg', label: 'Kilograms' },
 								{ value: 'lb', label: 'Pounds' },
 							]}
-							value={weightUnit}
+							value={settings.weightUnit}
 							onChange={handleChange}
 						/>
 					</div>

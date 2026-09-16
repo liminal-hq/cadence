@@ -458,7 +458,7 @@ Watch
 
 **Content and actions:** units, appearance, accessibility, timer/workout behaviour, history/progress preferences, data, connected devices, privacy/permissions, about/help.
 
-**States:** changed defaults with impact explanation; system theme; permissions denied; managed/no cloud service.
+**States:** changed defaults with impact explanation; system theme; permissions denied; managed/no cloud service; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
 ### P-61 — Timer and workout preferences
 
@@ -469,7 +469,7 @@ Watch
 
 **Content and actions:** default rest duration, auto-start rules, vibration, sound, notification permission status, keep-screen-on, workout timer defaults, phone/watch feedback preference.
 
-**States:** notifications denied; no paired watch; haptics unavailable; per-exercise override active.
+**States:** notifications denied; no paired watch; haptics unavailable; per-exercise override active; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
 ### P-62 — Data management
 
@@ -480,7 +480,7 @@ Watch
 
 **Content and actions:** complete backup; restore; FitNotes import; spreadsheet export; integrity check; backup destination; delete all history/data with clear scope.
 
-**States:** no writable destination; backup created/verified; restore compatibility warning; insufficient storage; failed validation; destructive confirmation and recovery information.
+**States:** no writable destination; backup created/verified; restore compatibility warning; insufficient storage; failed validation; destructive confirmation and recovery information; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
 ### P-63 — Connected watch and sync status
 
@@ -535,7 +535,7 @@ Watch
 
 **Content and actions:** haptic on set complete; haptic when rest ends; reduce motion (turns off screen transitions and coach-mark animation).
 
-**States:** none beyond each toggle's own on/off.
+**States:** none beyond each toggle's own on/off; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
 ## 8. Wear OS: active workout execution
 

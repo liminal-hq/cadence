@@ -4,33 +4,28 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { Switch } from '../../components/ui/Switch/Switch';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { Settings } from '../../domain/types';
+import { Banner } from '../../components/ui/Banner/Banner';
+import { useSettings } from '../../domain/SettingsProvider';
 import './settings.css';
 
 export function AccessibilitySettingsScreen() {
-	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings, error, clearError, updateSettings: patch } = useSettings();
 
-	useEffect(() => {
-		repository.getSettings().then(setSettings);
-	}, [repository]);
-
-	function patch(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
-
-	if (!settings) return null;
+	if (!settings) return <SettingsLoadFailure title="Motion, haptics & sound" />;
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Motion, haptics & sound" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				<section>
 					<h2 className="settings-section__title">Haptics</h2>
 					<div className="settings-section__body">

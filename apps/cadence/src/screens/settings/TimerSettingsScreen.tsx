@@ -4,17 +4,18 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { Switch } from '../../components/ui/Switch/Switch';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
 import { Chip } from '../../components/ui/Chip/Chip';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { RestFeedbackDevice, Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
+import type { RestFeedbackDevice } from '../../domain/types';
 import { formatRemaining } from '../../components/RestTimerBar/formatRemaining';
 import './settings.css';
 
@@ -22,25 +23,20 @@ const DEFAULT_REST_PRESETS_MS = [60_000, 90_000, 120_000, 180_000, 300_000];
 
 export function TimerSettingsScreen() {
 	const navigate = useNavigate();
-	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings, error, clearError, updateSettings: patch } = useSettings();
 	const [restPickerOpen, setRestPickerOpen] = useState(false);
 
-	useEffect(() => {
-		repository.getSettings().then(setSettings);
-	}, [repository]);
-
-	function patch(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
-
-	if (!settings) return null;
+	if (!settings) return <SettingsLoadFailure title="Rest & workout timers" />;
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Rest & workout timers" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				{settings.notificationsDenied && (
 					<div className="settings-section__body settings-section__body--padded">
 						<Banner
