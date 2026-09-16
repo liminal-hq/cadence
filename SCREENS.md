@@ -287,7 +287,7 @@ Watch
 
 **Entry:** Routine list/detail.
 
-**Content and actions:** routine name/notes; tabbed section switcher with add/reorder/delete; add/reorder exercises as collapsible/expandable rows; set template editor with population rule (last time/fixed/blank) and duplicate-last-set; optional per-exercise rest override; optional superset metadata; explicit save action, held as a discardable draft until then.
+**Content and actions:** routine name/notes; tabbed section switcher with add/reorder/delete; add/reorder exercises as collapsible/expandable rows; set template editor with population rule (last time/fixed/blank), a fixed or ranged (min–max) rep target, and duplicate-last-set; optional per-exercise rest override; optional superset metadata; explicit save action, held as a discardable draft until then.
 
 **States:** new draft; unsaved changes; duplicate routine; missing exercise (offers removal); destructive section deletion; templates with multiple metric profiles.
 

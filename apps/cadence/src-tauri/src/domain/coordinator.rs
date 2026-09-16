@@ -872,7 +872,8 @@ impl<R: Runtime> Coordinator<R> {
                 } else {
                     SetValues {
                         weight_kg: template.weight_kg,
-                        reps: template.reps,
+                        // A logged set has one rep count, not a range — seeded with the high end of the template's range (or its fixed value, when reps_min == reps_max) as the goal to reach; the lifter can still edit it down while performing the set.
+                        reps: template.reps_max,
                         distance_km: template.distance_km,
                         duration_sec: template.duration_sec,
                     }
@@ -1894,7 +1895,8 @@ mod tests {
                 &re.id,
                 &SetTemplateValues {
                     weight_kg: Some(60.0),
-                    reps: Some(10),
+                    reps_min: Some(8),
+                    reps_max: Some(10),
                     set_label: Some("Warm-up".to_string()),
                     ..Default::default()
                 },
@@ -1923,6 +1925,7 @@ mod tests {
         let sets = c.list_sets(&workout_exercises[0].id).await.unwrap();
         assert_eq!(sets.len(), 2);
         assert_eq!(sets[0].weight_kg, Some(60.0));
+        // A materialized set has one rep count, not a range — seeded with the high end (10) of the explicit template's 8-10 range.
         assert_eq!(sets[0].reps, Some(10));
         assert_eq!(sets[0].status, "planned");
         assert_eq!(sets[0].set_label.as_deref(), Some("Warm-up"));

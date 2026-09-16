@@ -100,23 +100,37 @@ function templateTargetLabel(
 ): string {
 	if (template.populationRule === SEED_LAST_PERFORMANCE) {
 		if (!seedPreview) return 'Seeded from last performance — no history yet';
-		return `Seeded from last performance: ${templateValuesLabel(seedPreview, metricProfile)}`;
+		return `Seeded from last performance: ${seedPreviewLabel(seedPreview, metricProfile)}`;
 	}
-	return templateValuesLabel(template, metricProfile);
+	if (metricProfile === 'weight-reps') {
+		const weight =
+			template.weightKg == null ? MISSING_VALUE : `${formatNumber(template.weightKg)} kg`;
+		return `${weight} × ${repsRangeLabel(template)}`;
+	}
+	const distance =
+		template.distanceKm == null ? MISSING_VALUE : `${formatNumber(template.distanceKm)} km`;
+	const duration = template.durationSec == null ? MISSING_VALUE : `${template.durationSec}s`;
+	return `${distance} · ${duration}`;
 }
 
-function templateValuesLabel(
-	values: { weightKg?: number; reps?: number; distanceKm?: number; durationSec?: number },
-	metricProfile: MetricProfile,
-): string {
+/** A fixed target (`repsMin === repsMax`) reads as a single number; a true range reads as "min–max". */
+function repsRangeLabel(template: Pick<SetTemplate, 'repsMin' | 'repsMax'>): string {
+	if (template.repsMin == null || template.repsMax == null) return MISSING_VALUE;
+	if (template.repsMin === template.repsMax) return String(template.repsMin);
+	return `${template.repsMin}–${template.repsMax}`;
+}
+
+/** A "seed from last performance" preview resolves against an actual logged set, which — unlike an explicit template — has one rep count rather than a range. */
+function seedPreviewLabel(preview: SeedPreview, metricProfile: MetricProfile): string {
 	if (metricProfile === 'weight-reps') {
-		const weight = values.weightKg == null ? MISSING_VALUE : `${formatNumber(values.weightKg)} kg`;
-		const reps = values.reps == null ? MISSING_VALUE : values.reps;
+		const weight =
+			preview.weightKg == null ? MISSING_VALUE : `${formatNumber(preview.weightKg)} kg`;
+		const reps = preview.reps == null ? MISSING_VALUE : preview.reps;
 		return `${weight} × ${reps}`;
 	}
 	const distance =
-		values.distanceKm == null ? MISSING_VALUE : `${formatNumber(values.distanceKm)} km`;
-	const duration = values.durationSec == null ? MISSING_VALUE : `${values.durationSec}s`;
+		preview.distanceKm == null ? MISSING_VALUE : `${formatNumber(preview.distanceKm)} km`;
+	const duration = preview.durationSec == null ? MISSING_VALUE : `${preview.durationSec}s`;
 	return `${distance} · ${duration}`;
 }
 

@@ -3,7 +3,11 @@
 /**
  * A planned set within a routine exercise — either explicit target values, or a rule to seed values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). Exactly one of `values` or `population_rule` is meaningful for a given template; both are optional at the type level because the DB column set is shared, not because either is expected alongside the other.
  */
-export type SetTemplate = { id: string, routineExerciseId: string, order: number, weightKg?: number, reps?: number, distanceKm?: number, durationSec?: number, 
+export type SetTemplate = { id: string, routineExerciseId: string, order: number, weightKg?: number, 
+/**
+ * A fixed rep target is `reps_min == reps_max`; a true range has `reps_min < reps_max`. The repo layer enforces this invariant on write, so a reader only ever needs to check whether the two differ.
+ */
+repsMin?: number, repsMax?: number, distanceKm?: number, durationSec?: number, 
 /**
  * The only value shipped in v1 is `"seed-last-performance"`; `None` means the explicit target values above are used as-is.
  */

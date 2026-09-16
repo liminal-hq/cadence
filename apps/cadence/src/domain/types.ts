@@ -256,23 +256,25 @@ export interface RoutineExercise {
 /** The only `populationRule` value shipped in v1 — more may be added later. */
 export const SEED_LAST_PERFORMANCE = 'seed-last-performance' as const;
 
-/** A planned set within a routine exercise — either explicit target values, or a rule to seed values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). */
+/** A planned set within a routine exercise — either explicit target values, or a rule to seed values from the most recent comparable performance at materialization time (SPEC.md 8.4/10.1). A fixed rep target is repsMin === repsMax; a true range has repsMin < repsMax. */
 export interface SetTemplate {
 	id: string;
 	routineExerciseId: string;
 	order: number;
 	weightKg?: number;
-	reps?: number;
+	repsMin?: number;
+	repsMax?: number;
 	distanceKm?: number;
 	durationSec?: number;
 	populationRule?: string;
 	setLabel?: string;
 }
 
-/** The subset of SetTemplate's fields a caller supplies when creating one. */
+/** The subset of SetTemplate's fields a caller supplies when creating one. Supplying only repsMin means a fixed target — the backend fills repsMax in to match. */
 export interface SetTemplateValues {
 	weightKg?: number;
-	reps?: number;
+	repsMin?: number;
+	repsMax?: number;
 	distanceKm?: number;
 	durationSec?: number;
 	populationRule?: string;

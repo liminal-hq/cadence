@@ -78,8 +78,11 @@ pub struct SetTemplate {
     pub order: i32,
     #[cfg_attr(test, ts(optional))]
     pub weight_kg: Option<f64>,
+    /// A fixed rep target is `reps_min == reps_max`; a true range has `reps_min < reps_max`. The repo layer enforces this invariant on write, so a reader only ever needs to check whether the two differ.
     #[cfg_attr(test, ts(optional))]
-    pub reps: Option<i32>,
+    pub reps_min: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
+    pub reps_max: Option<i32>,
     #[cfg_attr(test, ts(optional))]
     pub distance_km: Option<f64>,
     #[cfg_attr(test, ts(optional))]
@@ -91,7 +94,7 @@ pub struct SetTemplate {
     pub set_label: Option<String>,
 }
 
-/// The subset of `SetTemplate`'s fields a caller supplies when creating or editing one — mirrors `sets::models::SetValues`'s shape.
+/// The subset of `SetTemplate`'s fields a caller supplies when creating or editing one — mirrors `sets::models::SetValues`'s shape (plus the `reps_min`/`reps_max` pair in place of a single `reps`). A caller may supply only `reps_min` to mean a fixed target — the repo layer fills `reps_max` in to match.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(export, export_to = "../../src/domain/generated/"))]
@@ -100,7 +103,9 @@ pub struct SetTemplateValues {
     #[cfg_attr(test, ts(optional))]
     pub weight_kg: Option<f64>,
     #[cfg_attr(test, ts(optional))]
-    pub reps: Option<i32>,
+    pub reps_min: Option<i32>,
+    #[cfg_attr(test, ts(optional))]
+    pub reps_max: Option<i32>,
     #[cfg_attr(test, ts(optional))]
     pub distance_km: Option<f64>,
     #[cfg_attr(test, ts(optional))]

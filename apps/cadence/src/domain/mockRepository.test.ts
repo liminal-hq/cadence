@@ -427,7 +427,7 @@ describe('MockLoggingRepository', () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
-			await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+			await repo.addSetTemplate(exercise.id, { weightKg: 80, repsMin: 8 });
 
 			await repo.deleteRoutine(routine.id);
 
@@ -530,9 +530,15 @@ describe('MockLoggingRepository', () => {
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
 
-			const explicit = await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+			const explicit = await repo.addSetTemplate(exercise.id, {
+				weightKg: 80,
+				repsMin: 6,
+				repsMax: 8,
+			});
 			expect(explicit.order).toBe(1);
 			expect(explicit.weightKg).toBe(80);
+			expect(explicit.repsMin).toBe(6);
+			expect(explicit.repsMax).toBe(8);
 
 			const seeded = await repo.addSetTemplate(exercise.id, {
 				populationRule: 'seed-last-performance',
@@ -570,7 +576,7 @@ describe('MockLoggingRepository', () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
-			const template = await repo.addSetTemplate(exercise.id, { weightKg: 80, reps: 8 });
+			const template = await repo.addSetTemplate(exercise.id, { weightKg: 80, repsMin: 8 });
 
 			await repo.deleteSetTemplate(template.id);
 			expect(await repo.listSetTemplates(exercise.id)).toEqual([]);
@@ -587,7 +593,7 @@ describe('MockLoggingRepository', () => {
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
-			await repo.addSetTemplate(exercise.id, { weightKg: 60, reps: 10 });
+			await repo.addSetTemplate(exercise.id, { weightKg: 60, repsMin: 8, repsMax: 10 });
 			await repo.addSetTemplate(exercise.id, { populationRule: 'seed-last-performance' });
 
 			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
@@ -702,7 +708,7 @@ describe('MockLoggingRepository', () => {
 			await repo.updateRoutineExerciseNote(exercise.id, 'Pause reps');
 			const template = await repo.addSetTemplate(exercise.id, {
 				weightKg: 60,
-				reps: 10,
+				repsMin: 10,
 				setLabel: 'Warm-up',
 			});
 
