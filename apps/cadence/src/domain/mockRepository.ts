@@ -896,6 +896,16 @@ export class MockLoggingRepository implements LoggingRepository {
 		return updated;
 	}
 
+	async updateRoutineExerciseRest(
+		id: string,
+		restMs: number | undefined,
+	): Promise<RoutineExercise> {
+		const existing = await this.getRoutineExercise(id);
+		const updated = { ...existing, restMs };
+		this.routineExercises.set(id, updated);
+		return updated;
+	}
+
 	async deleteRoutineExercise(id: string): Promise<void> {
 		this.routineExercises.delete(id);
 		for (const template of [...this.setTemplates.values()].filter(

@@ -685,6 +685,15 @@ pub async fn update_routine_exercise_note(
 }
 
 #[tauri::command]
+pub async fn update_routine_exercise_rest(
+    state: State<'_, Coordinator>,
+    id: String,
+    rest_ms: Option<i64>,
+) -> Result<RoutineExercise, Error> {
+    state.update_routine_exercise_rest(&id, rest_ms).await
+}
+
+#[tauri::command]
 pub async fn delete_routine_exercise(
     state: State<'_, Coordinator>,
     id: String,
