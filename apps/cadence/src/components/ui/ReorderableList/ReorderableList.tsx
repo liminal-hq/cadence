@@ -72,7 +72,15 @@ interface RowProps {
 // One sortable row: `useSortable` supplies both the drag transform for the row being moved and the `listeners`/`attributes` that make the handle itself draggable — those need to land on the real DOM button (via IconButton's prop-spreading), not just be read and discarded, or nothing would actually respond to a pointer or keyboard.
 // A drag gesture (pointer or keyboard) has no equivalent for a touch screen reader, which operates by synthesizing a click rather than real pointer or key events — so every row also gets a pair of click-operable, visually hidden move actions, satisfying WCAG 2.5.7's "single pointer" alternative without reintroducing the two visible buttons this component was built to replace.
 function Row({ id, children, index, canMoveUp, canMoveDown, onMoveUp, onMoveDown }: RowProps) {
-	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+	const {
+		attributes,
+		listeners,
+		setNodeRef,
+		setActivatorNodeRef,
+		transform,
+		transition,
+		isDragging,
+	} = useSortable({
 		id,
 	});
 
@@ -105,6 +113,7 @@ function Row({ id, children, index, canMoveUp, canMoveDown, onMoveUp, onMoveDown
 				{`Move item ${index + 1} down`}
 			</button>
 			<IconButton
+				ref={setActivatorNodeRef}
 				icon="drag_handle"
 				label="Reorder"
 				size="small"

@@ -3,6 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+import { forwardRef } from 'react';
 import type { ButtonHTMLAttributes, MouseEventHandler } from 'react';
 import { classNames } from '../classNames';
 import './IconButton.css';
@@ -18,20 +19,25 @@ export interface IconButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>
 	onClick?: MouseEventHandler<HTMLButtonElement>;
 }
 
-export function IconButton({
-	icon,
-	label,
-	variant = 'standard',
-	size = 'default',
-	iconFilled = false,
-	disabled = false,
-	onClick,
-	className,
-	// Spread onto the native button — dnd-kit's `listeners`/`attributes` (onPointerDown, onKeyDown, tabIndex, role, aria-describedby, etc.) need to land on the real DOM element for a drag-handle IconButton to actually be draggable.
-	...rest
-}: IconButtonProps) {
+// Forwards its ref to the native button — dnd-kit's `setActivatorNodeRef` needs a real DOM node for a drag-handle IconButton, so keyboard focus restores to the handle itself after a drop/cancel rather than wherever the row's own `setNodeRef` points.
+export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
+	{
+		icon,
+		label,
+		variant = 'standard',
+		size = 'default',
+		iconFilled = false,
+		disabled = false,
+		onClick,
+		className,
+		// Spread onto the native button — dnd-kit's `listeners`/`attributes` (onPointerDown, onKeyDown, tabIndex, role, aria-describedby, etc.) need to land on the real DOM element for a drag-handle IconButton to actually be draggable.
+		...rest
+	},
+	ref,
+) {
 	return (
 		<button
+			ref={ref}
 			type="button"
 			className={classNames(
 				'ui-icon-button',
@@ -56,4 +62,4 @@ export function IconButton({
 			</span>
 		</button>
 	);
-}
+});
