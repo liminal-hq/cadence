@@ -23,3 +23,36 @@
 .ui-reorderable-list__handle:active {
 	cursor: grabbing;
 }
+
+/* Reachable by a touch screen reader's swipe navigation (same accessibility-tree order a sighted
+   keyboard user's Tab key would follow) without occupying two invisible stops in that same Tab
+   sequence — clipped like `.ui-visually-hidden` until focused, then revealed with enough chrome to
+   read as a real control rather than a stray floating label. */
+.ui-reorderable-list__move {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.ui-reorderable-list__move:focus {
+	position: static;
+	width: auto;
+	height: auto;
+	margin: 0;
+	overflow: visible;
+	clip: auto;
+	white-space: normal;
+	padding: var(--cadence-space-1) var(--cadence-space-2);
+	border: 1px solid var(--cadence-outline);
+	border-radius: var(--cadence-shape-xs);
+	background: var(--cadence-surface-container-lowest);
+	color: var(--cadence-on-surface);
+	font-family: inherit;
+	font-size: var(--cadence-type-label-m-size);
+}

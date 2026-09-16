@@ -74,12 +74,17 @@ function Row({ id, children, index, canMoveUp, canMoveDown, onMoveUp, onMoveDown
 			}}
 		>
 			<div className="ui-reorderable-list__content">{children}</div>
-			<button type="button" className="ui-visually-hidden" disabled={!canMoveUp} onClick={onMoveUp}>
+			<button
+				type="button"
+				className="ui-reorderable-list__move"
+				disabled={!canMoveUp}
+				onClick={onMoveUp}
+			>
 				{`Move item ${index + 1} up`}
 			</button>
 			<button
 				type="button"
-				className="ui-visually-hidden"
+				className="ui-reorderable-list__move"
 				disabled={!canMoveDown}
 				onClick={onMoveDown}
 			>
