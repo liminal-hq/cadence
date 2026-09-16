@@ -364,7 +364,7 @@ Settings are grouped by user intent rather than internal subsystem:
 
 Settings that materially change existing data interpretation, such as units or metric profiles, must distinguish display conversion from stored-value migration. Reset actions declare their exact scope and do not share a control with destructive data deletion.
 
-A settings write that fails reverts to the last backend-confirmed value and surfaces a dismissible explanation, rather than leaving an unsaved change showing as if it had persisted.
+A settings write that fails reverts to the last backend-confirmed value and surfaces a dismissible explanation, rather than leaving an unsaved change showing as if it had persisted. If the initial settings load itself fails, the Settings hub and every sub-screen that depends on settings offer an explicit retry rather than silently falling back to default-looking values.
 
 ## 9. Wear OS companion
 

@@ -30,7 +30,7 @@ interface SettingsSection {
 export function SettingsHubScreen() {
 	const navigate = useNavigate();
 	const repository = useLoggingRepository();
-	const { settings, loadError, reload } = useSettings();
+	const { settings, error, clearError, loadError, reload } = useSettings();
 	const [barbellCount, setBarbellCount] = useState(0);
 	const [exerciseCount, setExerciseCount] = useState(0);
 	const [categoryCount, setCategoryCount] = useState(0);
@@ -150,6 +150,12 @@ export function SettingsHubScreen() {
 							message="Couldn't load settings — statuses below may not be accurate until you retry."
 							action={{ label: 'Try again', onClick: reload }}
 						/>
+					</div>
+				)}
+				{/* Surfaces a write failure even if the screen that made the change has since been left — the queued write can still be settling after the user navigates back here. */}
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
 					</div>
 				)}
 				{sections.map((section) => (

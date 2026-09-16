@@ -458,7 +458,7 @@ Watch
 
 **Content and actions:** units, appearance, accessibility, timer/workout behaviour, history/progress preferences, data, connected devices, privacy/permissions, about/help.
 
-**States:** changed defaults with impact explanation; system theme; permissions denied; managed/no cloud service.
+**States:** changed defaults with impact explanation; system theme; permissions denied; managed/no cloud service; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
 ### P-61 — Timer and workout preferences
 

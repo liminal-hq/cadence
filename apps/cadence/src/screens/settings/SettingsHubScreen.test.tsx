@@ -7,8 +7,15 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { SettingsHubScreen } from './SettingsHubScreen';
 import { RepositoryProvider } from '../../domain/RepositoryProvider';
-import { SettingsProvider } from '../../domain/SettingsProvider';
+import { SettingsProvider, useSettings } from '../../domain/SettingsProvider';
 import { MockLoggingRepository } from '../../domain/mockRepository';
+
+// Stands in for a settings sub-screen the user has since navigated away from — the write it
+// started can still reject after the hub is what's on screen.
+function TriggerFailingWrite() {
+	const { updateSettings } = useSettings();
+	return <button onClick={() => updateSettings({ weightUnit: 'lb' })}>trigger write</button>;
+}
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
@@ -56,5 +63,32 @@ describe('SettingsHubScreen', () => {
 
 		await waitFor(() => expect(screen.getByText('Kilograms')).toBeInTheDocument());
 		expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+	});
+
+	it('surfaces a write failure here even if it settles after the originating screen was left', async () => {
+		const repository = new MockLoggingRepository();
+		vi.spyOn(repository, 'updateSettings').mockRejectedValueOnce(new Error('offline'));
+
+		render(
+			<RepositoryProvider repository={repository}>
+				<SettingsProvider>
+					<TriggerFailingWrite />
+					<SettingsHubScreen />
+				</SettingsProvider>
+			</RepositoryProvider>,
+		);
+		await waitFor(() => expect(screen.getByText('Kilograms')).toBeInTheDocument());
+
+		await act(async () => {
+			screen.getByText('trigger write').click();
+		});
+
+		await waitFor(() => expect(screen.getByText('offline')).toBeInTheDocument());
+
+		await act(async () => {
+			screen.getByLabelText('Dismiss').click();
+		});
+
+		expect(screen.queryByText('offline')).not.toBeInTheDocument();
 	});
 });
