@@ -11,7 +11,7 @@ import type {
 
 export type ColourScheme = 'light' | 'dark';
 
-// Android exposes each palette as color resources named e.g. `system_accent1_600`, and the
+// Android exposes each palette as colour resources named e.g. `system_accent1_600`, and the
 // suffix-to-tone relationship runs the OPPOSITE direction you'd guess: suffix 0 is the lightest
 // (tone 100) and suffix 1000 is the darkest (tone 0) — `tone = 100 - suffix / 10`. This matches
 // M3's own documented role mapping (colorPrimary -> system_accent1_600 at tone 40 light,
