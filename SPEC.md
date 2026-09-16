@@ -576,6 +576,7 @@ The import should:
 - Support TalkBack, large text, high contrast, touch targets, and non-colour-only state indicators.
 - Wear controls must be operable with touch and rotary input where hardware offers it.
 - Haptics and sound are independently configurable; timer completion cannot rely solely on either.
+- Reordering a list of items (routine sections and exercises, categories, measurement definitions) supports pointer dragging, keyboard dragging (pick up, move, drop), and a click-operable move-up/move-down alternative for a touch screen reader, which activates controls by synthesizing a click rather than a real drag gesture; the keyboard-drag experience announces which item moved and where, by name rather than an internal id.
 
 ### Security and data integrity
 

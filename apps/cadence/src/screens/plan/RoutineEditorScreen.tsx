@@ -239,13 +239,19 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		reload();
 	}
 
+	// Optimistic so the drop looks instantaneous (see ReorderableList's own note on why) — reload() always runs afterward, whether the request succeeds or fails, so a rejected reorder reconciles back to the last persisted order instead of leaving an unpersisted one on screen indefinitely.
 	async function handleReorderSections(next: EditorSection[]) {
 		setState({ routine, sections: next });
-		await repository.reorderRoutineSections(
-			routineId,
-			next.map((s) => s.section.id),
-		);
-		reload();
+		try {
+			await repository.reorderRoutineSections(
+				routineId,
+				next.map((s) => s.section.id),
+			);
+		} catch {
+			// Swallowed — reload() below reconciles the screen back to whatever's actually persisted.
+		} finally {
+			reload();
+		}
 	}
 
 	async function handleReorderExercises(sectionId: string, next: EditorExercise[]) {
@@ -253,11 +259,16 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 			routine,
 			sections: sections.map((s) => (s.section.id === sectionId ? { ...s, exercises: next } : s)),
 		});
-		await repository.reorderRoutineExercises(
-			sectionId,
-			next.map((e) => e.routineExercise.id),
-		);
-		reload();
+		try {
+			await repository.reorderRoutineExercises(
+				sectionId,
+				next.map((e) => e.routineExercise.id),
+			);
+		} catch {
+			// Swallowed — reload() below reconciles the screen back to whatever's actually persisted.
+		} finally {
+			reload();
+		}
 	}
 
 	async function handleDeleteSection(editorSection: EditorSection) {
