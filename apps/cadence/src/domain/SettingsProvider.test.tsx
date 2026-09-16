@@ -11,10 +11,18 @@ import { SettingsLoadFailure } from '../screens/settings/SettingsLoadFailure';
 import { MockLoggingRepository } from './mockRepository';
 import type { Settings } from './types';
 
+vi.mock('@tanstack/react-router', () => ({
+	Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
+		<a href={to} {...rest}>
+			{children}
+		</a>
+	),
+}));
+
 function Probe() {
 	const { settings, error, clearError, updateSettings } = useSettings();
 
-	if (!settings) return <SettingsLoadFailure />;
+	if (!settings) return <SettingsLoadFailure title="Test settings" />;
 
 	return (
 		<div>
@@ -104,8 +112,36 @@ describe('SettingsProvider', () => {
 
 		await act(async () => rejectFirst(new Error('offline')));
 
+		await waitFor(() => expect(screen.getByTestId('error').textContent).toBe('offline'));
 		expect(screen.getByTestId('weight-unit').textContent).toBe('lb');
-		expect(screen.getByTestId('error').textContent).toBe('offline');
+	});
+
+	it('serializes writes so a backend call for an earlier patch is never still in flight when a later one starts', async () => {
+		const repository = new MockLoggingRepository();
+		renderProbe(repository);
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+
+		const calls: number[] = [];
+		let resolveFirst: (value: Settings) => void = () => {};
+		const first = new Promise<Settings>((resolve) => {
+			resolveFirst = resolve;
+		});
+		vi.spyOn(repository, 'updateSettings').mockImplementation(async (patch) => {
+			calls.push(calls.length);
+			if (calls.length === 1) await first;
+			return { ...(await repository.getSettings()), ...patch };
+		});
+
+		await act(async () => {
+			screen.getByText('change').click();
+			screen.getByText('change').click();
+		});
+
+		// The second call must not have reached the repository yet — it's queued behind the first.
+		expect(calls).toEqual([0]);
+
+		await act(async () => resolveFirst(await repository.getSettings()));
+		await waitFor(() => expect(calls).toEqual([0, 1]));
 	});
 
 	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {

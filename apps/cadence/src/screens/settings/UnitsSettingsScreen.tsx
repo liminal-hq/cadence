@@ -15,7 +15,7 @@ import './settings.css';
 export function UnitsSettingsScreen() {
 	const { settings, error, clearError, updateSettings } = useSettings();
 
-	if (!settings) return <SettingsLoadFailure />;
+	if (!settings) return <SettingsLoadFailure title="Units" />;
 
 	function handleChange(next: WeightUnit) {
 		updateSettings({ weightUnit: next });

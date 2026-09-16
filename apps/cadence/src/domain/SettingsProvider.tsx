@@ -41,6 +41,8 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	const [loadError, setLoadError] = useState<string | null>(null);
 	// Guards against an earlier write's rollback or stale success clobbering a later write that has since superseded it — only the most-recently-issued call is still allowed to touch `settings` once it settles.
 	const latestRequestId = useRef(0);
+	// Chains writes so only one `repository.updateSettings` call is ever in flight, preserving issue order at the backend too — otherwise two rapid writes could reach SQLite out of order regardless of how React state is reconciled above.
+	const writeQueue = useRef<Promise<void>>(Promise.resolve());
 
 	const reload = useCallback(() => {
 		setLoadError(null);
@@ -51,19 +53,26 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 
 	useEffect(reload, [reload]);
 
-	async function updateSettings(patch: Partial<Settings>): Promise<void> {
+	function updateSettings(patch: Partial<Settings>): Promise<void> {
 		const requestId = ++latestRequestId.current;
 		const previous = settings;
 		setSettings((current) => (current ? { ...current, ...patch } : current));
 		setError(null);
-		try {
-			// Trusts the backend's returned row over the optimistic merge above, in case a patch resolves to something other than a literal field-for-field overwrite.
-			const updated = await repository.updateSettings(patch);
-			if (requestId === latestRequestId.current) setSettings(updated);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
-			if (requestId === latestRequestId.current) setSettings(previous);
-		}
+
+		const write = async () => {
+			try {
+				// Trusts the backend's returned row over the optimistic merge above, in case a patch resolves to something other than a literal field-for-field overwrite.
+				const updated = await repository.updateSettings(patch);
+				if (requestId === latestRequestId.current) setSettings(updated);
+			} catch (err) {
+				setError(err instanceof Error ? err.message : String(err));
+				if (requestId === latestRequestId.current) setSettings(previous);
+			}
+		};
+
+		const next = writeQueue.current.then(write, write);
+		writeQueue.current = next;
+		return next;
 	}
 
 	return (

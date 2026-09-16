@@ -42,7 +42,7 @@ export function DataManagementScreen() {
 		setHistorySummary(await repository.getHistorySummary());
 	}
 
-	if (!settings) return <SettingsLoadFailure />;
+	if (!settings) return <SettingsLoadFailure title="Backup & data" />;
 	if (!historySummary) return null;
 
 	return (

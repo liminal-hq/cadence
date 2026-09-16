@@ -15,7 +15,7 @@ import './settings.css';
 export function AccessibilitySettingsScreen() {
 	const { settings, error, clearError, updateSettings: patch } = useSettings();
 
-	if (!settings) return <SettingsLoadFailure />;
+	if (!settings) return <SettingsLoadFailure title="Motion, haptics & sound" />;
 
 	return (
 		<div className="settings-screen">

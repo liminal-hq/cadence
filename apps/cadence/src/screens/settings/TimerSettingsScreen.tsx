@@ -26,7 +26,7 @@ export function TimerSettingsScreen() {
 	const { settings, error, clearError, updateSettings: patch } = useSettings();
 	const [restPickerOpen, setRestPickerOpen] = useState(false);
 
-	if (!settings) return <SettingsLoadFailure />;
+	if (!settings) return <SettingsLoadFailure title="Rest & workout timers" />;
 
 	return (
 		<div className="settings-screen">
