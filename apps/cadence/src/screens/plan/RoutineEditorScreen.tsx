@@ -239,20 +239,36 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		reload();
 	}
 
+	// Optimistic so the drop looks instantaneous (see ReorderableList's own note on why) — reload() always runs afterward, whether the request succeeds or fails, so a rejected reorder reconciles back to the last persisted order instead of leaving an unpersisted one on screen indefinitely.
 	async function handleReorderSections(next: EditorSection[]) {
-		await repository.reorderRoutineSections(
-			routineId,
-			next.map((s) => s.section.id),
-		);
-		reload();
+		setState({ routine, sections: next });
+		try {
+			await repository.reorderRoutineSections(
+				routineId,
+				next.map((s) => s.section.id),
+			);
+		} catch {
+			// Swallowed — reload() below reconciles the screen back to whatever's actually persisted.
+		} finally {
+			reload();
+		}
 	}
 
 	async function handleReorderExercises(sectionId: string, next: EditorExercise[]) {
-		await repository.reorderRoutineExercises(
-			sectionId,
-			next.map((e) => e.routineExercise.id),
-		);
-		reload();
+		setState({
+			routine,
+			sections: sections.map((s) => (s.section.id === sectionId ? { ...s, exercises: next } : s)),
+		});
+		try {
+			await repository.reorderRoutineExercises(
+				sectionId,
+				next.map((e) => e.routineExercise.id),
+			);
+		} catch {
+			// Swallowed — reload() below reconciles the screen back to whatever's actually persisted.
+		} finally {
+			reload();
+		}
 	}
 
 	async function handleDeleteSection(editorSection: EditorSection) {
@@ -304,6 +320,10 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 				<ReorderableList
 					items={sections}
 					getKey={(item) => item.section.id}
+					getLabel={(item) =>
+						item.section.name ||
+						`Section ${sections.findIndex((s) => s.section.id === item.section.id) + 1}`
+					}
 					onReorder={handleReorderSections}
 					renderItem={({ section, exercises }) => (
 						<Surface tone="container-low" radius="m" className="routine-section-card">
@@ -336,6 +356,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 							<ReorderableList
 								items={exercises}
 								getKey={(item) => item.routineExercise.id}
+								getLabel={(item) => item.exercise.name}
 								onReorder={(next) => handleReorderExercises(section.id, next)}
 								renderItem={(item) => (
 									<div className="routine-editor__row">

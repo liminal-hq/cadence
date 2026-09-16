@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
@@ -52,6 +52,7 @@ export function CategoryEditorScreen() {
 	const [error, setError] = useState<string | null>(null);
 	const [draft, setDraft] = useState<NewCategoryDraft | null>(null);
 	const [categoryPendingDelete, setCategoryPendingDelete] = useState<Category | null>(null);
+	const reorderRequestIdRef = useRef(0);
 
 	const reload = useCallback(() => {
 		repository.listCategories().then(setCategories, (err) => {
@@ -61,9 +62,7 @@ export function CategoryEditorScreen() {
 
 	useEffect(reload, [reload]);
 
-	// A rejected initial load previously left this screen blank forever -- `categories` never
-	// left `null`, so the render bailed out here on every re-render with no way to retry or even
-	// see that anything had gone wrong.
+	// A rejected initial load previously left this screen blank forever — `categories` never left `null`, so the render bailed out here on every re-render with no way to retry or even see that anything had gone wrong.
 	if (!categories) {
 		if (error) {
 			return (
@@ -164,7 +163,23 @@ export function CategoryEditorScreen() {
 				<ReorderableList
 					items={categories}
 					getKey={(c) => c.id}
-					onReorder={(next) => guarded(() => repository.reorderCategories(next.map((c) => c.id)))}
+					getLabel={(c) => c.name}
+					onReorder={(next) => {
+						// Roll back only the order, not the whole snapshot: restoring every captured row would also discard a name or colour edit made while the request was in flight, and a stale rejection (from an earlier overlapping drag) must not overwrite a newer optimistic order that's already on screen.
+						const previousOrder = categories.map((c) => c.id);
+						const requestId = ++reorderRequestIdRef.current;
+						setCategories(next);
+						guarded(() => repository.reorderCategories(next.map((c) => c.id))).then((ok) => {
+							if (ok || reorderRequestIdRef.current !== requestId) return;
+							setCategories((current) => {
+								if (!current) return current;
+								const byId = new Map(current.map((c) => [c.id, c]));
+								return previousOrder
+									.map((id) => byId.get(id))
+									.filter((c): c is Category => c != null);
+							});
+						});
+					}}
 					renderItem={(category) => (
 						<Surface tone="container-low" radius="m" className="category-row">
 							<Tag
