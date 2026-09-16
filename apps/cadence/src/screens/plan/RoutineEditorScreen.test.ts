@@ -46,6 +46,31 @@ describe('loadEditorState', () => {
 
 		await expect(loadEditorState(repo, routine.id)).rejects.toThrow('transient DB error');
 	});
+
+	it('propagates a real backend error from getExercise instead of treating it as a deleted exercise', async () => {
+		const repo = new MockLoggingRepository();
+		const routine = await repo.createRoutine('Push day');
+		const section = await repo.addRoutineSection(routine.id, 'A');
+		await repo.addRoutineExercise(section.id, 'ex-bench-press');
+		vi.spyOn(repo, 'getExercise').mockRejectedValue(
+			Object.assign(new Error('db error'), { kind: 'db' }),
+		);
+
+		await expect(loadEditorState(repo, routine.id)).rejects.toThrow('db error');
+	});
+
+	it('still treats a tagged notFound error from getExercise as a missing exercise', async () => {
+		const repo = new MockLoggingRepository();
+		const routine = await repo.createRoutine('Push day');
+		const section = await repo.addRoutineSection(routine.id, 'A');
+		await repo.addRoutineExercise(section.id, 'ex-bench-press');
+		vi.spyOn(repo, 'getExercise').mockRejectedValue(
+			Object.assign(new Error('not found'), { kind: 'notFound' }),
+		);
+
+		const state = await loadEditorState(repo, routine.id);
+		expect(state.sections[0].exercises[0].exercise).toBeNull();
+	});
 });
 
 describe('defaultPopulationMode', () => {
