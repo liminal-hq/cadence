@@ -191,6 +191,7 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 					<ReorderableList
 						items={exercises}
 						getKey={(item) => item.routineExercise.id}
+						getLabel={(item) => item.exercise.name}
 						onReorder={setExercises}
 						renderItem={(item) => (
 							<Surface

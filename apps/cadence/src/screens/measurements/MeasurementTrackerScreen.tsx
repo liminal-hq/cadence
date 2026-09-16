@@ -216,6 +216,7 @@ export function MeasurementTrackerScreen() {
 						<ReorderableList
 							items={definitions}
 							getKey={(d) => d.id}
+							getLabel={(d) => d.name}
 							onReorder={(next) =>
 								guarded(() => repository.reorderMeasurementDefinitions(next.map((d) => d.id)))
 							}

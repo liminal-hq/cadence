@@ -11,6 +11,7 @@ import {
 	closestCenter,
 	useSensor,
 	useSensors,
+	type Announcements,
 	type DragEndEvent,
 } from '@dnd-kit/core';
 import {
@@ -29,6 +30,8 @@ export interface ReorderableListProps<T> {
 	getKey: (item: T) => string;
 	onReorder: (next: T[]) => void;
 	renderItem: (item: T, index: number) => ReactNode;
+	/** A human-readable name for an item, announced to screen readers during a keyboard drag instead of its raw key — every caller's key is a persisted id (a UUID in the real backend), which means nothing read aloud. Falls back to the key itself when omitted. */
+	getLabel?: (item: T) => string;
 }
 
 /** Pure id-to-index reorder math, split out from the `DndContext` wiring so it's unit-testable without a real layout — dnd-kit's own drag gesture can't be meaningfully simulated under happy-dom/jsdom, which report zero-sized rects for every element. Returns `items` unchanged (same reference) if either id is missing or they're equal, so callers can skip the `onReorder` call entirely on a no-op drag. */
@@ -43,6 +46,17 @@ export function reorderByKeys<T>(
 	const newIndex = items.findIndex((item) => getKey(item) === overKey);
 	if (oldIndex === -1 || newIndex === -1) return items;
 	return arrayMove(items, oldIndex, newIndex);
+}
+
+/** Resolves a drag event's raw id (a persisted UUID in the real backend) to a human-readable name for screen-reader announcements — falls back to the id itself when the item can't be found or the caller didn't supply `getLabel`. */
+export function resolveItemLabel<T>(
+	items: T[],
+	getKey: (item: T) => string,
+	getLabel: ((item: T) => string) | undefined,
+	id: string,
+): string {
+	const item = items.find((candidate) => getKey(candidate) === id);
+	return item && getLabel ? getLabel(item) : id;
 }
 
 interface RowProps {
@@ -107,6 +121,7 @@ export function ReorderableList<T>({
 	getKey,
 	onReorder,
 	renderItem,
+	getLabel,
 }: ReorderableListProps<T>) {
 	// PointerSensor covers mouse/touch drag; KeyboardSensor is the accessible fallback the old up/down buttons already provided — Tab to a handle, Space to pick up, arrow keys to move, Space to drop, Escape to cancel. A small activation distance on the pointer sensor stops an ordinary tap (e.g. on a row's own text field) from being mistaken for a drag.
 	const sensors = useSensors(
@@ -127,10 +142,39 @@ export function ReorderableList<T>({
 		onReorder(arrayMove(items, index, targetIndex));
 	}
 
+	function labelFor(id: string): string {
+		return resolveItemLabel(items, getKey, getLabel, id);
+	}
+
+	// dnd-kit's default live-region announcements interpolate raw ids — substituting `labelFor` gives a keyboard screen-reader user the same "picked up/moved/dropped" phrasing naming an actual item instead of an opaque database key.
+	const announcements: Announcements = {
+		onDragStart({ active }) {
+			return `Picked up ${labelFor(String(active.id))}.`;
+		},
+		onDragOver({ active, over }) {
+			if (!over) return `${labelFor(String(active.id))} is no longer over a droppable area.`;
+			if (over.id === active.id)
+				return `${labelFor(String(active.id))} is back at its original position.`;
+			return `${labelFor(String(active.id))} was moved to the position of ${labelFor(String(over.id))}.`;
+		},
+		onDragEnd({ active, over }) {
+			if (!over) return `${labelFor(String(active.id))} was dropped.`;
+			return `${labelFor(String(active.id))} was dropped at the position of ${labelFor(String(over.id))}.`;
+		},
+		onDragCancel({ active }) {
+			return `Dragging was cancelled. ${labelFor(String(active.id))} was dropped.`;
+		},
+	};
+
 	const ids = items.map(getKey);
 
 	return (
-		<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+		<DndContext
+			sensors={sensors}
+			collisionDetection={closestCenter}
+			onDragEnd={handleDragEnd}
+			accessibility={{ announcements }}
+		>
 			<SortableContext items={ids} strategy={verticalListSortingStrategy}>
 				<div className="ui-reorderable-list">
 					{items.map((item, index) => (

@@ -5,7 +5,7 @@
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { ReorderableList, reorderByKeys } from './ReorderableList';
+import { ReorderableList, reorderByKeys, resolveItemLabel } from './ReorderableList';
 
 const ITEMS = [
 	{ id: 'a', label: 'A' },
@@ -37,6 +37,34 @@ describe('reorderByKeys', () => {
 	it('returns the same array reference for an unknown key', () => {
 		expect(reorderByKeys(ITEMS, (i) => i.id, 'a', 'no-such-id')).toBe(ITEMS);
 		expect(reorderByKeys(ITEMS, (i) => i.id, 'no-such-id', 'a')).toBe(ITEMS);
+	});
+});
+
+describe('resolveItemLabel', () => {
+	it("uses getLabel's own name for an item that exists", () => {
+		expect(
+			resolveItemLabel(
+				ITEMS,
+				(i) => i.id,
+				(i) => i.label,
+				'b',
+			),
+		).toBe('B');
+	});
+
+	it('falls back to the raw key when getLabel is omitted', () => {
+		expect(resolveItemLabel(ITEMS, (i) => i.id, undefined, 'b')).toBe('b');
+	});
+
+	it('falls back to the raw key when no item matches it', () => {
+		expect(
+			resolveItemLabel(
+				ITEMS,
+				(i) => i.id,
+				(i) => i.label,
+				'no-such-id',
+			),
+		).toBe('no-such-id');
 	});
 });
 
