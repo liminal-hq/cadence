@@ -315,15 +315,15 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	// A brand-new draft's baseline is the just-loaded values — a ref, not state, so the router's dirty blocker (see ExerciseEditorScreen's own note on this exact pattern) can read the latest baseline even from a stale render's closure.
 	const baselineRef = useRef<Draft | null>(null);
 	const skipNextBlockRef = useRef(false);
-	// Which routine the current draft/baseline belong to — a route change from one
-	// `/plan/routine/$routineId/edit` to another doesn't guarantee a remount, so `reload` must tell
-	// "the same routine reloaded after a structural op" (merge, keeping in-progress edits) apart from
-	// "a genuinely different routine" (reset outright, or the previous routine's name/note/rest would
-	// linger in the draft and could be saved onto the new routine's id).
+	// Which routine the current draft/baseline belong to — a route change from one `/plan/routine/$routineId/edit` to another doesn't guarantee a remount, so `reload` must tell "the same routine reloaded after a structural op" (merge, keeping in-progress edits) apart from "a genuinely different routine" (reset outright, or the previous routine's name/note/rest would linger in the draft and could be saved onto the new routine's id).
 	const draftRoutineIdRef = useRef<string | null>(null);
+	// Guards against an in-flight load resolving after a newer one has already started (e.g. a rapid route change fires reload() twice) — a stale response applying its own state after the fresher one already landed would silently step backwards.
+	const latestRequestIdRef = useRef(0);
 
 	const reload = useCallback(() => {
+		const requestId = ++latestRequestIdRef.current;
 		loadEditorState(repository, routineId).then((loaded) => {
+			if (latestRequestIdRef.current !== requestId) return;
 			setState(loaded);
 			const fresh = draftFromState(loaded);
 			const sameRoutine = draftRoutineIdRef.current === routineId;
@@ -414,39 +414,75 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		const currentDraft = draft;
 		setSaving(true);
 		setSaveError(null);
-		try {
-			const tasks: Promise<unknown>[] = [];
-			if (currentDraft.routineName !== routine.name) {
-				tasks.push(repository.renameRoutine(routineId, currentDraft.routineName));
-			}
-			const draftNote =
-				currentDraft.routineNote.trim() === '' ? undefined : currentDraft.routineNote;
-			if (draftNote !== (routine.note ?? undefined)) {
-				tasks.push(repository.updateRoutineNote(routineId, draftNote));
-			}
-			for (const editorSection of sections) {
-				const draftName = currentDraft.sectionNames[editorSection.section.id];
-				if (draftName !== undefined && draftName !== (editorSection.section.name ?? '')) {
-					tasks.push(
-						repository.renameRoutineSection(editorSection.section.id, draftName || undefined),
-					);
-				}
-				for (const item of editorSection.exercises) {
-					const draftRest = currentDraft.rest[item.routineExercise.id];
-					if (draftRest !== item.routineExercise.restMs) {
-						tasks.push(repository.updateRoutineExerciseRest(item.routineExercise.id, draftRest));
-					}
-				}
-			}
-			await Promise.all(tasks);
-		} catch (err) {
-			setSaveError(err instanceof Error ? err.message : String(err));
-			return;
-		} finally {
-			setSaving(false);
+
+		// Each task pairs its own persistence call with the baseline patch to apply once that one call succeeds — `Promise.allSettled` means one field failing must not roll back sibling fields that already committed, so the baseline (and therefore what still reads as "unsaved") has to advance per field, not all-or-nothing on a single `Promise.all`.
+		const tasks: {
+			label: string;
+			run: () => Promise<unknown>;
+			commit: (baseline: Draft) => Draft;
+		}[] = [];
+		if (currentDraft.routineName !== routine.name) {
+			tasks.push({
+				label: 'name',
+				run: () => repository.renameRoutine(routineId, currentDraft.routineName),
+				commit: (baseline) => ({ ...baseline, routineName: currentDraft.routineName }),
+			});
 		}
-		baselineRef.current = currentDraft;
+		const draftNote = currentDraft.routineNote.trim() === '' ? undefined : currentDraft.routineNote;
+		if (draftNote !== (routine.note ?? undefined)) {
+			tasks.push({
+				label: 'note',
+				run: () => repository.updateRoutineNote(routineId, draftNote),
+				commit: (baseline) => ({ ...baseline, routineNote: currentDraft.routineNote }),
+			});
+		}
+		for (const editorSection of sections) {
+			const draftName = currentDraft.sectionNames[editorSection.section.id];
+			if (draftName !== undefined && draftName !== (editorSection.section.name ?? '')) {
+				const sectionId = editorSection.section.id;
+				tasks.push({
+					label: `"${draftName || 'Section'}" name`,
+					run: () => repository.renameRoutineSection(sectionId, draftName || undefined),
+					commit: (baseline) => ({
+						...baseline,
+						sectionNames: { ...baseline.sectionNames, [sectionId]: draftName },
+					}),
+				});
+			}
+			for (const item of editorSection.exercises) {
+				const draftRest = currentDraft.rest[item.routineExercise.id];
+				if (draftRest !== item.routineExercise.restMs) {
+					const routineExerciseId = item.routineExercise.id;
+					tasks.push({
+						label: `${item.exercise?.name ?? 'exercise'} rest override`,
+						run: () => repository.updateRoutineExerciseRest(routineExerciseId, draftRest),
+						commit: (baseline) => ({
+							...baseline,
+							rest: { ...baseline.rest, [routineExerciseId]: draftRest },
+						}),
+					});
+				}
+			}
+		}
+
+		const results = await Promise.allSettled(tasks.map((task) => task.run()));
+		setSaving(false);
+
+		let nextBaseline = baselineRef.current ?? currentDraft;
+		const failedLabels: string[] = [];
+		results.forEach((result, index) => {
+			if (result.status === 'fulfilled') {
+				nextBaseline = tasks[index].commit(nextBaseline);
+			} else {
+				failedLabels.push(tasks[index].label);
+			}
+		});
+		baselineRef.current = nextBaseline;
 		reload();
+
+		if (failedLabels.length > 0) {
+			setSaveError(`Couldn't save: ${failedLabels.join(', ')}. Everything else was saved.`);
+		}
 	}
 
 	return (
