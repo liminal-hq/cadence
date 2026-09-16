@@ -23,6 +23,7 @@ import { WatchSyncScreen } from '../../screens/settings/WatchSyncScreen';
 import { PlatesSettingsScreen } from '../../screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from '../../screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from '../../screens/settings/AccessibilitySettingsScreen';
+import { ThemeSettingsScreen } from '../../screens/settings/ThemeSettingsScreen';
 import { ExerciseLibraryScreen } from '../../screens/exercises/ExerciseLibraryScreen';
 import { ExerciseEditorScreen } from '../../screens/exercises/ExerciseEditorScreen';
 import { CategoryEditorScreen } from '../../screens/exercises/CategoryEditorScreen';
@@ -94,7 +95,7 @@ const RENDER_BY_PATH: Record<string, (params: Record<string, string>) => ReactNo
 	'/settings/1rm-formula': () => <SettingsComingSoon screen="1RM formula" />,
 	'/settings/categories': () => <CategoryEditorScreen />,
 	'/settings/graphs': () => <SettingsComingSoon screen="Week start & graphs" />,
-	'/settings/theme': () => <SettingsComingSoon screen="Theme & wallpaper colours" />,
+	'/settings/theme': () => <ThemeSettingsScreen />,
 	'/settings/health-connect': () => <SettingsComingSoon screen="Health Connect" />,
 	'/settings/notifications': () => (
 		<SettingsComingSoon screen="Notifications, widgets & shortcuts" />

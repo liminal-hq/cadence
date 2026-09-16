@@ -175,6 +175,7 @@ export interface Settings {
 	 *  real OS permission API, which doesn't exist in this mock/desktop context. */
 	notificationsDenied: boolean;
 	automaticBackupEnabled: boolean;
+	useMaterialYou: boolean;
 }
 
 /** SPEC.md section 10.1's Workout.source — 'watch' isn't a source, it's a *device* that logged

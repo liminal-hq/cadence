@@ -41,12 +41,15 @@ import { WatchSyncScreen } from './screens/settings/WatchSyncScreen';
 import { PlatesSettingsScreen } from './screens/settings/PlatesSettingsScreen';
 import { BarbellEditorScreen } from './screens/settings/BarbellEditorScreen';
 import { AccessibilitySettingsScreen } from './screens/settings/AccessibilitySettingsScreen';
+import { ThemeSettingsScreen } from './screens/settings/ThemeSettingsScreen';
 import { resolvePlatform } from './platform';
+import { useMaterialYouTheme } from './theme/useMaterialYouTheme';
 import './screens/screens.css';
 import './App.css';
 
 function RootLayout() {
 	const [{ platformType, isDesktop }] = useState(resolvePlatform);
+	useMaterialYouTheme();
 
 	return (
 		<div className="app-root">
@@ -287,7 +290,11 @@ const settingsCategoriesRoute = createRoute({
 	component: CategoryEditorScreen,
 });
 const settingsGraphsRoute = settingsStubRoute('/settings/graphs', 'Week start & graphs');
-const settingsThemeRoute = settingsStubRoute('/settings/theme', 'Theme & wallpaper colours');
+const settingsThemeRoute = createRoute({
+	getParentRoute: () => rootRoute,
+	path: '/settings/theme',
+	component: ThemeSettingsScreen,
+});
 const settingsAccessibilityRoute = createRoute({
 	getParentRoute: () => rootRoute,
 	path: '/settings/accessibility',

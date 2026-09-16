@@ -1005,6 +1005,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	// Seeded denied so P-61's notifications banner has something real to demonstrate.
 	notificationsDenied: true,
 	automaticBackupEnabled: true,
+	useMaterialYou: true,
 };
 
 /**

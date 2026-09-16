@@ -537,6 +537,17 @@ Watch
 
 **States:** none beyond each toggle's own on/off; settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
 
+### P-68 — Theme and dynamic colour
+
+**Scope:** Initial  
+**Purpose:** Let Material You (Android 12+) dynamic colour, derived from the device wallpaper, drive Cadence's own M3 tokens.
+
+**Entry:** Settings hub (P-60).
+
+**Content and actions:** a single Material You toggle.
+
+**States:** on/off; disabled with an explanatory subtext on a platform where the underlying plugin always reports unsupported (everywhere but Android 12+); settings failed to load, with a retry action; a change failed to save, with a dismissible explanation.
+
 ## 8. Wear OS: active workout execution
 
 ### W-01 — Watch home
