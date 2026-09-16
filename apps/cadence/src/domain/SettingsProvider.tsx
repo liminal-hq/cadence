@@ -3,7 +3,15 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import {
+	createContext,
+	useCallback,
+	useContext,
+	useEffect,
+	useRef,
+	useState,
+	type ReactNode,
+} from 'react';
 import { useLoggingRepository } from './RepositoryProvider';
 import type { Settings } from './types';
 
@@ -31,6 +39,8 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	const [settings, setSettings] = useState<Settings | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [loadError, setLoadError] = useState<string | null>(null);
+	// Guards against an earlier write's rollback or stale success clobbering a later write that has since superseded it — only the most-recently-issued call is still allowed to touch `settings` once it settles.
+	const latestRequestId = useRef(0);
 
 	const reload = useCallback(() => {
 		setLoadError(null);
@@ -42,15 +52,17 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	useEffect(reload, [reload]);
 
 	async function updateSettings(patch: Partial<Settings>): Promise<void> {
+		const requestId = ++latestRequestId.current;
 		const previous = settings;
 		setSettings((current) => (current ? { ...current, ...patch } : current));
 		setError(null);
 		try {
 			// Trusts the backend's returned row over the optimistic merge above, in case a patch resolves to something other than a literal field-for-field overwrite.
-			setSettings(await repository.updateSettings(patch));
+			const updated = await repository.updateSettings(patch);
+			if (requestId === latestRequestId.current) setSettings(updated);
 		} catch (err) {
-			setSettings(previous);
 			setError(err instanceof Error ? err.message : String(err));
+			if (requestId === latestRequestId.current) setSettings(previous);
 		}
 	}
 

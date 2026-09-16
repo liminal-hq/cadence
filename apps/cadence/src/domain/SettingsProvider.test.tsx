@@ -9,6 +9,7 @@ import { RepositoryProvider } from './RepositoryProvider';
 import { SettingsProvider, useSettings } from './SettingsProvider';
 import { SettingsLoadFailure } from '../screens/settings/SettingsLoadFailure';
 import { MockLoggingRepository } from './mockRepository';
+import type { Settings } from './types';
 
 function Probe() {
 	const { settings, error, clearError, updateSettings } = useSettings();
@@ -75,6 +76,36 @@ describe('SettingsProvider', () => {
 		});
 
 		expect(screen.getByTestId('error').textContent).toBe('none');
+	});
+
+	it('keeps a later successful write even when an earlier write rejects afterward', async () => {
+		const repository = new MockLoggingRepository();
+		renderProbe(repository);
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+
+		let rejectFirst: (err: Error) => void = () => {};
+		let resolveSecond: (value: Settings) => void = () => {};
+		const first = new Promise<Settings>((_, reject) => {
+			rejectFirst = reject;
+		});
+		const second = new Promise<Settings>((resolve) => {
+			resolveSecond = resolve;
+		});
+		vi.spyOn(repository, 'updateSettings').mockReturnValueOnce(first).mockReturnValueOnce(second);
+
+		act(() => {
+			screen.getByText('change').click();
+			screen.getByText('change').click();
+		});
+
+		const afterSecond: Settings = { ...(await repository.getSettings()), weightUnit: 'lb' };
+		await act(async () => resolveSecond(afterSecond));
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('lb'));
+
+		await act(async () => rejectFirst(new Error('offline')));
+
+		expect(screen.getByTestId('weight-unit').textContent).toBe('lb');
+		expect(screen.getByTestId('error').textContent).toBe('offline');
 	});
 
 	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {
