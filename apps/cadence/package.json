@@ -17,6 +17,7 @@
 		"@dnd-kit/core": "^6.3.1",
 		"@dnd-kit/sortable": "^10.0.0",
 		"@dnd-kit/utilities": "^3.2.2",
+		"@liminal-hq/plugin-material-you": "^0.1.4",
 		"@liminal-hq/undertone": "^0.1.1",
 		"@tanstack/react-router": "^1.170.33",
 		"@tauri-apps/api": "^2.10.1",

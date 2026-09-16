@@ -95,7 +95,7 @@ export function SettingsHubScreen() {
 				{
 					icon: 'palette',
 					label: 'Theme & wallpaper colours',
-					status: 'System',
+					status: settings?.useMaterialYou ? 'Material You' : 'System',
 					to: '/settings/theme',
 				},
 				{ icon: 'vibration', label: 'Motion, haptics & sound', to: '/settings/accessibility' },
