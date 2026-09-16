@@ -4,17 +4,19 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
-import { Button } from '../components/ui/Button/Button';
-import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { useLoggingRepository } from './RepositoryProvider';
 import type { Settings } from './types';
-import '../screens/screens.css';
 
 interface SettingsContextValue {
 	/** `null` until the initial `getSettings()` call resolves. */
 	settings: Settings | null;
-	/** The message from the most recent failed `updateSettings` call, if any — cleared on the next attempt. */
+	/** The message from the most recent failed `updateSettings` call, if any — cleared on the next attempt or by calling `clearError`. */
 	error: string | null;
+	clearError: () => void;
+	/** Set only when the initial load itself failed — distinct from `error`, which is about a failed write against already-loaded settings. */
+	loadError: string | null;
+	/** Retries the initial load. This provider mounts once at the app root rather than per-screen, so — unlike the fetch each settings screen used to run in its own effect — a rejected load has no remount to retry it on; a settings-dependent screen calls this itself rather than the provider retrying on its own. */
+	reload: () => void;
 	updateSettings: (patch: Partial<Settings>) => Promise<void>;
 }
 
@@ -30,15 +32,14 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	const [error, setError] = useState<string | null>(null);
 	const [loadError, setLoadError] = useState<string | null>(null);
 
-	// This provider mounts once at the app root rather than per-screen, so — unlike the fetch each settings screen used to run in its own effect — a rejected load has no remount to retry it on; without an explicit retry path here, every settings-dependent screen would stay blank until the app restarts.
-	const load = useCallback(() => {
+	const reload = useCallback(() => {
 		setLoadError(null);
 		repository.getSettings().then(setSettings, (err) => {
 			setLoadError(err instanceof Error ? err.message : String(err));
 		});
 	}, [repository]);
 
-	useEffect(load, [load]);
+	useEffect(reload, [reload]);
 
 	async function updateSettings(patch: Partial<Settings>): Promise<void> {
 		const previous = settings;
@@ -53,26 +54,17 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 		}
 	}
 
-	if (!settings && loadError) {
-		return (
-			<div className="screen-shell">
-				<div className="screen-shell__content">
-					<EmptyState
-						headline="Couldn't load settings"
-						body={loadError}
-						action={
-							<Button variant="filled" onClick={load}>
-								Try again
-							</Button>
-						}
-					/>
-				</div>
-			</div>
-		);
-	}
-
 	return (
-		<SettingsContext.Provider value={{ settings, error, updateSettings }}>
+		<SettingsContext.Provider
+			value={{
+				settings,
+				error,
+				clearError: () => setError(null),
+				loadError,
+				reload,
+				updateSettings,
+			}}
+		>
 			{children}
 		</SettingsContext.Provider>
 	);

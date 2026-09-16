@@ -7,15 +7,20 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { RepositoryProvider } from './RepositoryProvider';
 import { SettingsProvider, useSettings } from './SettingsProvider';
+import { SettingsLoadFailure } from '../screens/settings/SettingsLoadFailure';
 import { MockLoggingRepository } from './mockRepository';
 
 function Probe() {
-	const { settings, error, updateSettings } = useSettings();
+	const { settings, error, clearError, updateSettings } = useSettings();
+
+	if (!settings) return <SettingsLoadFailure />;
+
 	return (
 		<div>
-			<span data-testid="weight-unit">{settings?.weightUnit ?? 'loading'}</span>
+			<span data-testid="weight-unit">{settings.weightUnit}</span>
 			<span data-testid="error">{error ?? 'none'}</span>
 			<button onClick={() => updateSettings({ weightUnit: 'lb' })}>change</button>
+			<button onClick={clearError}>dismiss</button>
 		</div>
 	);
 }
@@ -35,7 +40,7 @@ describe('SettingsProvider', () => {
 		const repository = new MockLoggingRepository();
 		renderProbe(repository);
 
-		expect(screen.getByTestId('weight-unit').textContent).toBe('loading');
+		expect(screen.queryByTestId('weight-unit')).not.toBeInTheDocument();
 		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
 	});
 
@@ -64,6 +69,12 @@ describe('SettingsProvider', () => {
 
 		expect(screen.getByTestId('weight-unit').textContent).toBe('kg');
 		expect(screen.getByTestId('error').textContent).toBe('offline');
+
+		await act(async () => {
+			screen.getByText('dismiss').click();
+		});
+
+		expect(screen.getByTestId('error').textContent).toBe('none');
 	});
 
 	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {
@@ -79,6 +90,22 @@ describe('SettingsProvider', () => {
 		});
 
 		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+	});
+
+	it('keeps rendering sibling content that has no dependency on settings when the initial load fails', async () => {
+		const repository = new MockLoggingRepository();
+		vi.spyOn(repository, 'getSettings').mockRejectedValueOnce(new Error('disk full'));
+		render(
+			<RepositoryProvider repository={repository}>
+				<SettingsProvider>
+					<span>settings-independent content</span>
+					<Probe />
+				</SettingsProvider>
+			</RepositoryProvider>,
+		);
+
+		await waitFor(() => expect(screen.getByText("Couldn't load settings")).toBeInTheDocument());
+		expect(screen.getByText('settings-independent content')).toBeInTheDocument();
 	});
 
 	it('throws when used outside a SettingsProvider', () => {

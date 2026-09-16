@@ -6,19 +6,26 @@
 
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { Switch } from '../../components/ui/Switch/Switch';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { useSettings } from '../../domain/SettingsProvider';
 import './settings.css';
 
 export function AccessibilitySettingsScreen() {
-	const { settings, updateSettings: patch } = useSettings();
+	const { settings, error, clearError, updateSettings: patch } = useSettings();
 
-	if (!settings) return null;
+	if (!settings) return <SettingsLoadFailure />;
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Motion, haptics & sound" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				<section>
 					<h2 className="settings-section__title">Haptics</h2>
 					<div className="settings-section__body">

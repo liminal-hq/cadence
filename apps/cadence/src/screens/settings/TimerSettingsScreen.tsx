@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
+import { SettingsLoadFailure } from './SettingsLoadFailure';
 import { Switch } from '../../components/ui/Switch/Switch';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
 import { Banner } from '../../components/ui/Banner/Banner';
@@ -22,15 +23,20 @@ const DEFAULT_REST_PRESETS_MS = [60_000, 90_000, 120_000, 180_000, 300_000];
 
 export function TimerSettingsScreen() {
 	const navigate = useNavigate();
-	const { settings, updateSettings: patch } = useSettings();
+	const { settings, error, clearError, updateSettings: patch } = useSettings();
 	const [restPickerOpen, setRestPickerOpen] = useState(false);
 
-	if (!settings) return null;
+	if (!settings) return <SettingsLoadFailure />;
 
 	return (
 		<div className="settings-screen">
 			<SettingsSubScreenHeader title="Rest & workout timers" />
 			<div className="settings-screen__content">
+				{error && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner icon="error" tone="attention" message={error} onDismiss={clearError} />
+					</div>
+				)}
 				{settings.notificationsDenied && (
 					<div className="settings-section__body settings-section__body--padded">
 						<Banner
