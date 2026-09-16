@@ -18,12 +18,44 @@ vi.mock('@liminal-hq/plugin-material-you', () => ({
 	getMaterialYouColours: vi.fn(),
 }));
 
+// Keyed by Android's real suffix-to-tone mapping (suffix 0 = tone 100 ... suffix 1000 = tone 0),
+// not `tone * 10` — see materialYouTokens.ts's own comment for why.
 const FULL_PALETTES = {
-	system_accent1: { '400': '#400000', '1000': '#a00000', '900': '#900000', '100': '#100000' },
-	system_accent2: { '400': '#004000', '1000': '#00a000', '900': '#009000', '100': '#001000' },
-	system_accent3: { '400': '#000040', '1000': '#0000a0', '900': '#000090', '100': '#000010' },
-	system_neutral1: { '900': '#909090', '1000': '#f0f0f0', '100': '#101010', '200': '#202020' },
-	system_neutral2: { '300': '#0a0a0a', '500': '#0b0b0b', '800': '#0d0d0d' },
+	system_accent1: {
+		'900': '#100000',
+		'800': '#200000',
+		'600': '#400000',
+		'200': '#800000',
+		'100': '#900000',
+		'0': '#a00000',
+	},
+	system_accent2: {
+		'900': '#001000',
+		'800': '#002000',
+		'600': '#004000',
+		'200': '#008000',
+		'100': '#009000',
+		'0': '#00a000',
+	},
+	system_accent3: {
+		'900': '#000010',
+		'800': '#000020',
+		'600': '#000040',
+		'200': '#000080',
+		'100': '#000090',
+		'0': '#0000a0',
+	},
+	system_neutral1: {
+		'1000': '#000000',
+		'900': '#101010',
+		'800': '#202020',
+		'700': '#303030',
+		'100': '#909090',
+		'50': '#f0f0f0',
+		'10': '#fafafa',
+		'0': '#ffffff',
+	},
+	system_neutral2: { '700': '#0a0a0a', '500': '#0b0b0b', '400': '#0c0c0c', '200': '#0d0d0d' },
 };
 
 function renderWithSettings(repository: MockLoggingRepository) {

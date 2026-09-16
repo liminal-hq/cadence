@@ -11,12 +11,15 @@ import type {
 
 export type ColourScheme = 'light' | 'dark';
 
-// Android exposes each palette as color resources named e.g. `system_accent1_600`; the suffix is
-// ten times the real M3 tone (0-100), so tone 60 lives at key "600".
-const AVAILABLE_TONES = [0, 1, 5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+// Android exposes each palette as color resources named e.g. `system_accent1_600`, and the
+// suffix-to-tone relationship runs the OPPOSITE direction you'd guess: suffix 0 is the lightest
+// (tone 100) and suffix 1000 is the darkest (tone 0) — `tone = 100 - suffix / 10`. This matches
+// M3's own documented role mapping (colorPrimary -> system_accent1_600 at tone 40 light,
+// onPrimary -> system_accent1_0 at tone 100 light).
+const AVAILABLE_TONES = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 100];
 
 function suffixFor(tone: number): string {
-	return String(tone * 10);
+	return String((100 - tone) * 10);
 }
 
 function parseRgb(argbHex: string): [number, number, number] {

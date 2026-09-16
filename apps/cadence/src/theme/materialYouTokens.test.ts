@@ -7,47 +7,50 @@ import { describe, expect, it } from 'vitest';
 import { deriveMaterialYouTokens } from './materialYouTokens';
 import type { MaterialYouResponse } from '@liminal-hq/plugin-material-you';
 
+// Keyed by Android's real suffix-to-tone mapping (suffix 0 = tone 100 ... suffix 1000 = tone 0),
+// not `tone * 10` — see materialYouTokens.ts's own comment for why.
 const ACCENT1 = {
-	'100': '#100000',
-	'200': '#200000',
-	'300': '#300000',
-	'400': '#400000',
-	'800': '#800000',
-	'900': '#900000',
-	'1000': '#a00000',
+	'900': '#100000', // tone10
+	'800': '#200000', // tone20
+	'700': '#300000', // tone30
+	'600': '#400000', // tone40
+	'200': '#800000', // tone80
+	'100': '#900000', // tone90
+	'0': '#a00000', // tone100
 };
 const ACCENT2 = {
-	'100': '#001000',
-	'200': '#002000',
-	'300': '#003000',
-	'400': '#004000',
-	'800': '#008000',
-	'900': '#009000',
-	'1000': '#00a000',
+	'900': '#001000',
+	'800': '#002000',
+	'700': '#003000',
+	'600': '#004000',
+	'200': '#008000',
+	'100': '#009000',
+	'0': '#00a000',
 };
 const ACCENT3 = {
-	'100': '#000010',
-	'200': '#000020',
-	'300': '#000030',
-	'400': '#000040',
-	'800': '#000080',
-	'900': '#000090',
-	'1000': '#0000a0',
+	'900': '#000010',
+	'800': '#000020',
+	'700': '#000030',
+	'600': '#000040',
+	'200': '#000080',
+	'100': '#000090',
+	'0': '#0000a0',
 };
 const NEUTRAL1 = {
-	'10': '#010101',
-	'50': '#050505',
-	'100': '#101010',
-	'200': '#202020',
-	'300': '#303030',
-	'900': '#909090',
-	'1000': '#f0f0f0',
+	'1000': '#000000', // tone0
+	'900': '#101010', // tone10
+	'800': '#202020', // tone20
+	'700': '#303030', // tone30
+	'100': '#909090', // tone90
+	'50': '#f0f0f0', // tone95
+	'10': '#fafafa', // tone99
+	'0': '#ffffff', // tone100
 };
 const NEUTRAL2 = {
-	'300': '#0a0a0a',
-	'500': '#0b0b0b',
-	'600': '#0c0c0c',
-	'800': '#0d0d0d',
+	'700': '#0a0a0a', // tone30
+	'500': '#0b0b0b', // tone50
+	'400': '#0c0c0c', // tone60
+	'200': '#0d0d0d', // tone80
 };
 
 const FULL_RESPONSE: MaterialYouResponse = {
@@ -103,16 +106,15 @@ describe('deriveMaterialYouTokens', () => {
 		const light = deriveMaterialYouTokens(FULL_RESPONSE, 'light');
 		const dark = deriveMaterialYouTokens(FULL_RESPONSE, 'dark');
 
-		// surface (light 98, between stops 90 and 100)
-		expect(light).toMatchObject({ '--cadence-surface': '#dddddd' });
-		expect(light).toMatchObject({ '--cadence-surface-container-low': '#cacaca' });
-		expect(light).toMatchObject({ '--cadence-surface-container': '#b6b6b6' });
-		expect(light).toMatchObject({ '--cadence-surface-container-high': '#a3a3a3' });
-		expect(light).toMatchObject({ '--cadence-inverse-on-surface': '#c0c0c0' });
+		// surface (light 98, between stops 95 and 99) and its siblings
+		expect(light).toMatchObject({ '--cadence-surface': '#f8f8f8' });
+		expect(light).toMatchObject({ '--cadence-surface-container-low': '#f3f3f3' });
+		expect(light).toMatchObject({ '--cadence-surface-container': '#dddddd' });
+		expect(light).toMatchObject({ '--cadence-surface-container-high': '#b6b6b6' });
 
-		// surface (dark 6, between stops 5 and 10) and its siblings
-		expect(dark).toMatchObject({ '--cadence-surface': '#070707' });
-		expect(dark).toMatchObject({ '--cadence-surface-container-lowest': '#040404' });
+		// surface (dark 6, between stops 0 and 10) and its siblings
+		expect(dark).toMatchObject({ '--cadence-surface': '#0a0a0a' });
+		expect(dark).toMatchObject({ '--cadence-surface-container-lowest': '#060606' });
 		expect(dark).toMatchObject({ '--cadence-surface-container': '#131313' });
 		expect(dark).toMatchObject({ '--cadence-surface-container-high': '#1b1b1b' });
 		expect(dark).toMatchObject({ '--cadence-surface-container-highest': '#232323' });
