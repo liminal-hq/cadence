@@ -164,7 +164,14 @@ export function CategoryEditorScreen() {
 				<ReorderableList
 					items={categories}
 					getKey={(c) => c.id}
-					onReorder={(next) => guarded(() => repository.reorderCategories(next.map((c) => c.id)))}
+					getLabel={(c) => c.name}
+					onReorder={(next) => {
+						const previous = categories;
+						setCategories(next);
+						guarded(() => repository.reorderCategories(next.map((c) => c.id))).then((ok) => {
+							if (!ok) setCategories(previous);
+						});
+					}}
 					renderItem={(category) => (
 						<Surface tone="container-low" radius="m" className="category-row">
 							<Tag
