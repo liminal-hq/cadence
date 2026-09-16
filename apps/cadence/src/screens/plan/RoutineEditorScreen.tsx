@@ -240,6 +240,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	}
 
 	async function handleReorderSections(next: EditorSection[]) {
+		setState({ routine, sections: next });
 		await repository.reorderRoutineSections(
 			routineId,
 			next.map((s) => s.section.id),
@@ -248,6 +249,10 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	}
 
 	async function handleReorderExercises(sectionId: string, next: EditorExercise[]) {
+		setState({
+			routine,
+			sections: sections.map((s) => (s.section.id === sectionId ? { ...s, exercises: next } : s)),
+		});
 		await repository.reorderRoutineExercises(
 			sectionId,
 			next.map((e) => e.routineExercise.id),
@@ -304,6 +309,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 				<ReorderableList
 					items={sections}
 					getKey={(item) => item.section.id}
+					getLabel={(item) => item.section.name || 'Section'}
 					onReorder={handleReorderSections}
 					renderItem={({ section, exercises }) => (
 						<Surface tone="container-low" radius="m" className="routine-section-card">
@@ -336,6 +342,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 							<ReorderableList
 								items={exercises}
 								getKey={(item) => item.routineExercise.id}
+								getLabel={(item) => item.exercise.name}
 								onReorder={(next) => handleReorderExercises(section.id, next)}
 								renderItem={(item) => (
 									<div className="routine-editor__row">

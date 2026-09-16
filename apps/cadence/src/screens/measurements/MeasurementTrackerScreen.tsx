@@ -217,9 +217,10 @@ export function MeasurementTrackerScreen() {
 							items={definitions}
 							getKey={(d) => d.id}
 							getLabel={(d) => d.name}
-							onReorder={(next) =>
-								guarded(() => repository.reorderMeasurementDefinitions(next.map((d) => d.id)))
-							}
+							onReorder={(next) => {
+								setDefinitions(next);
+								guarded(() => repository.reorderMeasurementDefinitions(next.map((d) => d.id)));
+							}}
 							renderItem={(definition) => (
 								<Surface
 									tone="container-low"
