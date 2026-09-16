@@ -68,15 +68,17 @@ export async function loadEditorState(
 			const routineExercises = await repository.listRoutineExercises(section.id);
 			const exercises = await Promise.all(
 				routineExercises.map(async (routineExercise) => {
+					let exercise: Exercise | null;
 					try {
-						const [exercise, templates] = await Promise.all([
-							repository.getExercise(routineExercise.exerciseId),
-							repository.listSetTemplates(routineExercise.id),
-						]);
-						return { routineExercise, exercise, templates };
+						exercise = await repository.getExercise(routineExercise.exerciseId);
 					} catch {
-						return { routineExercise, exercise: null, templates: [] };
+						exercise = null;
 					}
+					// Only a missing *exercise* renders as the resilient "missing exercise" row — a
+					// templates-fetch failure is a real (likely transient) error and must propagate,
+					// not be misread as a deleted exercise and offered up for cascade-deleting Remove.
+					const templates = exercise ? await repository.listSetTemplates(routineExercise.id) : [];
+					return { routineExercise, exercise, templates };
 				}),
 			);
 			return { section, exercises };
@@ -173,6 +175,14 @@ function parseTarget(
 	const value = Number(raw);
 	if (!Number.isFinite(value) || value < 0) return { ok: false };
 	if (integer && !Number.isInteger(value)) return { ok: false };
+	return { ok: true, value };
+}
+
+/** A rest override of zero or fewer seconds isn't a meaningful duration — an empty field, not "0", is how "no override" is represented (see `parseTarget`'s own `ok: true, value: undefined` for a blank field). */
+function parseRestSeconds(raw: string): { ok: true; value: number | undefined } | { ok: false } {
+	if (raw.trim() === '') return { ok: true, value: undefined };
+	const value = Number(raw);
+	if (!Number.isFinite(value) || value <= 0) return { ok: false };
 	return { ok: true, value };
 }
 
@@ -290,6 +300,8 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		Record<string, PopulationMode>
 	>({});
 	const [restEditingId, setRestEditingId] = useState<string | null>(null);
+	const [restInput, setRestInput] = useState('');
+	const [restInputError, setRestInputError] = useState<string | null>(null);
 	const [pickerForSectionId, setPickerForSectionId] = useState<string | null>(null);
 	const [sectionPendingDelete, setSectionPendingDelete] = useState<EditorSection | null>(null);
 	const [exercisePendingDelete, setExercisePendingDelete] = useState<EditorExercise | null>(null);
@@ -666,21 +678,40 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 													<TextField
 														label="Rest override (seconds)"
 														type="number"
-														value={restMs != null ? String(Math.round(restMs / 1000)) : ''}
-														onChange={(raw) =>
+														value={restInput}
+														onChange={(raw) => {
+															setRestInput(raw);
+															setRestInputError(null);
+														}}
+													/>
+													<Button
+														variant="text"
+														onClick={() => {
+															const parsed = parseRestSeconds(restInput);
+															if (!parsed.ok) {
+																setRestInputError(
+																	'Enter a positive number of seconds, or leave it blank.',
+																);
+																return;
+															}
 															setDraft({
 																...draft,
 																rest: {
 																	...draft.rest,
 																	[item.routineExercise.id]:
-																		raw.trim() === '' ? undefined : Math.round(Number(raw) * 1000),
+																		parsed.value == null
+																			? undefined
+																			: Math.round(parsed.value * 1000),
 																},
-															})
-														}
-													/>
-													<Button variant="text" onClick={() => setRestEditingId(null)}>
+															});
+															setRestEditingId(null);
+														}}
+													>
 														Done
 													</Button>
+													{restInputError && (
+														<p className="routine-editor__template-error">{restInputError}</p>
+													)}
 												</>
 											) : (
 												<span className="routine-editor__rest-label">
@@ -691,7 +722,11 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 													<button
 														type="button"
 														className="routine-editor__rest-change"
-														onClick={() => setRestEditingId(item.routineExercise.id)}
+														onClick={() => {
+															setRestInput(restMs != null ? String(Math.round(restMs / 1000)) : '');
+															setRestInputError(null);
+															setRestEditingId(item.routineExercise.id);
+														}}
 													>
 														change
 													</button>

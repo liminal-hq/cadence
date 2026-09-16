@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { defaultPopulationMode, loadEditorState } from './RoutineEditorScreen';
 import { MockLoggingRepository } from '../../domain/mockRepository';
 import { SEED_LAST_PERFORMANCE } from '../../domain/types';
@@ -35,6 +35,16 @@ describe('loadEditorState', () => {
 		expect(state.sections[0].exercises[0].exercise?.name).toBe('Bench Press');
 		expect(state.sections[0].exercises[1].exercise).toBeNull();
 		expect(state.sections[0].exercises[1].templates).toEqual([]);
+	});
+
+	it('propagates a set-template load failure instead of misreading it as a missing exercise', async () => {
+		const repo = new MockLoggingRepository();
+		const routine = await repo.createRoutine('Push day');
+		const section = await repo.addRoutineSection(routine.id, 'A');
+		await repo.addRoutineExercise(section.id, 'ex-bench-press');
+		vi.spyOn(repo, 'listSetTemplates').mockRejectedValue(new Error('transient DB error'));
+
+		await expect(loadEditorState(repo, routine.id)).rejects.toThrow('transient DB error');
 	});
 });
 
