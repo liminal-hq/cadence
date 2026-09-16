@@ -8,6 +8,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { SettingsRow } from './SettingsRow';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { useSettings } from '../../domain/SettingsProvider';
 import '../screens.css';
@@ -29,7 +30,7 @@ interface SettingsSection {
 export function SettingsHubScreen() {
 	const navigate = useNavigate();
 	const repository = useLoggingRepository();
-	const { settings } = useSettings();
+	const { settings, loadError, reload } = useSettings();
 	const [barbellCount, setBarbellCount] = useState(0);
 	const [exerciseCount, setExerciseCount] = useState(0);
 	const [categoryCount, setCategoryCount] = useState(0);
@@ -141,6 +142,16 @@ export function SettingsHubScreen() {
 			    screen, once PR C lands) replaces this fallback with its own contextual origin. */}
 			<AppBar title="Settings" size="large" back={{ to: '/today' }} />
 			<div className="screen-shell__content settings-screen__content">
+				{loadError && (
+					<div className="settings-section__body settings-section__body--padded">
+						<Banner
+							icon="error"
+							tone="attention"
+							message="Couldn't load settings — statuses below may not be accurate until you retry."
+							action={{ label: 'Try again', onClick: reload }}
+						/>
+					</div>
+				)}
 				{sections.map((section) => (
 					<section key={section.title}>
 						<h2 className="settings-section__title">{section.title}</h2>
