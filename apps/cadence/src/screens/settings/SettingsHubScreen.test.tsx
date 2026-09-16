@@ -5,6 +5,7 @@
 
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { getMaterialYouColours } from '@liminal-hq/plugin-material-you';
 import { SettingsHubScreen } from './SettingsHubScreen';
 import { RepositoryProvider } from '../../domain/RepositoryProvider';
 import { SettingsProvider, useSettings } from '../../domain/SettingsProvider';
@@ -16,6 +17,10 @@ function TriggerFailingWrite() {
 	const { updateSettings } = useSettings();
 	return <button onClick={() => updateSettings({ weightUnit: 'lb' })}>trigger write</button>;
 }
+
+vi.mock('@liminal-hq/plugin-material-you', () => ({
+	getMaterialYouColours: vi.fn().mockResolvedValue({ supported: true, apiLevel: 31, palettes: {} }),
+}));
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
@@ -63,6 +68,41 @@ describe('SettingsHubScreen', () => {
 
 		await waitFor(() => expect(screen.getByText('Kilograms')).toBeInTheDocument());
 		expect(screen.queryByText(BANNER_TEXT)).not.toBeInTheDocument();
+	});
+
+	it('shows "System" rather than "Material You" when the preference is on but the plugin reports unsupported', async () => {
+		vi.mocked(getMaterialYouColours).mockResolvedValueOnce({
+			supported: false,
+			apiLevel: 0,
+			palettes: {},
+		});
+		const repository = new MockLoggingRepository();
+
+		render(
+			<RepositoryProvider repository={repository}>
+				<SettingsProvider>
+					<SettingsHubScreen />
+				</SettingsProvider>
+			</RepositoryProvider>,
+		);
+
+		await waitFor(() => expect(screen.getByText('Kilograms')).toBeInTheDocument());
+		expect(screen.getByText('System')).toBeInTheDocument();
+		expect(screen.queryByText('Material You')).not.toBeInTheDocument();
+	});
+
+	it('shows "Material You" once the plugin confirms support, matching the on preference', async () => {
+		const repository = new MockLoggingRepository();
+
+		render(
+			<RepositoryProvider repository={repository}>
+				<SettingsProvider>
+					<SettingsHubScreen />
+				</SettingsProvider>
+			</RepositoryProvider>,
+		);
+
+		await waitFor(() => expect(screen.getByText('Material You')).toBeInTheDocument());
 	});
 
 	it('surfaces a write failure here even if it settles after the originating screen was left', async () => {

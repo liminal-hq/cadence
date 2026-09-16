@@ -6,6 +6,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { getMaterialYouColours } from '@liminal-hq/plugin-material-you';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { SettingsRow } from './SettingsRow';
 import { Banner } from '../../components/ui/Banner/Banner';
@@ -34,11 +35,16 @@ export function SettingsHubScreen() {
 	const [barbellCount, setBarbellCount] = useState(0);
 	const [exerciseCount, setExerciseCount] = useState(0);
 	const [categoryCount, setCategoryCount] = useState(0);
+	const [materialYouSupported, setMaterialYouSupported] = useState(false);
 
 	useEffect(() => {
 		repository.listBarbellConfigs().then((list) => setBarbellCount(list.length));
 		repository.listExercises().then((list) => setExerciseCount(list.length));
 		repository.listCategories().then((list) => setCategoryCount(list.length));
+		getMaterialYouColours().then(
+			(response) => setMaterialYouSupported(response.supported),
+			() => setMaterialYouSupported(false),
+		);
 	}, [repository]);
 
 	const sections: SettingsSection[] = [
@@ -95,7 +101,7 @@ export function SettingsHubScreen() {
 				{
 					icon: 'palette',
 					label: 'Theme & wallpaper colours',
-					status: settings?.useMaterialYou ? 'Material You' : 'System',
+					status: settings?.useMaterialYou && materialYouSupported ? 'Material You' : 'System',
 					to: '/settings/theme',
 				},
 				{ icon: 'vibration', label: 'Motion, haptics & sound', to: '/settings/accessibility' },
