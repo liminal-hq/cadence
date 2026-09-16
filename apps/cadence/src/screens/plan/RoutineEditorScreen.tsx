@@ -191,6 +191,11 @@ function parseRestSeconds(raw: string): { ok: true; value: number | undefined } 
 	return { ok: true, value };
 }
 
+/** `parseRestSeconds`'s inverse — the text the rest-override input shows for a given committed value, used both to seed it when "change" opens the editor and to detect whether it's since been edited. */
+function restMsToInput(restMs: number | undefined): string {
+	return restMs != null ? String(Math.round(restMs / 1000)) : '';
+}
+
 interface AddTemplateFormProps {
 	metricProfile: MetricProfile;
 	mode: PopulationMode;
@@ -359,8 +364,15 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		});
 	}, [state]);
 
+	// The rest-override editor's own input isn't part of `draft` until "Done" commits it, so an edit sitting there unconfirmed wouldn't otherwise register as dirty at all — navigating away (app bar, hardware/browser back) would bypass the discard blocker below and silently lose it.
+	const restInputDirty = Boolean(
+		draft && restEditingId != null && restInput !== restMsToInput(draft.rest[restEditingId]),
+	);
 	const isDirty = Boolean(
-		draft && baselineRef.current && JSON.stringify(draft) !== JSON.stringify(baselineRef.current),
+		(draft &&
+			baselineRef.current &&
+			JSON.stringify(draft) !== JSON.stringify(baselineRef.current)) ||
+		restInputDirty,
 	);
 
 	// Blocks every navigation path away from a dirty draft, not just the app bar's back button — predictive back and hardware/browser back both go through the router's history, same as this.
@@ -615,7 +627,8 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 								onClick={() => {
 									if (commitPendingRestEdit()) setActiveSectionId(item.section.id);
 								}}
-								onPointerDown={dragActivatorProps?.onPointerDown}
+								onMouseDown={dragActivatorProps?.onMouseDown}
+								onTouchStart={dragActivatorProps?.onTouchStart}
 							>
 								{item.section.name || `Section ${index + 1}`}
 							</button>
@@ -843,7 +856,7 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 														type="button"
 														className="routine-editor__rest-change"
 														onClick={() => {
-															setRestInput(restMs != null ? String(Math.round(restMs / 1000)) : '');
+															setRestInput(restMsToInput(restMs));
 															setRestInputError(null);
 															setRestEditingId(item.routineExercise.id);
 														}}

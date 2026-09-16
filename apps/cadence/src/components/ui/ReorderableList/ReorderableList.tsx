@@ -3,11 +3,16 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
+import type {
+	MouseEvent as ReactMouseEvent,
+	ReactNode,
+	TouchEvent as ReactTouchEvent,
+} from 'react';
 import {
 	DndContext,
 	KeyboardSensor,
-	PointerSensor,
+	MouseSensor,
+	TouchSensor,
 	closestCenter,
 	useSensor,
 	useSensors,
@@ -30,7 +35,8 @@ import './ReorderableList.css';
 /** Props a caller spreads onto its own rendered element to make that element the drag surface, passed to `renderItem` only when `showHandle` is false — deliberately narrower than dnd-kit's own `attributes`/`listeners` pair (which also wires up Space/Enter to pick up a drag) because the element receiving these is normally already interactive for its own purpose (e.g. a tab's click-to-select), and Enter/Space there needs to keep doing that rather than ambiguously starting a drag instead. Pointer dragging (mouse/touch) still works; a keyboard user reorders via the row's own visually-hidden "Move up"/"Move down" buttons instead. */
 export interface DragActivatorProps {
 	ref: (node: HTMLElement | null) => void;
-	onPointerDown: ((event: ReactPointerEvent) => void) | undefined;
+	onMouseDown: ((event: ReactMouseEvent) => void) | undefined;
+	onTouchStart: ((event: ReactTouchEvent) => void) | undefined;
 }
 
 export interface ReorderableListProps<T> {
@@ -145,8 +151,8 @@ function Row<T>({
 			<div ref={setNodeRef} className="ui-reorderable-list__row" style={style}>
 				{renderItem(item, index, {
 					ref: setActivatorNodeRef,
-					onPointerDown: listeners?.onPointerDown as
-						((event: ReactPointerEvent) => void) | undefined,
+					onMouseDown: listeners?.onMouseDown as ((event: ReactMouseEvent) => void) | undefined,
+					onTouchStart: listeners?.onTouchStart as ((event: ReactTouchEvent) => void) | undefined,
 				})}
 				{moveButtons}
 			</div>
@@ -179,9 +185,10 @@ export function ReorderableList<T>({
 	orientation = 'vertical',
 	showHandle = true,
 }: ReorderableListProps<T>) {
-	// PointerSensor covers mouse/touch drag; KeyboardSensor is the accessible fallback the old up/down buttons already provided — Tab to a handle, Space to pick up, arrow keys to move, Space to drop, Escape to cancel. A small activation distance on the pointer sensor stops an ordinary tap (e.g. on a row's own text field) from being mistaken for a drag.
+	// Mouse and touch get different activation constraints rather than a single PointerSensor covering both: a mouse drag can start the instant the cursor moves 4px, but a touch gesture with the same distance-based rule can never coexist with native scrolling (e.g. the horizontal tab strip) — the first few pixels of an ordinary swipe would already count as "dragging." TouchSensor's delay instead requires a brief hold before a touch counts as a drag at all, letting a normal swipe fall through to the browser's own panning. KeyboardSensor is the accessible fallback the old up/down buttons already provided — Tab to a handle, Space to pick up, arrow keys to move, Space to drop, Escape to cancel.
 	const sensors = useSensors(
-		useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+		useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
+		useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
 		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
 	);
 

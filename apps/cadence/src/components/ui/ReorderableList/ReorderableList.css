@@ -60,10 +60,10 @@
 	flex-wrap: nowrap;
 }
 
-/* Applied by the caller to whichever element it renders as the drag surface when `showHandle` is false — `touch-action: none` has to sit on that exact element, not a wrapping row, or a touch drag gesture gets swallowed by the browser's own scroll handling before dnd-kit ever sees it. */
+/* Applied by the caller to whichever element it renders as the drag surface when `showHandle` is false. `touch-action: pan-x` (not `none`) deliberately still permits the browser's own horizontal panning — this drag surface doubles as the content of a horizontally scrollable, no-wrap strip (the section tab bar), and disabling all touch actions here would trap a touch user unable to reach any tab past the edge of the screen. TouchSensor's own hold-before-drag activation constraint (see the sensors above) is what actually distinguishes a normal swipe from a drag once movement starts, not this property. */
 .ui-reorderable-list__activator {
 	cursor: grab;
-	touch-action: none;
+	touch-action: pan-x;
 }
 
 .ui-reorderable-list__activator:active {
