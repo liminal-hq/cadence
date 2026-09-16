@@ -3,7 +3,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import type { ReactNode } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import {
 	DndContext,
 	KeyboardSensor,
@@ -27,16 +27,22 @@ import { classNames } from '../classNames';
 import { IconButton } from '../IconButton/IconButton';
 import './ReorderableList.css';
 
+/** Props a caller spreads onto its own rendered element to make that element the drag surface, passed to `renderItem` only when `showHandle` is false — deliberately narrower than dnd-kit's own `attributes`/`listeners` pair (which also wires up Space/Enter to pick up a drag) because the element receiving these is normally already interactive for its own purpose (e.g. a tab's click-to-select), and Enter/Space there needs to keep doing that rather than ambiguously starting a drag instead. Pointer dragging (mouse/touch) still works; a keyboard user reorders via the row's own visually-hidden "Move up"/"Move down" buttons instead. */
+export interface DragActivatorProps {
+	ref: (node: HTMLElement | null) => void;
+	onPointerDown: ((event: ReactPointerEvent) => void) | undefined;
+}
+
 export interface ReorderableListProps<T> {
 	items: T[];
 	getKey: (item: T) => string;
 	onReorder: (next: T[]) => void;
-	renderItem: (item: T, index: number) => ReactNode;
+	renderItem: (item: T, index: number, dragActivatorProps?: DragActivatorProps) => ReactNode;
 	/** A human-readable name for an item, announced to screen readers during a keyboard drag instead of its raw key — every caller's key is a persisted id (a UUID in the real backend), which means nothing read aloud. Falls back to the key itself when omitted. */
 	getLabel?: (item: T) => string;
 	/** 'horizontal' lays items out in a row (e.g. a tab strip) instead of a column. */
 	orientation?: 'vertical' | 'horizontal';
-	/** When false, the item itself is the drag surface instead of a separate trailing `drag_handle` icon — for compact items (tab pills) a dedicated handle icon doesn't fit. */
+	/** When false, `renderItem`'s own element becomes the drag surface (via its third argument) instead of a separate trailing `drag_handle` icon — for compact items (tab pills) a dedicated handle icon doesn't fit. */
 	showHandle?: boolean;
 }
 
@@ -71,29 +77,31 @@ export function resolveItemLabel<T>(
 	return isDuplicate ? `${label} (position ${index + 1})` : label;
 }
 
-interface RowProps {
+interface RowProps<T> {
 	id: string;
-	children: ReactNode;
-	showHandle: boolean;
+	item: T;
 	index: number;
+	renderItem: (item: T, index: number, dragActivatorProps?: DragActivatorProps) => ReactNode;
+	showHandle: boolean;
 	canMoveUp: boolean;
 	canMoveDown: boolean;
 	onMoveUp: () => void;
 	onMoveDown: () => void;
 }
 
-// One sortable row: `useSortable` supplies both the drag transform for the row being moved and the `listeners`/`attributes` that make the handle itself draggable — those need to land on the real DOM element (via IconButton's prop-spreading, or the row itself when `showHandle` is false), not just be read and discarded, or nothing would actually respond to a pointer or keyboard.
+// One sortable row: `useSortable` supplies both the drag transform for the row being moved and the `listeners`/`attributes` that make the handle itself draggable — those need to land on the real DOM element (via IconButton's prop-spreading, or `renderItem`'s own element when `showHandle` is false), not just be read and discarded, or nothing would actually respond to a pointer or keyboard.
 // A drag gesture (pointer or keyboard) has no equivalent for a touch screen reader, which operates by synthesizing a click rather than real pointer or key events — so every row also gets a pair of click-operable move actions, hidden until focused, satisfying WCAG 2.5.7's "single pointer" alternative without cluttering the visible design the two-button layout was deliberately replaced to get away from.
-function Row({
+function Row<T>({
 	id,
-	children,
-	showHandle,
+	item,
 	index,
+	renderItem,
+	showHandle,
 	canMoveUp,
 	canMoveDown,
 	onMoveUp,
 	onMoveDown,
-}: RowProps) {
+}: RowProps<T>) {
 	const {
 		attributes,
 		listeners,
@@ -134,17 +142,12 @@ function Row({
 
 	if (!showHandle) {
 		return (
-			<div
-				ref={(node) => {
-					setNodeRef(node);
-					setActivatorNodeRef(node);
-				}}
-				className="ui-reorderable-list__row ui-reorderable-list__row--no-handle"
-				style={style}
-				{...attributes}
-				{...listeners}
-			>
-				{children}
+			<div ref={setNodeRef} className="ui-reorderable-list__row" style={style}>
+				{renderItem(item, index, {
+					ref: setActivatorNodeRef,
+					onPointerDown: listeners?.onPointerDown as
+						((event: ReactPointerEvent) => void) | undefined,
+				})}
 				{moveButtons}
 			</div>
 		);
@@ -152,7 +155,7 @@ function Row({
 
 	return (
 		<div ref={setNodeRef} className="ui-reorderable-list__row" style={style}>
-			<div className="ui-reorderable-list__content">{children}</div>
+			<div className="ui-reorderable-list__content">{renderItem(item, index)}</div>
 			{moveButtons}
 			<IconButton
 				ref={setActivatorNodeRef}
@@ -241,15 +244,15 @@ export function ReorderableList<T>({
 						<Row
 							key={getKey(item)}
 							id={getKey(item)}
-							showHandle={showHandle}
+							item={item}
 							index={index}
+							renderItem={renderItem}
+							showHandle={showHandle}
 							canMoveUp={index > 0}
 							canMoveDown={index < items.length - 1}
 							onMoveUp={() => handleMoveByClick(index, -1)}
 							onMoveDown={() => handleMoveByClick(index, 1)}
-						>
-							{renderItem(item, index)}
-						</Row>
+						/>
 					))}
 				</div>
 			</SortableContext>

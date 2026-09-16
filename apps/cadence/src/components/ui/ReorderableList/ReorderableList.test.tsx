@@ -178,4 +178,22 @@ describe('ReorderableList', () => {
 		expect(screen.getByText('A')).toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: 'Reorder' })).not.toBeInTheDocument();
 	});
+
+	it('passes a drag activator ref to renderItem when showHandle is false, so the caller can make its own element the drag surface instead of a wrapping one', () => {
+		let received: unknown;
+		render(
+			<ReorderableList
+				items={ITEMS}
+				getKey={(item) => item.id}
+				onReorder={() => {}}
+				renderItem={(item, _index, dragActivatorProps) => {
+					received = dragActivatorProps;
+					return item.label;
+				}}
+				showHandle={false}
+			/>,
+		);
+
+		expect(received).toMatchObject({ ref: expect.any(Function) });
+	});
 });

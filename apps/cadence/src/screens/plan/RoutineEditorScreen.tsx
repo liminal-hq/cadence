@@ -435,6 +435,25 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		reload();
 	}
 
+	// The rest-override editor's input lives in `restInput`/`restEditingId`, shared across every exercise row rather than duplicated per row, so switching which exercise is expanded while it's still open (without "Done") would otherwise silently repoint it at the newly expanded exercise and lose whatever was typed for the old one. Every place that can change which row is expanded — or which section is active, which also changes what's visibly expanded — commits or rejects the pending edit first, exactly like "Done" would.
+	function commitPendingRestEdit(): boolean {
+		if (!restEditingId || !draft) return true;
+		const parsed = parseRestSeconds(restInput);
+		if (!parsed.ok) {
+			setRestInputError('Enter a positive number of seconds, or leave it blank.');
+			return false;
+		}
+		setDraft({
+			...draft,
+			rest: {
+				...draft.rest,
+				[restEditingId]: parsed.value == null ? undefined : Math.round(parsed.value * 1000),
+			},
+		});
+		setRestEditingId(null);
+		return true;
+	}
+
 	async function handleSave() {
 		if (saving || !draft) return;
 		let currentDraft = draft;
@@ -584,14 +603,19 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 						onReorder={handleReorderSections}
 						orientation="horizontal"
 						showHandle={false}
-						renderItem={(item, index) => (
+						renderItem={(item, index, dragActivatorProps) => (
 							<button
 								type="button"
+								ref={dragActivatorProps?.ref}
 								className={classNames(
 									'routine-editor__tab',
+									'ui-reorderable-list__activator',
 									item.section.id === activeSectionId && 'routine-editor__tab--active',
 								)}
-								onClick={() => setActiveSectionId(item.section.id)}
+								onClick={() => {
+									if (commitPendingRestEdit()) setActiveSectionId(item.section.id);
+								}}
+								onPointerDown={dragActivatorProps?.onPointerDown}
 							>
 								{item.section.name || `Section ${index + 1}`}
 							</button>
@@ -668,7 +692,9 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 										<button
 											type="button"
 											className="routine-editor__row"
-											onClick={() => setExpandedExerciseId(item.routineExercise.id)}
+											onClick={() => {
+												if (commitPendingRestEdit()) setExpandedExerciseId(item.routineExercise.id);
+											}}
 										>
 											<span className="routine-editor__row-order">{index + 1}</span>
 											<div className="routine-editor__row-body">
@@ -690,7 +716,9 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 												icon="expand_less"
 												label="Collapse"
 												size="small"
-												onClick={() => setExpandedExerciseId(null)}
+												onClick={() => {
+													if (commitPendingRestEdit()) setExpandedExerciseId(null);
+												}}
 											/>
 										</div>
 

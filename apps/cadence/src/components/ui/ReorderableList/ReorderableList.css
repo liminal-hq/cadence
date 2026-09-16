@@ -60,11 +60,12 @@
 	flex-wrap: nowrap;
 }
 
-.ui-reorderable-list__row--no-handle {
+/* Applied by the caller to whichever element it renders as the drag surface when `showHandle` is false — `touch-action: none` has to sit on that exact element, not a wrapping row, or a touch drag gesture gets swallowed by the browser's own scroll handling before dnd-kit ever sees it. */
+.ui-reorderable-list__activator {
 	cursor: grab;
 	touch-action: none;
 }
 
-.ui-reorderable-list__row--no-handle:active {
+.ui-reorderable-list__activator:active {
 	cursor: grabbing;
 }
