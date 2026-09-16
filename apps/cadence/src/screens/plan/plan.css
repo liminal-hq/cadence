@@ -132,12 +132,14 @@
 .routine-editor__tabs {
 	display: flex;
 	align-items: center;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 	gap: var(--cadence-space-2);
+	overflow-x: auto;
 }
 
 .routine-editor__tabs .ui-reorderable-list--horizontal {
 	gap: var(--cadence-space-2);
+	flex-shrink: 0;
 }
 
 .routine-editor__tab {

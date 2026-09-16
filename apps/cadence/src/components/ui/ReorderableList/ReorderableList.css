@@ -54,9 +54,10 @@
 	font-size: var(--cadence-type-label-m-size);
 }
 
+/* No wrap: `horizontalListSortingStrategy` models a single axis, so a wrapped multi-row layout would compute one-dimensional sibling transforms during a drag and visibly overlap or jump — a caller with more items than fit on one line should let this scroll horizontally instead. */
 .ui-reorderable-list--horizontal {
 	flex-direction: row;
-	flex-wrap: wrap;
+	flex-wrap: nowrap;
 }
 
 .ui-reorderable-list__row--no-handle {

@@ -286,12 +286,21 @@ function draftFromState(state: EditorState): Draft {
 }
 
 /** Adds `fresh`'s entries for any section/exercise `existing` doesn't know about yet (created by a structural op — add section, add exercise — which persist immediately and then reload), while keeping `existing`'s own values for everything it already has, so a reload never discards an in-progress, not-yet-saved edit. */
+/** Preserves `existing`'s value only for a key `fresh` still has — a section or exercise deleted since `existing` was captured must drop out entirely, or its stale dirty entry would keep `isDirty` true forever (handleSave only ever emits tasks for entities `sections` still has, so it can never clear a leftover diff for one that's gone). */
 function mergeDraft(fresh: Draft, existing: Draft): Draft {
+	const sectionNames = { ...fresh.sectionNames };
+	for (const id of Object.keys(sectionNames)) {
+		if (id in existing.sectionNames) sectionNames[id] = existing.sectionNames[id];
+	}
+	const rest = { ...fresh.rest };
+	for (const id of Object.keys(rest)) {
+		if (id in existing.rest) rest[id] = existing.rest[id];
+	}
 	return {
 		routineName: existing.routineName,
 		routineNote: existing.routineNote,
-		sectionNames: { ...fresh.sectionNames, ...existing.sectionNames },
-		rest: { ...fresh.rest, ...existing.rest },
+		sectionNames,
+		rest,
 	};
 }
 
@@ -321,6 +330,12 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	const latestRequestIdRef = useRef(0);
 
 	const reload = useCallback(() => {
+		// A genuinely different routine's state/draft must never stay interactive while the fresh load is still pending — a route change doesn't guarantee a remount, so without this the old routine's Save/Add section/Reorder actions would keep acting on the new routineId.
+		if (draftRoutineIdRef.current !== null && draftRoutineIdRef.current !== routineId) {
+			setState(null);
+			setDraft(null);
+			baselineRef.current = null;
+		}
 		const requestId = ++latestRequestIdRef.current;
 		loadEditorState(repository, routineId).then((loaded) => {
 			if (latestRequestIdRef.current !== requestId) return;
@@ -422,7 +437,26 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 
 	async function handleSave() {
 		if (saving || !draft) return;
-		const currentDraft = draft;
+		let currentDraft = draft;
+
+		// The rest-override editor's own input lives in local state until "Done" commits it, so a Save triggered by some other already-dirty field while it's still open would otherwise silently drop it. Commit it into the draft being saved instead, blocking Save with the same validation error "Done" would show if it doesn't parse.
+		if (restEditingId) {
+			const parsed = parseRestSeconds(restInput);
+			if (!parsed.ok) {
+				setRestInputError('Enter a positive number of seconds, or leave it blank.');
+				return;
+			}
+			currentDraft = {
+				...currentDraft,
+				rest: {
+					...currentDraft.rest,
+					[restEditingId]: parsed.value == null ? undefined : Math.round(parsed.value * 1000),
+				},
+			};
+			setDraft(currentDraft);
+			setRestEditingId(null);
+		}
+
 		setSaving(true);
 		setSaveError(null);
 
@@ -481,13 +515,21 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 
 		let nextBaseline = baselineRef.current ?? currentDraft;
 		const failedLabels: string[] = [];
+		let nameTaskFailed = false;
+		let noteTaskFailed = false;
 		results.forEach((result, index) => {
+			const task = tasks[index];
 			if (result.status === 'fulfilled') {
-				nextBaseline = tasks[index].commit(nextBaseline);
+				nextBaseline = task.commit(nextBaseline);
 			} else {
-				failedLabels.push(tasks[index].label);
+				failedLabels.push(task.label);
+				if (task.label === 'name') nameTaskFailed = true;
+				if (task.label === 'note') noteTaskFailed = true;
 			}
 		});
+		// Whitespace-only text has no persisted-value difference to save (a blank note and a whitespace-only one both normalize to `undefined`), so no task above ever runs for it — without this, the baseline would never adopt the raw draft value and the field would read as permanently unsaved. Only skipped when the field's own task genuinely failed.
+		if (!nameTaskFailed) nextBaseline = { ...nextBaseline, routineName: currentDraft.routineName };
+		if (!noteTaskFailed) nextBaseline = { ...nextBaseline, routineNote: currentDraft.routineNote };
 		baselineRef.current = nextBaseline;
 		reload();
 
