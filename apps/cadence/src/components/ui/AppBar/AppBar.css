@@ -15,12 +15,14 @@
 }
 
 .ui-app-bar--large {
-	padding: 0 4px 0 16px;
+	padding-right: 4px;
+	padding-left: 16px;
 	gap: 8px;
 }
 
 .ui-app-bar--medium {
-	padding: 0 4px;
+	padding-right: 4px;
+	padding-left: 4px;
 	gap: 4px;
 }
 
