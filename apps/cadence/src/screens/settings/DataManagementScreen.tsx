@@ -14,13 +14,13 @@ import { Button } from '../../components/ui/Button/Button';
 import { Switch } from '../../components/ui/Switch/Switch';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
 import './settings.css';
 import './DataManagementScreen.css';
 
 export function DataManagementScreen() {
 	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings, updateSettings: patchSettings } = useSettings();
 	const [historySummary, setHistorySummary] = useState<{
 		workoutCount: number;
 		setCount: number;
@@ -32,14 +32,8 @@ export function DataManagementScreen() {
 	const [deleteOpen, setDeleteOpen] = useState(false);
 
 	useEffect(() => {
-		repository.getSettings().then(setSettings);
 		repository.getHistorySummary().then(setHistorySummary);
 	}, [repository]);
-
-	function patchSettings(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
 
 	async function handleDeleteAll() {
 		await repository.deleteAllHistory();

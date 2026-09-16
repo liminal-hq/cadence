@@ -9,7 +9,7 @@ import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
 import { SettingsRow } from './SettingsRow';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
 import '../screens.css';
 import './settings.css';
 
@@ -29,13 +29,12 @@ interface SettingsSection {
 export function SettingsHubScreen() {
 	const navigate = useNavigate();
 	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings } = useSettings();
 	const [barbellCount, setBarbellCount] = useState(0);
 	const [exerciseCount, setExerciseCount] = useState(0);
 	const [categoryCount, setCategoryCount] = useState(0);
 
 	useEffect(() => {
-		repository.getSettings().then(setSettings);
 		repository.listBarbellConfigs().then((list) => setBarbellCount(list.length));
 		repository.listExercises().then((list) => setExerciseCount(list.length));
 		repository.listCategories().then((list) => setCategoryCount(list.length));

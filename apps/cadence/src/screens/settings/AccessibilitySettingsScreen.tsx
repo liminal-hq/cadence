@@ -4,26 +4,14 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
 import { Switch } from '../../components/ui/Switch/Switch';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
 import './settings.css';
 
 export function AccessibilitySettingsScreen() {
-	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
-
-	useEffect(() => {
-		repository.getSettings().then(setSettings);
-	}, [repository]);
-
-	function patch(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
+	const { settings, updateSettings: patch } = useSettings();
 
 	if (!settings) return null;
 

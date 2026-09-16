@@ -4,24 +4,19 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { useSettings } from '../../domain/SettingsProvider';
 import type { WeightUnit } from '../../domain/types';
 import './settings.css';
 
 export function UnitsSettingsScreen() {
-	const repository = useLoggingRepository();
-	const [weightUnit, setWeightUnit] = useState<WeightUnit>('kg');
+	const { settings, updateSettings } = useSettings();
 
-	useEffect(() => {
-		repository.getSettings().then((settings) => setWeightUnit(settings.weightUnit));
-	}, [repository]);
+	if (!settings) return null;
 
 	function handleChange(next: WeightUnit) {
-		setWeightUnit(next);
-		repository.updateSettings({ weightUnit: next });
+		updateSettings({ weightUnit: next });
 	}
 
 	return (
@@ -36,7 +31,7 @@ export function UnitsSettingsScreen() {
 								{ value: 'kg', label: 'Kilograms' },
 								{ value: 'lb', label: 'Pounds' },
 							]}
-							value={weightUnit}
+							value={settings.weightUnit}
 							onChange={handleChange}
 						/>
 					</div>

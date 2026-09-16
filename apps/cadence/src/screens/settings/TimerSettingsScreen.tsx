@@ -4,7 +4,7 @@
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { SettingsSubScreenHeader } from './SettingsSubScreenHeader';
 import { SettingsRow } from './SettingsRow';
@@ -13,8 +13,8 @@ import { SegmentedControl } from '../../components/ui/SegmentedControl/Segmented
 import { Banner } from '../../components/ui/Banner/Banner';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
 import { Chip } from '../../components/ui/Chip/Chip';
-import { useLoggingRepository } from '../../domain/RepositoryProvider';
-import type { RestFeedbackDevice, Settings } from '../../domain/types';
+import { useSettings } from '../../domain/SettingsProvider';
+import type { RestFeedbackDevice } from '../../domain/types';
 import { formatRemaining } from '../../components/RestTimerBar/formatRemaining';
 import './settings.css';
 
@@ -22,18 +22,8 @@ const DEFAULT_REST_PRESETS_MS = [60_000, 90_000, 120_000, 180_000, 300_000];
 
 export function TimerSettingsScreen() {
 	const navigate = useNavigate();
-	const repository = useLoggingRepository();
-	const [settings, setSettings] = useState<Settings | null>(null);
+	const { settings, updateSettings: patch } = useSettings();
 	const [restPickerOpen, setRestPickerOpen] = useState(false);
-
-	useEffect(() => {
-		repository.getSettings().then(setSettings);
-	}, [repository]);
-
-	function patch(next: Partial<Settings>) {
-		setSettings((current) => (current ? { ...current, ...next } : current));
-		repository.updateSettings(next);
-	}
 
 	if (!settings) return null;
 
