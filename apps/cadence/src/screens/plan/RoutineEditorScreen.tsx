@@ -57,6 +57,12 @@ interface EditorState {
 	sections: EditorSection[];
 }
 
+/** `tauriRepository.ts`'s `call()` tags a real backend error with the Rust `Error`'s own `kind` (e.g. `"validation"`, `"db"`) — everything except `"notFound"` is a genuine failure, not evidence the exercise was deleted, and must propagate rather than being folded into the "missing exercise" row. An error with no `kind` at all (the mock repository's plain `Error`, or any error that never reached the backend) is treated as a not-found equivalent, matching how the mock's own lookups have always failed. */
+function isKnownNonNotFoundError(err: unknown): boolean {
+	if (typeof err !== 'object' || err === null || !('kind' in err)) return false;
+	return (err as { kind: unknown }).kind !== 'notFound';
+}
+
 export async function loadEditorState(
 	repository: LoggingRepository,
 	routineId: string,
@@ -71,12 +77,11 @@ export async function loadEditorState(
 					let exercise: Exercise | null;
 					try {
 						exercise = await repository.getExercise(routineExercise.exerciseId);
-					} catch {
+					} catch (err) {
+						if (isKnownNonNotFoundError(err)) throw err;
 						exercise = null;
 					}
-					// Only a missing *exercise* renders as the resilient "missing exercise" row — a
-					// templates-fetch failure is a real (likely transient) error and must propagate,
-					// not be misread as a deleted exercise and offered up for cascade-deleting Remove.
+					// Only a missing *exercise* renders as the resilient "missing exercise" row — a templates-fetch failure is a real (likely transient) error and must propagate, not be misread as a deleted exercise and offered up for cascade-deleting Remove.
 					const templates = exercise ? await repository.listSetTemplates(routineExercise.id) : [];
 					return { routineExercise, exercise, templates };
 				}),
@@ -310,13 +315,22 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	// A brand-new draft's baseline is the just-loaded values — a ref, not state, so the router's dirty blocker (see ExerciseEditorScreen's own note on this exact pattern) can read the latest baseline even from a stale render's closure.
 	const baselineRef = useRef<Draft | null>(null);
 	const skipNextBlockRef = useRef(false);
+	// Which routine the current draft/baseline belong to — a route change from one
+	// `/plan/routine/$routineId/edit` to another doesn't guarantee a remount, so `reload` must tell
+	// "the same routine reloaded after a structural op" (merge, keeping in-progress edits) apart from
+	// "a genuinely different routine" (reset outright, or the previous routine's name/note/rest would
+	// linger in the draft and could be saved onto the new routine's id).
+	const draftRoutineIdRef = useRef<string | null>(null);
 
 	const reload = useCallback(() => {
 		loadEditorState(repository, routineId).then((loaded) => {
 			setState(loaded);
 			const fresh = draftFromState(loaded);
-			setDraft((current) => (current ? mergeDraft(fresh, current) : fresh));
-			baselineRef.current = baselineRef.current ? mergeDraft(fresh, baselineRef.current) : fresh;
+			const sameRoutine = draftRoutineIdRef.current === routineId;
+			draftRoutineIdRef.current = routineId;
+			setDraft((current) => (current && sameRoutine ? mergeDraft(fresh, current) : fresh));
+			baselineRef.current =
+				baselineRef.current && sameRoutine ? mergeDraft(fresh, baselineRef.current) : fresh;
 		});
 	}, [repository, routineId]);
 
