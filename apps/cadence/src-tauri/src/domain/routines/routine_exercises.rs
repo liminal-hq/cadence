@@ -175,6 +175,13 @@ pub async fn update_rest(
     id: &str,
     rest_ms: Option<i64>,
 ) -> Result<RoutineExercise> {
+    if let Some(ms) = rest_ms {
+        if ms <= 0 {
+            return Err(Error::Validation(format!(
+                "rest_ms must be a positive duration, got {ms}"
+            )));
+        }
+    }
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
@@ -438,6 +445,22 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, Error::NotFound { .. }));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_non_positive_rest_override() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let exercise = add(&mut conn, &section_id, "ex-running").await.unwrap();
+        let zero_err = update_rest(&mut conn, &exercise.id, Some(0))
+            .await
+            .unwrap_err();
+        assert!(matches!(zero_err, Error::Validation(_)));
+        let negative_err = update_rest(&mut conn, &exercise.id, Some(-1_000))
+            .await
+            .unwrap_err();
+        assert!(matches!(negative_err, Error::Validation(_)));
     }
 
     #[tokio::test]
