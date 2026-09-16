@@ -48,15 +48,21 @@ export function reorderByKeys<T>(
 	return arrayMove(items, oldIndex, newIndex);
 }
 
-/** Resolves a drag event's raw id (a persisted UUID in the real backend) to a human-readable name for screen-reader announcements — falls back to the id itself when the item can't be found or the caller didn't supply `getLabel`. */
+/** Resolves a drag event's raw id (a persisted UUID in the real backend) to a human-readable name for screen-reader announcements — falls back to the id itself when the item can't be found or the caller didn't supply `getLabel`. Nothing about a caller's own data guarantees unique labels (the same exercise can appear twice in one routine section; two categories or measurements can share a name), so a label shared with another item in the list gets its 1-based position appended — otherwise "Bench Press was moved to the position of Bench Press" leaves a screen-reader user unable to tell which occurrence moved. */
 export function resolveItemLabel<T>(
 	items: T[],
 	getKey: (item: T) => string,
 	getLabel: ((item: T) => string) | undefined,
 	id: string,
 ): string {
-	const item = items.find((candidate) => getKey(candidate) === id);
-	return item && getLabel ? getLabel(item) : id;
+	const index = items.findIndex((candidate) => getKey(candidate) === id);
+	if (index === -1) return id;
+	const label = getLabel ? getLabel(items[index]) : id;
+	const isDuplicate = items.some(
+		(other, otherIndex) =>
+			otherIndex !== index && (getLabel ? getLabel(other) : getKey(other)) === label,
+	);
+	return isDuplicate ? `${label} (position ${index + 1})` : label;
 }
 
 interface RowProps {

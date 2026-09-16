@@ -66,6 +66,38 @@ describe('resolveItemLabel', () => {
 			),
 		).toBe('no-such-id');
 	});
+
+	it('disambiguates items that share the same label with their 1-based position', () => {
+		const duplicates = [
+			{ id: 'a', label: 'Bench Press' },
+			{ id: 'b', label: 'Squat' },
+			{ id: 'c', label: 'Bench Press' },
+		];
+		expect(
+			resolveItemLabel(
+				duplicates,
+				(i) => i.id,
+				(i) => i.label,
+				'a',
+			),
+		).toBe('Bench Press (position 1)');
+		expect(
+			resolveItemLabel(
+				duplicates,
+				(i) => i.id,
+				(i) => i.label,
+				'c',
+			),
+		).toBe('Bench Press (position 3)');
+		expect(
+			resolveItemLabel(
+				duplicates,
+				(i) => i.id,
+				(i) => i.label,
+				'b',
+			),
+		).toBe('Squat');
+	});
 });
 
 describe('ReorderableList', () => {
