@@ -144,6 +144,26 @@ describe('SettingsProvider', () => {
 		await waitFor(() => expect(calls).toEqual([0, 1]));
 	});
 
+	it('rolls back to the last backend-confirmed value, not another failed write’s optimistic snapshot, when queued writes fail in turn', async () => {
+		const repository = new MockLoggingRepository();
+		renderProbe(repository);
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+
+		let callIndex = 0;
+		vi.spyOn(repository, 'updateSettings').mockImplementation(async () => {
+			callIndex += 1;
+			throw new Error(callIndex === 1 ? 'offline' : 'offline again');
+		});
+
+		await act(async () => {
+			screen.getByText('change').click();
+			screen.getByText('change').click();
+		});
+
+		await waitFor(() => expect(screen.getByTestId('error').textContent).toBe('offline again'));
+		expect(screen.getByTestId('weight-unit').textContent).toBe('kg');
+	});
+
 	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {
 		const repository = new MockLoggingRepository();
 		vi.spyOn(repository, 'getSettings').mockRejectedValueOnce(new Error('disk full'));

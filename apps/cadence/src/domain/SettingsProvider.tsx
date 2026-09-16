@@ -43,19 +43,26 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	const latestRequestId = useRef(0);
 	// Chains writes so only one `repository.updateSettings` call is ever in flight, preserving issue order at the backend too — otherwise two rapid writes could reach SQLite out of order regardless of how React state is reconciled above.
 	const writeQueue = useRef<Promise<void>>(Promise.resolve());
+	// The last row the backend actually confirmed, either from the initial load or a successful write — a failure rolls back to this, never to another call's still-unconfirmed optimistic snapshot.
+	const confirmedSettings = useRef<Settings | null>(null);
 
 	const reload = useCallback(() => {
 		setLoadError(null);
-		repository.getSettings().then(setSettings, (err) => {
-			setLoadError(err instanceof Error ? err.message : String(err));
-		});
+		repository.getSettings().then(
+			(loaded) => {
+				confirmedSettings.current = loaded;
+				setSettings(loaded);
+			},
+			(err) => {
+				setLoadError(err instanceof Error ? err.message : String(err));
+			},
+		);
 	}, [repository]);
 
 	useEffect(reload, [reload]);
 
 	function updateSettings(patch: Partial<Settings>): Promise<void> {
 		const requestId = ++latestRequestId.current;
-		const previous = settings;
 		setSettings((current) => (current ? { ...current, ...patch } : current));
 		setError(null);
 
@@ -63,10 +70,11 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 			try {
 				// Trusts the backend's returned row over the optimistic merge above, in case a patch resolves to something other than a literal field-for-field overwrite.
 				const updated = await repository.updateSettings(patch);
+				confirmedSettings.current = updated;
 				if (requestId === latestRequestId.current) setSettings(updated);
 			} catch (err) {
 				setError(err instanceof Error ? err.message : String(err));
-				if (requestId === latestRequestId.current) setSettings(previous);
+				if (requestId === latestRequestId.current) setSettings(confirmedSettings.current);
 			}
 		};
 
