@@ -5,7 +5,6 @@
 
 // Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
 // Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent — the lb-display variant is deferred app-wide until it's built there first.
-// Rep ranges are deliberately out of scope here too — SetTemplateValues.reps is a single optional integer today; a real schema change is tracked as its own follow-up PR.
 // A "Replace" action for a missing exercise is also out of scope — there's no update_exercise_id on a routine exercise today, so a dangling reference can only be removed, not swapped.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -94,13 +93,19 @@ export async function loadEditorState(
 
 const MISSING_VALUE = '—';
 
+/** A fixed target (`repsMin === repsMax`) reads as a single number; a true range reads as "min–max". */
+function repsLabel(template: Pick<SetTemplate, 'repsMin' | 'repsMax'>): string {
+	if (template.repsMin == null || template.repsMax == null) return MISSING_VALUE;
+	if (template.repsMin === template.repsMax) return String(template.repsMin);
+	return `${template.repsMin}–${template.repsMax}`;
+}
+
 function templateLabel(template: SetTemplate, metricProfile: MetricProfile): string {
 	if (template.populationRule === SEED_LAST_PERFORMANCE) return 'Seeded from last performance';
 	if (metricProfile === 'weight-reps') {
 		const weight =
 			template.weightKg == null ? MISSING_VALUE : `${formatNumber(template.weightKg)} kg`;
-		const reps = template.reps == null ? MISSING_VALUE : template.reps;
-		return `${weight} × ${reps}`;
+		return `${weight} × ${repsLabel(template)}`;
 	}
 	const distance =
 		template.distanceKm == null ? MISSING_VALUE : `${formatNumber(template.distanceKm)} km`;
@@ -119,7 +124,8 @@ function isBlankTemplate(template: SetTemplate): boolean {
 	return (
 		template.populationRule !== SEED_LAST_PERFORMANCE &&
 		template.weightKg == null &&
-		template.reps == null &&
+		template.repsMin == null &&
+		template.repsMax == null &&
 		template.distanceKm == null &&
 		template.durationSec == null
 	);
@@ -204,7 +210,8 @@ interface AddTemplateFormProps {
 
 function AddTemplateForm({ metricProfile, mode, onAdd }: AddTemplateFormProps) {
 	const [weightKg, setWeightKg] = useState('');
-	const [reps, setReps] = useState('');
+	const [repsMin, setRepsMin] = useState('');
+	const [repsMax, setRepsMax] = useState('');
 	const [distanceKm, setDistanceKm] = useState('');
 	const [durationSec, setDurationSec] = useState('');
 	const [error, setError] = useState<string | null>(null);
@@ -220,12 +227,22 @@ function AddTemplateForm({ metricProfile, mode, onAdd }: AddTemplateFormProps) {
 		}
 		if (metricProfile === 'weight-reps') {
 			const weight = parseTarget(weightKg);
-			const repsResult = parseTarget(reps, { integer: true });
-			if (!weight.ok || !repsResult.ok) {
+			// Leaving "max" blank while "min" is filled in means a fixed rep target, not an open-ended range — the backend fills the missing bound in to match.
+			const repsMinResult = parseTarget(repsMin, { integer: true });
+			const repsMaxResult = parseTarget(repsMax, { integer: true });
+			if (!weight.ok || !repsMinResult.ok || !repsMaxResult.ok) {
 				setError('Enter a non-negative number (whole number for reps).');
 				return;
 			}
-			onAdd({ weightKg: weight.value, reps: repsResult.value });
+			if (
+				repsMinResult.value != null &&
+				repsMaxResult.value != null &&
+				repsMinResult.value > repsMaxResult.value
+			) {
+				setError("Reps min can't exceed reps max.");
+				return;
+			}
+			onAdd({ weightKg: weight.value, repsMin: repsMinResult.value, repsMax: repsMaxResult.value });
 		} else {
 			const distance = parseTarget(distanceKm);
 			const duration = parseTarget(durationSec, { integer: true });
@@ -237,7 +254,8 @@ function AddTemplateForm({ metricProfile, mode, onAdd }: AddTemplateFormProps) {
 		}
 		setError(null);
 		setWeightKg('');
-		setReps('');
+		setRepsMin('');
+		setRepsMax('');
 		setDistanceKm('');
 		setDurationSec('');
 	}
@@ -247,7 +265,8 @@ function AddTemplateForm({ metricProfile, mode, onAdd }: AddTemplateFormProps) {
 			{mode === 'fixed' && metricProfile === 'weight-reps' && (
 				<>
 					<TextField label="kg" type="number" value={weightKg} onChange={setWeightKg} />
-					<TextField label="Reps" type="number" value={reps} onChange={setReps} />
+					<TextField label="Reps min" type="number" value={repsMin} onChange={setRepsMin} />
+					<TextField label="Reps max" type="number" value={repsMax} onChange={setRepsMax} />
 				</>
 			)}
 			{mode === 'fixed' && metricProfile === 'distance-duration' && (
@@ -792,7 +811,8 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 														const last = item.templates[item.templates.length - 1];
 														await repository.addSetTemplate(item.routineExercise.id, {
 															weightKg: last.weightKg,
-															reps: last.reps,
+															repsMin: last.repsMin,
+															repsMax: last.repsMax,
 															distanceKm: last.distanceKm,
 															durationSec: last.durationSec,
 															populationRule: last.populationRule,

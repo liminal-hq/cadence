@@ -15,7 +15,8 @@ struct SetTemplateRow {
     routine_exercise_id: String,
     sort_order: i32,
     weight_g: Option<i64>,
-    reps: Option<i32>,
+    reps_min: Option<i32>,
+    reps_max: Option<i32>,
     distance_m: Option<i64>,
     duration_s: Option<i32>,
     population_rule: Option<String>,
@@ -29,7 +30,8 @@ impl From<SetTemplateRow> for SetTemplate {
             routine_exercise_id: row.routine_exercise_id,
             order: row.sort_order,
             weight_kg: row.weight_g.map(g_to_kg),
-            reps: row.reps,
+            reps_min: row.reps_min,
+            reps_max: row.reps_max,
             distance_km: row.distance_m.map(m_to_km),
             duration_sec: row.duration_s,
             population_rule: row.population_rule,
@@ -38,11 +40,11 @@ impl From<SetTemplateRow> for SetTemplate {
     }
 }
 
-const SELECT_BY_ID: &str = "SELECT id, routine_exercise_id, sort_order, weight_g, reps, \
-     distance_m, duration_s, population_rule, set_label FROM set_templates WHERE id = ?";
+const SELECT_BY_ID: &str = "SELECT id, routine_exercise_id, sort_order, weight_g, reps_min, \
+     reps_max, distance_m, duration_s, population_rule, set_label FROM set_templates WHERE id = ?";
 
 const SELECT_BY_ROUTINE_EXERCISE: &str = "SELECT id, routine_exercise_id, sort_order, weight_g, \
-     reps, distance_m, duration_s, population_rule, set_label FROM set_templates \
+     reps_min, reps_max, distance_m, duration_s, population_rule, set_label FROM set_templates \
      WHERE routine_exercise_id = ? ORDER BY sort_order";
 
 /// The only rule this crate accepts today — kept as a function rather than inlined into `add` so the check has one call site as more rules are added later.
@@ -53,6 +55,22 @@ fn validate_population_rule(rule: &str) -> Result<()> {
         Err(Error::Validation(format!(
             "unknown set-template population rule {rule:?}"
         )))
+    }
+}
+
+/// A caller supplying only one bound means "a fixed rep target," not "an open-ended range" — filled in to `min == max` so every persisted row has both bounds set together or neither. Rejects a range with the bounds the wrong way round.
+fn normalize_reps(
+    reps_min: Option<i32>,
+    reps_max: Option<i32>,
+) -> Result<(Option<i32>, Option<i32>)> {
+    match (reps_min, reps_max) {
+        (None, None) => Ok((None, None)),
+        (Some(min), None) => Ok((Some(min), Some(min))),
+        (None, Some(max)) => Ok((Some(max), Some(max))),
+        (Some(min), Some(max)) if min > max => Err(Error::Validation(
+            "a set template's reps_min can't exceed reps_max".to_string(),
+        )),
+        (Some(min), Some(max)) => Ok((Some(min), Some(max))),
     }
 }
 
@@ -88,7 +106,8 @@ pub async fn add(
     if let Some(rule) = &values.population_rule {
         validate_population_rule(rule)?;
         let has_explicit_value = values.weight_kg.is_some()
-            || values.reps.is_some()
+            || values.reps_min.is_some()
+            || values.reps_max.is_some()
             || values.distance_km.is_some()
             || values.duration_sec.is_some();
         if has_explicit_value {
@@ -98,21 +117,23 @@ pub async fn add(
             ));
         }
     }
+    let (reps_min, reps_max) = normalize_reps(values.reps_min, values.reps_max)?;
     let siblings = list_by_routine_exercise(conn, routine_exercise_id).await?;
     let next_order = siblings.iter().map(|t| t.order).max().unwrap_or(0) + 1;
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     sqlx::query(
-        "INSERT INTO set_templates (id, routine_exercise_id, sort_order, weight_g, reps, \
-         distance_m, duration_s, population_rule, set_label, created_at_ms, updated_at_ms, \
-         revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO set_templates (id, routine_exercise_id, sort_order, weight_g, reps_min, \
+         reps_max, distance_m, duration_s, population_rule, set_label, created_at_ms, \
+         updated_at_ms, revision) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(routine_exercise_id)
     .bind(next_order)
     .bind(values.weight_kg.map(kg_to_g))
-    .bind(values.reps)
+    .bind(reps_min)
+    .bind(reps_max)
     .bind(values.distance_km.map(km_to_m))
     .bind(values.duration_sec)
     .bind(&values.population_rule)
@@ -165,7 +186,8 @@ mod tests {
             &routine_exercise_id,
             &SetTemplateValues {
                 weight_kg: Some(80.0),
-                reps: Some(8),
+                reps_min: Some(6),
+                reps_max: Some(8),
                 ..Default::default()
             },
         )
@@ -173,8 +195,47 @@ mod tests {
         .unwrap();
         assert_eq!(created.order, 1);
         assert_eq!(created.weight_kg, Some(80.0));
-        assert_eq!(created.reps, Some(8));
+        assert_eq!(created.reps_min, Some(6));
+        assert_eq!(created.reps_max, Some(8));
         assert_eq!(created.population_rule, None);
+    }
+
+    #[tokio::test]
+    async fn treats_a_lone_reps_min_as_a_fixed_target() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine_exercise_id = a_routine_exercise(&mut conn).await;
+        let created = add(
+            &mut conn,
+            &routine_exercise_id,
+            &SetTemplateValues {
+                reps_min: Some(5),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(created.reps_min, Some(5));
+        assert_eq!(created.reps_max, Some(5));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_reps_range_with_the_bounds_reversed() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let routine_exercise_id = a_routine_exercise(&mut conn).await;
+        let err = add(
+            &mut conn,
+            &routine_exercise_id,
+            &SetTemplateValues {
+                reps_min: Some(12),
+                reps_max: Some(8),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
     }
 
     #[tokio::test]

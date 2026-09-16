@@ -928,7 +928,8 @@ export class MockLoggingRepository implements LoggingRepository {
 			}
 			const hasExplicitValue =
 				values.weightKg !== undefined ||
-				values.reps !== undefined ||
+				values.repsMin !== undefined ||
+				values.repsMax !== undefined ||
 				values.distanceKm !== undefined ||
 				values.durationSec !== undefined;
 			if (hasExplicitValue) {
@@ -937,6 +938,14 @@ export class MockLoggingRepository implements LoggingRepository {
 				);
 			}
 		}
+		// A caller supplying only one bound means a fixed rep target, not an open-ended range — filled in to match, mirroring the Rust repo's own normalize_reps.
+		let repsMin = values.repsMin;
+		let repsMax = values.repsMax;
+		if (repsMin !== undefined && repsMax === undefined) repsMax = repsMin;
+		else if (repsMin === undefined && repsMax !== undefined) repsMin = repsMax;
+		else if (repsMin !== undefined && repsMax !== undefined && repsMin > repsMax) {
+			throw new Error("A set template's repsMin can't exceed repsMax");
+		}
 		const siblings = await this.listSetTemplates(routineExerciseId);
 		const nextOrder = siblings.reduce((max, t) => Math.max(max, t.order), 0) + 1;
 		const created: SetTemplate = {
@@ -944,6 +953,8 @@ export class MockLoggingRepository implements LoggingRepository {
 			routineExerciseId,
 			order: nextOrder,
 			...values,
+			repsMin,
+			repsMax,
 		};
 		this.setTemplates.set(created.id, created);
 		return created;
@@ -1058,7 +1069,8 @@ export class MockLoggingRepository implements LoggingRepository {
 						? ((await this.mostRecentCompletedSet(re.exerciseId, targetDate)) ?? {})
 						: {
 								weightKg: template.weightKg,
-								reps: template.reps,
+								// A logged set has one rep count, not a range — seeded with the high end of the template's range (or its fixed value, when repsMin === repsMax) as the goal to reach.
+								reps: template.repsMax,
 								distanceKm: template.distanceKm,
 								durationSec: template.durationSec,
 							};

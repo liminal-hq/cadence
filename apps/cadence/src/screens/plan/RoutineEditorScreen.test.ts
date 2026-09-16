@@ -80,7 +80,7 @@ describe('defaultPopulationMode', () => {
 
 	it("reflects the most recently added template's own rule, not the first one's", () => {
 		const templates = [
-			{ id: '1', routineExerciseId: 'e', order: 1, weightKg: 100, reps: 5 },
+			{ id: '1', routineExerciseId: 'e', order: 1, weightKg: 100, repsMin: 5, repsMax: 5 },
 			{ id: '2', routineExerciseId: 'e', order: 2, populationRule: SEED_LAST_PERFORMANCE },
 		];
 		expect(defaultPopulationMode(templates)).toBe('last-time');

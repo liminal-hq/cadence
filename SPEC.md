@@ -289,7 +289,7 @@ Routines are templates, not a second kind of workout history.
 Routine template → reviewed materialization → ordinary editable workout sets
 ```
 
-A routine may have named sections, ordered exercises, optional notes, and set templates. A set template can contain explicit target values or a rule to seed values from the most recent comparable performance.
+A routine may have named sections, ordered exercises, optional notes, and set templates. A set template can contain explicit target values or a rule to seed values from the most recent comparable performance. A weight-reps template's rep target may be a fixed count or a range (e.g. "6–8"); materializing a range into an actual workout set seeds the set's single rep count with the range's high end, editable from there like any other set.
 
 Logging a routine section lets the user review, alter, deselect, or add exercises before it becomes a workout. Materialized sets retain an optional source-template ID for traceability, but edits to a completed workout never retroactively mutate its routine.
 
