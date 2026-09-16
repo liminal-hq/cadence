@@ -154,6 +154,8 @@ export interface LoggingRepository {
 		assignment: { routineSupersetId: string; supersetPosition: number } | undefined,
 	): Promise<RoutineExercise>;
 	updateRoutineExerciseNote(id: string, note: string | undefined): Promise<RoutineExercise>;
+	/** Routine-template only — not carried into `materializeRoutineSection` or a live workout's rest timer. */
+	updateRoutineExerciseRest(id: string, restMs: number | undefined): Promise<RoutineExercise>;
 	deleteRoutineExercise(id: string): Promise<void>;
 
 	listSetTemplates(routineExerciseId: string): Promise<SetTemplate[]>;

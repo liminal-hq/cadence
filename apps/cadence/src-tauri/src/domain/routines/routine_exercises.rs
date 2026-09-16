@@ -169,6 +169,39 @@ pub async fn update_note(
     get(conn, id).await
 }
 
+/// A per-exercise rest override for this routine template only — `rest_ms` was a real schema column and DTO field with no writer anywhere until now. Deliberately not carried into `materialize_routine_section`'s output: `workout_exercises` has no rest column to receive it, and wiring a routine-template override into the live rest timer is a separate, unbuilt live-workout feature (the same "P-19 out of scope" boundary this domain module has already drawn around superset auto-advance/rest behaviour).
+pub async fn update_rest(
+    conn: &mut SqliteConnection,
+    id: &str,
+    rest_ms: Option<i64>,
+) -> Result<RoutineExercise> {
+    if let Some(ms) = rest_ms {
+        if ms <= 0 {
+            return Err(Error::Validation(format!(
+                "rest_ms must be a positive duration, got {ms}"
+            )));
+        }
+    }
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE routine_exercises SET rest_ms = ?, updated_at_ms = ?, revision = ? WHERE id = ?",
+    )
+    .bind(rest_ms)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(Error::NotFound {
+            entity: "routine exercise",
+            id: id.to_string(),
+        });
+    }
+    get(conn, id).await
+}
+
 /// Rewrites every named exercise's `sort_order` to its 1-indexed position in `ordered_ids` — mirrors `sections::reorder`'s reasoning and its complete-permutation guard (a stranger id, a duplicate, or an omitted exercise are all rejected).
 pub async fn reorder(
     conn: &mut SqliteConnection,
@@ -388,6 +421,46 @@ mod tests {
         assert_eq!(noted.note.as_deref(), Some("Incline treadmill"));
         let cleared = update_note(&mut conn, &exercise.id, None).await.unwrap();
         assert_eq!(cleared.note, None);
+    }
+
+    #[tokio::test]
+    async fn updates_and_clears_the_rest_override() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let exercise = add(&mut conn, &section_id, "ex-running").await.unwrap();
+        let rested = update_rest(&mut conn, &exercise.id, Some(90_000))
+            .await
+            .unwrap();
+        assert_eq!(rested.rest_ms, Some(90_000));
+        let cleared = update_rest(&mut conn, &exercise.id, None).await.unwrap();
+        assert_eq!(cleared.rest_ms, None);
+    }
+
+    #[tokio::test]
+    async fn rejects_updating_the_rest_override_of_an_unknown_exercise() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let err = update_rest(&mut conn, "no-such-exercise", Some(60_000))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::NotFound { .. }));
+    }
+
+    #[tokio::test]
+    async fn rejects_a_non_positive_rest_override() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let section_id = a_section(&mut conn).await;
+        let exercise = add(&mut conn, &section_id, "ex-running").await.unwrap();
+        let zero_err = update_rest(&mut conn, &exercise.id, Some(0))
+            .await
+            .unwrap_err();
+        assert!(matches!(zero_err, Error::Validation(_)));
+        let negative_err = update_rest(&mut conn, &exercise.id, Some(-1_000))
+            .await
+            .unwrap_err();
+        assert!(matches!(negative_err, Error::Validation(_)));
     }
 
     #[tokio::test]

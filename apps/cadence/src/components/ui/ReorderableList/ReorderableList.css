@@ -53,3 +53,17 @@
 	font-family: inherit;
 	font-size: var(--cadence-type-label-m-size);
 }
+
+.ui-reorderable-list--horizontal {
+	flex-direction: row;
+	flex-wrap: wrap;
+}
+
+.ui-reorderable-list__row--no-handle {
+	cursor: grab;
+	touch-action: none;
+}
+
+.ui-reorderable-list__row--no-handle:active {
+	cursor: grabbing;
+}

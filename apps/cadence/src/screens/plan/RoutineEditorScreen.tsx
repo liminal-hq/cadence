@@ -1,21 +1,25 @@
-// P-32 Routine editor — name/notes, sections, exercise ordering, and the set-template editor
+// P-32 Routine editor — pill-tab sections, accordion exercise rows, and a draft-then-Save model
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 // Superset grouping metadata (SPEC.md 8.4) is deliberately out of scope here: the backend already supports it (routine_supersets), but authoring UI for it is real, separate follow-up work.
 // Set-template weight is always canonical kg, matching SetEditorSheet's own kg-only precedent — the lb-display variant is deferred app-wide until it's built there first.
+// Rep ranges are deliberately out of scope here too — SetTemplateValues.reps is a single optional integer today; a real schema change is tracked as its own follow-up PR.
+// A "Replace" action for a missing exercise is also out of scope — there's no update_exercise_id on a routine exercise today, so a dangling reference can only be removed, not swapped.
 
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useBlocker } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
-import { IconButton } from '../../components/ui/IconButton/IconButton';
-import { TextField } from '../../components/ui/TextField/TextField';
-import { ReorderableList } from '../../components/ui/ReorderableList/ReorderableList';
-import { Surface } from '../../components/ui/Surface/Surface';
-import { Chip } from '../../components/ui/Chip/Chip';
+import { classNames } from '../../components/ui/classNames';
 import { Dialog } from '../../components/ui/Dialog/Dialog';
+import { IconButton } from '../../components/ui/IconButton/IconButton';
+import { ReorderableList } from '../../components/ui/ReorderableList/ReorderableList';
+import { SegmentedControl } from '../../components/ui/SegmentedControl/SegmentedControl';
+import { Surface } from '../../components/ui/Surface/Surface';
+import { TextField } from '../../components/ui/TextField/TextField';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import type { LoggingRepository } from '../../domain/repository';
 import type {
@@ -25,9 +29,10 @@ import type {
 	RoutineExercise,
 	RoutineSection,
 	SetTemplate,
+	SetTemplateValues,
 } from '../../domain/types';
 import { SEED_LAST_PERFORMANCE } from '../../domain/types';
-import { formatNumber } from '../../domain/format';
+import { formatDurationSec, formatNumber } from '../../domain/format';
 import '../screens.css';
 import './plan.css';
 
@@ -37,7 +42,8 @@ interface RoutineEditorScreenProps {
 
 interface EditorExercise {
 	routineExercise: RoutineExercise;
-	exercise: Exercise;
+	/** `null` when the referenced exercise no longer exists in the library — rendered as a "missing exercise" row with only a Remove action, rather than blanking the whole screen. */
+	exercise: Exercise | null;
 	templates: SetTemplate[];
 }
 
@@ -51,7 +57,13 @@ interface EditorState {
 	sections: EditorSection[];
 }
 
-async function loadEditorState(
+/** `tauriRepository.ts`'s `call()` tags a real backend error with the Rust `Error`'s own `kind` (e.g. `"validation"`, `"db"`) — everything except `"notFound"` is a genuine failure, not evidence the exercise was deleted, and must propagate rather than being folded into the "missing exercise" row. An error with no `kind` at all (the mock repository's plain `Error`, or any error that never reached the backend) is treated as a not-found equivalent, matching how the mock's own lookups have always failed. */
+function isKnownNonNotFoundError(err: unknown): boolean {
+	if (typeof err !== 'object' || err === null || !('kind' in err)) return false;
+	return (err as { kind: unknown }).kind !== 'notFound';
+}
+
+export async function loadEditorState(
 	repository: LoggingRepository,
 	routineId: string,
 ): Promise<EditorState> {
@@ -62,10 +74,15 @@ async function loadEditorState(
 			const routineExercises = await repository.listRoutineExercises(section.id);
 			const exercises = await Promise.all(
 				routineExercises.map(async (routineExercise) => {
-					const [exercise, templates] = await Promise.all([
-						repository.getExercise(routineExercise.exerciseId),
-						repository.listSetTemplates(routineExercise.id),
-					]);
+					let exercise: Exercise | null;
+					try {
+						exercise = await repository.getExercise(routineExercise.exerciseId);
+					} catch (err) {
+						if (isKnownNonNotFoundError(err)) throw err;
+						exercise = null;
+					}
+					// Only a missing *exercise* renders as the resilient "missing exercise" row — a templates-fetch failure is a real (likely transient) error and must propagate, not be misread as a deleted exercise and offered up for cascade-deleting Remove.
+					const templates = exercise ? await repository.listSetTemplates(routineExercise.id) : [];
 					return { routineExercise, exercise, templates };
 				}),
 			);
@@ -89,6 +106,31 @@ function templateLabel(template: SetTemplate, metricProfile: MetricProfile): str
 		template.distanceKm == null ? MISSING_VALUE : `${formatNumber(template.distanceKm)} km`;
 	const duration = template.durationSec == null ? MISSING_VALUE : `${template.durationSec}s`;
 	return `${distance} · ${duration}`;
+}
+
+function exerciseSummaryLabel(exercise: Exercise, templates: SetTemplate[]): string {
+	if (templates.length === 0) return 'No set templates yet';
+	return templates.map((template) => templateLabel(template, exercise.metricProfile)).join(' · ');
+}
+
+type PopulationMode = 'last-time' | 'fixed' | 'blank';
+
+function isBlankTemplate(template: SetTemplate): boolean {
+	return (
+		template.populationRule !== SEED_LAST_PERFORMANCE &&
+		template.weightKg == null &&
+		template.reps == null &&
+		template.distanceKm == null &&
+		template.durationSec == null
+	);
+}
+
+/** Which of the three "values come from" states a set most recently added to this exercise used — a pure UI default, not persisted, since it just steers what "+ Add set" does next. */
+export function defaultPopulationMode(templates: SetTemplate[]): PopulationMode {
+	const last = templates[templates.length - 1];
+	if (!last) return 'fixed';
+	if (last.populationRule === SEED_LAST_PERFORMANCE) return 'last-time';
+	return isBlankTemplate(last) ? 'blank' : 'fixed';
 }
 
 interface ExercisePickerProps {
@@ -129,17 +171,6 @@ function ExercisePicker({ onClose, onSelect }: ExercisePickerProps) {
 	);
 }
 
-interface AddTemplateFormProps {
-	metricProfile: MetricProfile;
-	onAdd: (values: {
-		weightKg?: number;
-		reps?: number;
-		distanceKm?: number;
-		durationSec?: number;
-		populationRule?: string;
-	}) => void;
-}
-
 /** A non-negative, finite target value — `integer` also rejects a fractional entry, since reps and whole seconds can't be materialized as a fraction. `ok: true, value: undefined` means the field was left empty (no target given); `ok: false` means it was filled in with something invalid, which the caller must reject rather than silently persist as blank. */
 function parseTarget(
 	raw: string,
@@ -152,8 +183,21 @@ function parseTarget(
 	return { ok: true, value };
 }
 
-function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
-	const [seeded, setSeeded] = useState(false);
+/** A rest override of zero or fewer seconds isn't a meaningful duration — an empty field, not "0", is how "no override" is represented (see `parseTarget`'s own `ok: true, value: undefined` for a blank field). */
+function parseRestSeconds(raw: string): { ok: true; value: number | undefined } | { ok: false } {
+	if (raw.trim() === '') return { ok: true, value: undefined };
+	const value = Number(raw);
+	if (!Number.isFinite(value) || value <= 0) return { ok: false };
+	return { ok: true, value };
+}
+
+interface AddTemplateFormProps {
+	metricProfile: MetricProfile;
+	mode: PopulationMode;
+	onAdd: (values: SetTemplateValues) => void;
+}
+
+function AddTemplateForm({ metricProfile, mode, onAdd }: AddTemplateFormProps) {
 	const [weightKg, setWeightKg] = useState('');
 	const [reps, setReps] = useState('');
 	const [distanceKm, setDistanceKm] = useState('');
@@ -161,8 +205,12 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 	const [error, setError] = useState<string | null>(null);
 
 	function handleAdd() {
-		if (seeded) {
+		if (mode === 'last-time') {
 			onAdd({ populationRule: SEED_LAST_PERFORMANCE });
+			return;
+		}
+		if (mode === 'blank') {
+			onAdd({});
 			return;
 		}
 		if (metricProfile === 'weight-reps') {
@@ -191,25 +239,19 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 
 	return (
 		<div className="routine-editor__template-add">
-			<Chip
-				variant="filter"
-				label="Seed from last performance"
-				selected={seeded}
-				onClick={() => setSeeded((current) => !current)}
-			/>
-			{!seeded && metricProfile === 'weight-reps' && (
+			{mode === 'fixed' && metricProfile === 'weight-reps' && (
 				<>
 					<TextField label="kg" type="number" value={weightKg} onChange={setWeightKg} />
 					<TextField label="Reps" type="number" value={reps} onChange={setReps} />
 				</>
 			)}
-			{!seeded && metricProfile === 'distance-duration' && (
+			{mode === 'fixed' && metricProfile === 'distance-duration' && (
 				<>
 					<TextField label="km" type="number" value={distanceKm} onChange={setDistanceKm} />
 					<TextField label="Seconds" type="number" value={durationSec} onChange={setDurationSec} />
 				</>
 			)}
-			<Button variant="tonal" onClick={handleAdd}>
+			<Button variant="tonal" icon="add" onClick={handleAdd}>
 				Add set
 			</Button>
 			{error && <p className="routine-editor__template-error">{error}</p>}
@@ -217,25 +259,114 @@ function AddTemplateForm({ metricProfile, onAdd }: AddTemplateFormProps) {
 	);
 }
 
+interface Draft {
+	routineName: string;
+	routineNote: string;
+	/** Section id → draft name. Only ever read for sections that still exist. */
+	sectionNames: Record<string, string>;
+	/** Routine-exercise id → draft rest override (`undefined` clears it). */
+	rest: Record<string, number | undefined>;
+}
+
+function draftFromState(state: EditorState): Draft {
+	const sectionNames: Record<string, string> = {};
+	const rest: Record<string, number | undefined> = {};
+	for (const editorSection of state.sections) {
+		sectionNames[editorSection.section.id] = editorSection.section.name ?? '';
+		for (const item of editorSection.exercises) {
+			rest[item.routineExercise.id] = item.routineExercise.restMs;
+		}
+	}
+	return {
+		routineName: state.routine.name,
+		routineNote: state.routine.note ?? '',
+		sectionNames,
+		rest,
+	};
+}
+
+/** Adds `fresh`'s entries for any section/exercise `existing` doesn't know about yet (created by a structural op — add section, add exercise — which persist immediately and then reload), while keeping `existing`'s own values for everything it already has, so a reload never discards an in-progress, not-yet-saved edit. */
+function mergeDraft(fresh: Draft, existing: Draft): Draft {
+	return {
+		routineName: existing.routineName,
+		routineNote: existing.routineNote,
+		sectionNames: { ...fresh.sectionNames, ...existing.sectionNames },
+		rest: { ...fresh.rest, ...existing.rest },
+	};
+}
+
 export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 	const repository = useLoggingRepository();
-	const navigate = useNavigate();
 	const [state, setState] = useState<EditorState | null>(null);
+	const [draft, setDraft] = useState<Draft | null>(null);
+	const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+	const [expandedExerciseId, setExpandedExerciseId] = useState<string | null>(null);
+	const [populationModeByExercise, setPopulationModeByExercise] = useState<
+		Record<string, PopulationMode>
+	>({});
+	const [restEditingId, setRestEditingId] = useState<string | null>(null);
+	const [restInput, setRestInput] = useState('');
+	const [restInputError, setRestInputError] = useState<string | null>(null);
 	const [pickerForSectionId, setPickerForSectionId] = useState<string | null>(null);
 	const [sectionPendingDelete, setSectionPendingDelete] = useState<EditorSection | null>(null);
 	const [exercisePendingDelete, setExercisePendingDelete] = useState<EditorExercise | null>(null);
+	const [saving, setSaving] = useState(false);
+	const [saveError, setSaveError] = useState<string | null>(null);
+	// A brand-new draft's baseline is the just-loaded values — a ref, not state, so the router's dirty blocker (see ExerciseEditorScreen's own note on this exact pattern) can read the latest baseline even from a stale render's closure.
+	const baselineRef = useRef<Draft | null>(null);
+	const skipNextBlockRef = useRef(false);
+	// Which routine the current draft/baseline belong to — a route change from one `/plan/routine/$routineId/edit` to another doesn't guarantee a remount, so `reload` must tell "the same routine reloaded after a structural op" (merge, keeping in-progress edits) apart from "a genuinely different routine" (reset outright, or the previous routine's name/note/rest would linger in the draft and could be saved onto the new routine's id).
+	const draftRoutineIdRef = useRef<string | null>(null);
+	// Guards against an in-flight load resolving after a newer one has already started (e.g. a rapid route change fires reload() twice) — a stale response applying its own state after the fresher one already landed would silently step backwards.
+	const latestRequestIdRef = useRef(0);
 
 	const reload = useCallback(() => {
-		loadEditorState(repository, routineId).then(setState);
+		const requestId = ++latestRequestIdRef.current;
+		loadEditorState(repository, routineId).then((loaded) => {
+			if (latestRequestIdRef.current !== requestId) return;
+			setState(loaded);
+			const fresh = draftFromState(loaded);
+			const sameRoutine = draftRoutineIdRef.current === routineId;
+			draftRoutineIdRef.current = routineId;
+			setDraft((current) => (current && sameRoutine ? mergeDraft(fresh, current) : fresh));
+			baselineRef.current =
+				baselineRef.current && sameRoutine ? mergeDraft(fresh, baselineRef.current) : fresh;
+		});
 	}, [repository, routineId]);
 
 	useEffect(reload, [reload]);
 
-	if (!state) return null;
+	useEffect(() => {
+		if (!state) return;
+		setActiveSectionId((current) => {
+			if (current && state.sections.some((s) => s.section.id === current)) return current;
+			return state.sections[0]?.section.id ?? null;
+		});
+	}, [state]);
+
+	const isDirty = Boolean(
+		draft && baselineRef.current && JSON.stringify(draft) !== JSON.stringify(baselineRef.current),
+	);
+
+	// Blocks every navigation path away from a dirty draft, not just the app bar's back button — predictive back and hardware/browser back both go through the router's history, same as this.
+	const blocker = useBlocker({
+		shouldBlockFn: () => {
+			if (skipNextBlockRef.current) {
+				skipNextBlockRef.current = false;
+				return false;
+			}
+			return isDirty;
+		},
+		withResolver: true,
+	});
+
+	if (!state || !draft) return null;
 	const { routine, sections } = state;
+	const activeSection = sections.find((s) => s.section.id === activeSectionId) ?? null;
 
 	async function handleAddSection() {
-		await repository.addRoutineSection(routineId, undefined);
+		const created = await repository.addRoutineSection(routineId, undefined);
+		setActiveSectionId(created.id);
 		reload();
 	}
 
@@ -278,124 +409,386 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 		reload();
 	}
 
+	async function handleSave() {
+		if (saving || !draft) return;
+		const currentDraft = draft;
+		setSaving(true);
+		setSaveError(null);
+
+		// Each task pairs its own persistence call with the baseline patch to apply once that one call succeeds — `Promise.allSettled` means one field failing must not roll back sibling fields that already committed, so the baseline (and therefore what still reads as "unsaved") has to advance per field, not all-or-nothing on a single `Promise.all`.
+		const tasks: {
+			label: string;
+			run: () => Promise<unknown>;
+			commit: (baseline: Draft) => Draft;
+		}[] = [];
+		if (currentDraft.routineName !== routine.name) {
+			tasks.push({
+				label: 'name',
+				run: () => repository.renameRoutine(routineId, currentDraft.routineName),
+				commit: (baseline) => ({ ...baseline, routineName: currentDraft.routineName }),
+			});
+		}
+		const draftNote = currentDraft.routineNote.trim() === '' ? undefined : currentDraft.routineNote;
+		if (draftNote !== (routine.note ?? undefined)) {
+			tasks.push({
+				label: 'note',
+				run: () => repository.updateRoutineNote(routineId, draftNote),
+				commit: (baseline) => ({ ...baseline, routineNote: currentDraft.routineNote }),
+			});
+		}
+		for (const editorSection of sections) {
+			const draftName = currentDraft.sectionNames[editorSection.section.id];
+			if (draftName !== undefined && draftName !== (editorSection.section.name ?? '')) {
+				const sectionId = editorSection.section.id;
+				tasks.push({
+					label: `"${draftName || 'Section'}" name`,
+					run: () => repository.renameRoutineSection(sectionId, draftName || undefined),
+					commit: (baseline) => ({
+						...baseline,
+						sectionNames: { ...baseline.sectionNames, [sectionId]: draftName },
+					}),
+				});
+			}
+			for (const item of editorSection.exercises) {
+				const draftRest = currentDraft.rest[item.routineExercise.id];
+				if (draftRest !== item.routineExercise.restMs) {
+					const routineExerciseId = item.routineExercise.id;
+					tasks.push({
+						label: `${item.exercise?.name ?? 'exercise'} rest override`,
+						run: () => repository.updateRoutineExerciseRest(routineExerciseId, draftRest),
+						commit: (baseline) => ({
+							...baseline,
+							rest: { ...baseline.rest, [routineExerciseId]: draftRest },
+						}),
+					});
+				}
+			}
+		}
+
+		const results = await Promise.allSettled(tasks.map((task) => task.run()));
+		setSaving(false);
+
+		let nextBaseline = baselineRef.current ?? currentDraft;
+		const failedLabels: string[] = [];
+		results.forEach((result, index) => {
+			if (result.status === 'fulfilled') {
+				nextBaseline = tasks[index].commit(nextBaseline);
+			} else {
+				failedLabels.push(tasks[index].label);
+			}
+		});
+		baselineRef.current = nextBaseline;
+		reload();
+
+		if (failedLabels.length > 0) {
+			setSaveError(`Couldn't save: ${failedLabels.join(', ')}. Everything else was saved.`);
+		}
+	}
+
 	return (
 		<div className="screen-shell">
-			<AppBar title="Edit routine" size="medium" back={{ to: `/plan/routine/${routineId}` }} />
+			<AppBar
+				title="Edit routine"
+				size="medium"
+				back={{ to: `/plan/routine/${routineId}` }}
+				trailingContent={
+					<Button variant="text" onClick={handleSave} disabled={!isDirty || saving}>
+						Save
+					</Button>
+				}
+			/>
 			<div className="screen-shell__content routine-screen__content">
+				{isDirty && <p className="routine-editor__unsaved">Unsaved changes</p>}
+				{saveError && (
+					<Banner
+						icon="error"
+						tone="attention"
+						message={saveError}
+						onDismiss={() => setSaveError(null)}
+					/>
+				)}
+
 				<TextField
 					label="Name"
-					value={routine.name}
-					onChange={(name) => setState({ ...state, routine: { ...routine, name } })}
-					onKeyDown={(event) => {
-						if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
-					}}
+					value={draft.routineName}
+					onChange={(routineName) => setDraft({ ...draft, routineName })}
 				/>
 				<TextField
 					label="Note"
-					value={routine.note ?? ''}
-					onChange={(note) => setState({ ...state, routine: { ...routine, note } })}
+					value={draft.routineNote}
+					onChange={(routineNote) => setDraft({ ...draft, routineNote })}
 					multiline
 				/>
-				<Button
-					variant="text"
-					onClick={async () => {
-						await repository.renameRoutine(routineId, routine.name);
-						await repository.updateRoutineNote(routineId, routine.note || undefined);
-					}}
-				>
-					Save name and note
-				</Button>
 
-				<ReorderableList
-					items={sections}
-					getKey={(item) => item.section.id}
-					getLabel={(item) => item.section.name || 'Section'}
-					onReorder={handleReorderSections}
-					renderItem={({ section, exercises }) => (
-						<Surface tone="container-low" radius="m" className="routine-section-card">
-							<div className="routine-section-card__header">
-								<TextField
-									label="Section name"
-									value={section.name ?? ''}
-									onChange={(name) => {
-										setState({
-											...state,
-											sections: sections.map((s) =>
-												s.section.id === section.id ? { ...s, section: { ...s.section, name } } : s,
-											),
-										});
-									}}
-									onKeyDown={(event) => {
-										if (event.key === 'Enter') (event.target as HTMLInputElement).blur();
-									}}
-									onBlur={() =>
-										repository.renameRoutineSection(section.id, section.name || undefined)
-									}
-								/>
-								<IconButton
-									icon="delete"
-									label="Delete section"
-									onClick={() => handleDeleteSection({ section, exercises })}
-								/>
-							</div>
+				<div className="routine-editor__tabs">
+					<ReorderableList
+						items={sections}
+						getKey={(item) => item.section.id}
+						getLabel={(item) => item.section.name || 'Section'}
+						onReorder={handleReorderSections}
+						orientation="horizontal"
+						showHandle={false}
+						renderItem={(item) => (
+							<button
+								type="button"
+								className={classNames(
+									'routine-editor__tab',
+									item.section.id === activeSectionId && 'routine-editor__tab--active',
+								)}
+								onClick={() => setActiveSectionId(item.section.id)}
+							>
+								{item.section.name || 'Section'}
+							</button>
+						)}
+					/>
+					<button
+						type="button"
+						className="routine-editor__tab routine-editor__tab--add"
+						onClick={handleAddSection}
+					>
+						<span className="material-symbols-rounded" aria-hidden="true">
+							add
+						</span>
+						Section
+					</button>
+				</div>
 
-							<ReorderableList
-								items={exercises}
-								getKey={(item) => item.routineExercise.id}
-								getLabel={(item) => item.exercise.name}
-								onReorder={(next) => handleReorderExercises(section.id, next)}
-								renderItem={(item) => (
-									<div className="routine-editor__row">
-										<div className="routine-editor__row-fields">
-											<span>{item.exercise.name}</span>
-											{item.templates.map((template) => (
-												<div key={template.id} className="routine-editor__template-row">
-													<span>{templateLabel(template, item.exercise.metricProfile)}</span>
-													<IconButton
-														icon="close"
-														label="Remove set"
-														size="small"
-														onClick={async () => {
-															await repository.deleteSetTemplate(template.id);
-															reload();
-														}}
-													/>
-												</div>
-											))}
+				{activeSection && (
+					<Surface tone="container-low" radius="m" className="routine-section-card">
+						<div className="routine-section-card__header">
+							<TextField
+								label="Section name"
+								value={draft.sectionNames[activeSection.section.id] ?? ''}
+								onChange={(name) =>
+									setDraft({
+										...draft,
+										sectionNames: { ...draft.sectionNames, [activeSection.section.id]: name },
+									})
+								}
+							/>
+							<IconButton
+								icon="delete"
+								label="Delete section"
+								onClick={() => handleDeleteSection(activeSection)}
+							/>
+						</div>
+
+						<ReorderableList
+							items={activeSection.exercises}
+							getKey={(item) => item.routineExercise.id}
+							getLabel={(item) => item.exercise?.name ?? 'Missing exercise'}
+							onReorder={(next) => handleReorderExercises(activeSection.section.id, next)}
+							renderItem={(item, index) => {
+								if (!item.exercise) {
+									return (
+										<div className="routine-editor__row routine-editor__row--missing">
+											<span className="routine-editor__row-order">{index + 1}</span>
+											<div className="routine-editor__row-body">
+												<span className="routine-editor__row-name">Missing exercise</span>
+												<span className="routine-editor__row-error">
+													Deleted from library · remove it from this section
+												</span>
+											</div>
+											<Button
+												variant="text"
+												tone="error"
+												onClick={() => handleDeleteExercise(item)}
+											>
+												Remove
+											</Button>
+										</div>
+									);
+								}
+
+								const exercise = item.exercise;
+								const expanded = expandedExerciseId === item.routineExercise.id;
+								const mode =
+									populationModeByExercise[item.routineExercise.id] ??
+									defaultPopulationMode(item.templates);
+								const restMs = draft.rest[item.routineExercise.id];
+
+								if (!expanded) {
+									return (
+										<button
+											type="button"
+											className="routine-editor__row"
+											onClick={() => setExpandedExerciseId(item.routineExercise.id)}
+										>
+											<span className="routine-editor__row-order">{index + 1}</span>
+											<div className="routine-editor__row-body">
+												<span className="routine-editor__row-name">{exercise.name}</span>
+												<span className="routine-editor__row-summary">
+													{exerciseSummaryLabel(exercise, item.templates)}
+												</span>
+											</div>
+										</button>
+									);
+								}
+
+								return (
+									<div className="routine-editor__row routine-editor__row--expanded">
+										<div className="routine-editor__row-header">
+											<span className="routine-editor__row-order">{index + 1}</span>
+											<span className="routine-editor__row-name">{exercise.name}</span>
+											<IconButton
+												icon="expand_less"
+												label="Collapse"
+												size="small"
+												onClick={() => setExpandedExerciseId(null)}
+											/>
+										</div>
+
+										<div className="routine-editor__population">
+											<span className="routine-editor__population-label">Values come from</span>
+											<SegmentedControl
+												value={mode}
+												onChange={(next) =>
+													setPopulationModeByExercise({
+														...populationModeByExercise,
+														[item.routineExercise.id]: next,
+													})
+												}
+												options={[
+													{ value: 'last-time', label: 'Last time' },
+													{ value: 'fixed', label: 'Fixed' },
+													{ value: 'blank', label: 'Blank' },
+												]}
+											/>
+										</div>
+
+										{item.templates.length > 0 && (
+											<div className="routine-editor__templates">
+												{item.templates.map((template, templateIndex) => (
+													<div key={template.id} className="routine-editor__template-row">
+														<span className="routine-editor__template-index">
+															{templateIndex + 1}
+														</span>
+														<span>{templateLabel(template, exercise.metricProfile)}</span>
+														<IconButton
+															icon="close"
+															label="Remove set"
+															size="small"
+															onClick={async () => {
+																await repository.deleteSetTemplate(template.id);
+																reload();
+															}}
+														/>
+													</div>
+												))}
+											</div>
+										)}
+
+										<div className="routine-editor__row-footer">
 											<AddTemplateForm
-												metricProfile={item.exercise.metricProfile}
+												metricProfile={exercise.metricProfile}
+												mode={mode}
 												onAdd={async (values) => {
 													await repository.addSetTemplate(item.routineExercise.id, values);
 													reload();
 												}}
 											/>
+											{item.templates.length > 0 && (
+												<button
+													type="button"
+													className="routine-editor__duplicate-last"
+													onClick={async () => {
+														const last = item.templates[item.templates.length - 1];
+														await repository.addSetTemplate(item.routineExercise.id, {
+															weightKg: last.weightKg,
+															reps: last.reps,
+															distanceKm: last.distanceKm,
+															durationSec: last.durationSec,
+															populationRule: last.populationRule,
+														});
+														reload();
+													}}
+												>
+													Duplicate last set
+												</button>
+											)}
 										</div>
+
+										<div className="routine-editor__rest-row">
+											{restEditingId === item.routineExercise.id ? (
+												<>
+													<TextField
+														label="Rest override (seconds)"
+														type="number"
+														value={restInput}
+														onChange={(raw) => {
+															setRestInput(raw);
+															setRestInputError(null);
+														}}
+													/>
+													<Button
+														variant="text"
+														onClick={() => {
+															const parsed = parseRestSeconds(restInput);
+															if (!parsed.ok) {
+																setRestInputError(
+																	'Enter a positive number of seconds, or leave it blank.',
+																);
+																return;
+															}
+															setDraft({
+																...draft,
+																rest: {
+																	...draft.rest,
+																	[item.routineExercise.id]:
+																		parsed.value == null
+																			? undefined
+																			: Math.round(parsed.value * 1000),
+																},
+															});
+															setRestEditingId(null);
+														}}
+													>
+														Done
+													</Button>
+													{restInputError && (
+														<p className="routine-editor__template-error">{restInputError}</p>
+													)}
+												</>
+											) : (
+												<span className="routine-editor__rest-label">
+													{restMs != null
+														? `Rest ${formatDurationSec(restMs / 1000)}`
+														: 'No rest override'}{' '}
+													·{' '}
+													<button
+														type="button"
+														className="routine-editor__rest-change"
+														onClick={() => {
+															setRestInput(restMs != null ? String(Math.round(restMs / 1000)) : '');
+															setRestInputError(null);
+															setRestEditingId(item.routineExercise.id);
+														}}
+													>
+														change
+													</button>
+												</span>
+											)}
+										</div>
+
 										<IconButton
 											icon="delete"
 											label="Remove exercise"
 											onClick={() => handleDeleteExercise(item)}
 										/>
 									</div>
-								)}
-							/>
+								);
+							}}
+						/>
 
-							<Button variant="text" icon="add" onClick={() => setPickerForSectionId(section.id)}>
-								Add exercise
-							</Button>
-						</Surface>
-					)}
-				/>
-
-				<Button variant="tonal" icon="add" onClick={handleAddSection}>
-					Add section
-				</Button>
-
-				<Button
-					variant="text"
-					onClick={() => navigate({ to: '/plan/routine/$routineId', params: { routineId } })}
-				>
-					Done
-				</Button>
+						<Button
+							variant="text"
+							icon="add"
+							onClick={() => setPickerForSectionId(activeSection.section.id)}
+						>
+							Add exercise
+						</Button>
+					</Surface>
+				)}
 			</div>
 
 			{pickerForSectionId && (
@@ -435,9 +828,9 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 				}
 			>
 				<p>
-					This removes {sectionPendingDelete?.exercises.length ?? 0} exercise
-					{sectionPendingDelete?.exercises.length === 1 ? '' : 's'} and all of their set templates
-					from this routine.
+					Removes {sectionPendingDelete?.exercises.length ?? 0} exercise
+					{sectionPendingDelete?.exercises.length === 1 ? '' : 's'} and their set templates. Logged
+					workouts are <b>not</b> changed.
 				</p>
 			</Dialog>
 
@@ -467,10 +860,29 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 				}
 			>
 				<p>
-					This removes {exercisePendingDelete?.exercise.name} and its{' '}
+					This removes {exercisePendingDelete?.exercise?.name ?? 'this exercise'} and its{' '}
 					{exercisePendingDelete?.templates.length ?? 0} set
 					{exercisePendingDelete?.templates.length === 1 ? '' : 's'} from this section.
 				</p>
+			</Dialog>
+
+			<Dialog
+				open={blocker.status === 'blocked'}
+				onClose={() => blocker.reset?.()}
+				headline="Discard changes?"
+				role="dialog"
+				actions={
+					<>
+						<Button variant="text" onClick={() => blocker.reset?.()}>
+							Cancel
+						</Button>
+						<Button variant="filled" tone="error" onClick={() => blocker.proceed?.()}>
+							Discard
+						</Button>
+					</>
+				}
+			>
+				<p>Your unsaved changes to this routine will be lost.</p>
 			</Dialog>
 		</div>
 	);
