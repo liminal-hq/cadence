@@ -66,6 +66,21 @@ describe('SettingsProvider', () => {
 		expect(screen.getByTestId('error').textContent).toBe('offline');
 	});
 
+	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {
+		const repository = new MockLoggingRepository();
+		vi.spyOn(repository, 'getSettings').mockRejectedValueOnce(new Error('disk full'));
+		renderProbe(repository);
+
+		await waitFor(() => expect(screen.getByText("Couldn't load settings")).toBeInTheDocument());
+		expect(screen.getByText('disk full')).toBeInTheDocument();
+
+		await act(async () => {
+			screen.getByText('Try again').click();
+		});
+
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+	});
+
 	it('throws when used outside a SettingsProvider', () => {
 		function Orphan() {
 			useSettings();
