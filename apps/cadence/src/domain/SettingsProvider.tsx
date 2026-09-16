@@ -45,15 +45,20 @@ export function SettingsProvider({ children }: SettingsProviderProps) {
 	const writeQueue = useRef<Promise<void>>(Promise.resolve());
 	// The last row the backend actually confirmed, either from the initial load or a successful write — a failure rolls back to this, never to another call's still-unconfirmed optimistic snapshot.
 	const confirmedSettings = useRef<Settings | null>(null);
+	// Guards against a stale load (an overlapping StrictMode double-invoke, or a second "Try again") applying its outcome after a newer load has already settled.
+	const latestLoadId = useRef(0);
 
 	const reload = useCallback(() => {
+		const loadId = ++latestLoadId.current;
 		setLoadError(null);
 		repository.getSettings().then(
 			(loaded) => {
+				if (loadId !== latestLoadId.current) return;
 				confirmedSettings.current = loaded;
 				setSettings(loaded);
 			},
 			(err) => {
+				if (loadId !== latestLoadId.current) return;
 				setLoadError(err instanceof Error ? err.message : String(err));
 			},
 		);

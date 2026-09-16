@@ -20,7 +20,7 @@ vi.mock('@tanstack/react-router', () => ({
 }));
 
 function Probe() {
-	const { settings, error, clearError, updateSettings } = useSettings();
+	const { settings, error, clearError, loadError, reload, updateSettings } = useSettings();
 
 	if (!settings) return <SettingsLoadFailure title="Test settings" />;
 
@@ -28,8 +28,10 @@ function Probe() {
 		<div>
 			<span data-testid="weight-unit">{settings.weightUnit}</span>
 			<span data-testid="error">{error ?? 'none'}</span>
+			<span data-testid="load-error">{loadError ?? 'none'}</span>
 			<button onClick={() => updateSettings({ weightUnit: 'lb' })}>change</button>
 			<button onClick={clearError}>dismiss</button>
+			<button onClick={reload}>manual reload</button>
 		</div>
 	);
 }
@@ -162,6 +164,64 @@ describe('SettingsProvider', () => {
 
 		await waitFor(() => expect(screen.getByTestId('error').textContent).toBe('offline again'));
 		expect(screen.getByTestId('weight-unit').textContent).toBe('kg');
+	});
+
+	it('ignores a stale reload’s success once a newer reload has already settled', async () => {
+		const repository = new MockLoggingRepository();
+		const baseline = await repository.getSettings();
+		let resolveStale: (value: Settings) => void = () => {};
+		const stale = new Promise<Settings>((resolve) => {
+			resolveStale = resolve;
+		});
+		let callIndex = 0;
+		vi.spyOn(repository, 'getSettings').mockImplementation(async () => {
+			callIndex += 1;
+			if (callIndex === 1) return baseline;
+			if (callIndex === 2) return stale;
+			return { ...baseline, weightUnit: 'lb' };
+		});
+
+		renderProbe(repository);
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+
+		await act(async () => {
+			screen.getByText('manual reload').click(); // stale, stays pending
+			screen.getByText('manual reload').click(); // resolves immediately
+		});
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('lb'));
+
+		await act(async () => resolveStale(baseline));
+
+		expect(screen.getByTestId('weight-unit').textContent).toBe('lb');
+	});
+
+	it('ignores a stale reload’s failure once a newer reload has already succeeded', async () => {
+		const repository = new MockLoggingRepository();
+		const baseline = await repository.getSettings();
+		let rejectStale: (err: Error) => void = () => {};
+		const stale = new Promise<Settings>((_, reject) => {
+			rejectStale = reject;
+		});
+		let callIndex = 0;
+		vi.spyOn(repository, 'getSettings').mockImplementation(async () => {
+			callIndex += 1;
+			if (callIndex === 1) return baseline;
+			if (callIndex === 2) return stale;
+			return baseline;
+		});
+
+		renderProbe(repository);
+		await waitFor(() => expect(screen.getByTestId('weight-unit').textContent).toBe('kg'));
+
+		await act(async () => {
+			screen.getByText('manual reload').click(); // stale, stays pending
+			screen.getByText('manual reload').click(); // resolves immediately
+		});
+		await waitFor(() => expect(screen.getByTestId('load-error').textContent).toBe('none'));
+
+		await act(async () => rejectStale(new Error('stale disk error')));
+
+		expect(screen.getByTestId('load-error').textContent).toBe('none');
 	});
 
 	it('offers a retry when the initial load fails, and recovers once it succeeds', async () => {
