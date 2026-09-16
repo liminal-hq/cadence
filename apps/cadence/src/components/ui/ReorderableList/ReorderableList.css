@@ -24,10 +24,7 @@
 	cursor: grabbing;
 }
 
-/* Reachable by a touch screen reader's swipe navigation (same accessibility-tree order a sighted
-   keyboard user's Tab key would follow) without occupying two invisible stops in that same Tab
-   sequence — clipped like `.ui-visually-hidden` until focused, then revealed with enough chrome to
-   read as a real control rather than a stray floating label. */
+/* Reachable by a touch screen reader's swipe navigation (same accessibility-tree order a sighted keyboard user's Tab key would follow) without occupying two invisible stops in that same Tab sequence — clipped like `.ui-visually-hidden` until focused, then revealed with enough chrome to read as a real control rather than a stray floating label. */
 .ui-reorderable-list__move {
 	position: absolute;
 	width: 1px;
