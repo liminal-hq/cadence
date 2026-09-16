@@ -171,7 +171,7 @@ export function ReorderableList<T>({
 			return `${labelFor(String(active.id))} was dropped at the position of ${labelFor(String(over.id))}.`;
 		},
 		onDragCancel({ active }) {
-			return `Dragging was cancelled. ${labelFor(String(active.id))} was dropped.`;
+			return `Dragging was cancelled. ${labelFor(String(active.id))} was returned to its original position.`;
 		},
 	};
 

@@ -320,7 +320,10 @@ export function RoutineEditorScreen({ routineId }: RoutineEditorScreenProps) {
 				<ReorderableList
 					items={sections}
 					getKey={(item) => item.section.id}
-					getLabel={(item) => item.section.name || 'Section'}
+					getLabel={(item) =>
+						item.section.name ||
+						`Section ${sections.findIndex((s) => s.section.id === item.section.id) + 1}`
+					}
 					onReorder={handleReorderSections}
 					renderItem={({ section, exercises }) => (
 						<Surface tone="container-low" radius="m" className="routine-section-card">
