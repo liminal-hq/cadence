@@ -26,6 +26,8 @@ pub async fn init_pool(db_path: &Path) -> Result<SqlitePool, Error> {
             .map_err(|e| Error::Validation(format!("couldn't create {}: {e}", parent.display())))?;
     }
 
+    run_migrations(db_path).await?;
+
     let options = SqliteConnectOptions::new()
         .filename(db_path)
         .create_if_missing(true)
@@ -38,12 +40,38 @@ pub async fn init_pool(db_path: &Path) -> Result<SqlitePool, Error> {
         .connect_with(options)
         .await?;
 
+    Ok(pool)
+}
+
+/// Runs the migrator against its own short-lived, single connection with foreign-key enforcement
+/// OFF. Some migrations (a `CHECK` constraint change, which SQLite only supports by rebuilding the
+/// table) must temporarily drop a table that still has children configured with `ON DELETE
+/// CASCADE` — with enforcement on, SQLite treats that `DROP TABLE` as deleting every row in it
+/// first, cascading into real data loss for every one of that table's children. `PRAGMA
+/// foreign_keys` can only be changed outside a transaction, and sqlx's SQLite driver always runs
+/// each migration inside one (it doesn't honour the `-- no-transaction` marker some other
+/// backends do), so this has to be a connection that started with enforcement off rather than one
+/// toggled mid-migration. The real, long-lived pool `init_pool` hands out afterward reconnects
+/// with enforcement back on for actual app use.
+async fn run_migrations(db_path: &Path) -> Result<(), Error> {
+    let options = SqliteConnectOptions::new()
+        .filename(db_path)
+        .create_if_missing(true)
+        .journal_mode(SqliteJournalMode::Wal)
+        .foreign_keys(false);
+
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await?;
+
     MIGRATOR
         .run(&pool)
         .await
         .map_err(|e| Error::Validation(e.to_string()))?;
 
-    Ok(pool)
+    pool.close().await;
+    Ok(())
 }
 
 /// Hands out the next monotonic revision for a mutation. Every syncable table's `revision` column
@@ -84,23 +112,23 @@ pub async fn write_tombstone(
 /// A fresh, fully migrated in-memory database — the only schema-construction path in tests too.
 #[cfg(test)]
 pub async fn init_test_pool() -> SqlitePool {
-    // `foreign_keys` defaults off for a bare "sqlite::memory:" connection string, unlike
-    // `init_pool`'s explicit `SqliteConnectOptions` — enable it here too so tests actually
-    // exercise the same FK enforcement production does (a rebuild migration that's only FK-safe
-    // by accident would otherwise pass tests and break in the field).
+    // `foreign_keys` defaults off for a bare "sqlite::memory:" connection string, which is
+    // exactly what a rebuild-style migration needs while it runs (see `run_migrations`'s doc
+    // comment) — enforcement is turned on only *after* migrating, so tests exercise the same
+    // enforcement production does for every write path this pool is actually used for.
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .expect("open an in-memory sqlite pool");
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await
-        .expect("enable foreign key enforcement on the in-memory db");
     MIGRATOR
         .run(&pool)
         .await
         .expect("run migrations against the in-memory db");
+    sqlx::query("PRAGMA foreign_keys = ON;")
+        .execute(&pool)
+        .await
+        .expect("enable foreign key enforcement on the in-memory db");
     pool
 }
 
@@ -138,6 +166,112 @@ mod tests {
         let pool = init_pool(&db_path).await.unwrap();
         drop(pool);
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Regression test for a real data-loss bug caught in review: with foreign-key enforcement on,
+    /// SQLite treats 0009's `DROP TABLE workouts` as deleting every row in it first, which fires
+    /// `workout_exercises`/`supersets`'s `ON DELETE CASCADE` and destroys every workout's
+    /// exercises and sets on any populated database upgrading through it. This brings a
+    /// file-backed database up to just before 0009 via a real sub-migrator (so `_sqlx_migrations`
+    /// bookkeeping matches a genuine existing install), inserts a realistic logged set, then runs
+    /// the actual upgrade path (`run_migrations`) and asserts nothing was lost.
+    #[tokio::test]
+    async fn upgrading_a_populated_database_preserves_workout_children() {
+        let db_path =
+            std::env::temp_dir().join(format!("cadence-upgrade-test-{}.db", uuid::Uuid::new_v4()));
+
+        {
+            let pre_0009 = sqlx::migrate::Migrator {
+                migrations: std::borrow::Cow::Owned(
+                    MIGRATOR.iter().filter(|m| m.version < 9).cloned().collect(),
+                ),
+                ignore_missing: MIGRATOR.ignore_missing,
+                locking: MIGRATOR.locking,
+                no_tx: MIGRATOR.no_tx,
+                create_schemas: MIGRATOR.create_schemas.clone(),
+                table_name: MIGRATOR.table_name.clone(),
+            };
+            let options = SqliteConnectOptions::new()
+                .filename(&db_path)
+                .create_if_missing(true)
+                .foreign_keys(true);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options)
+                .await
+                .unwrap();
+            pre_0009.run(&pool).await.unwrap();
+
+            sqlx::query(
+                "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+                 created_at_ms, updated_at_ms, revision) \
+                 VALUES ('w-real', '2026-09-17', 'Push day', 'in-progress', 'manual', 0, 1000, 1000, 1)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO workout_exercises (id, workout_id, exercise_id, sort_order, \
+                 created_at_ms, updated_at_ms, revision) \
+                 VALUES ('we-real', 'w-real', 'ex-bench-press', 1, 1000, 1000, 1)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO sets (id, workout_id, workout_exercise_id, exercise_id, sort_order, \
+                 status, weight_g, reps, created_at_ms, updated_at_ms, revision) \
+                 VALUES ('s-real', 'w-real', 'we-real', 'ex-bench-press', 1, 'completed', 60000, \
+                 5, 1000, 1000, 1)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            pool.close().await;
+        }
+
+        // The real upgrade path, exactly as `init_pool` uses it.
+        run_migrations(&db_path).await.unwrap();
+
+        let options = SqliteConnectOptions::new()
+            .filename(&db_path)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+
+        let (status,): (String,) =
+            sqlx::query_as("SELECT status FROM workouts WHERE id = 'w-real'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(status, "active");
+
+        let (we_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM workout_exercises WHERE id = 'we-real'")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            we_count, 1,
+            "upgrading must not cascade-delete existing workout_exercises"
+        );
+
+        let (set_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sets WHERE id = 's-real'")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+        assert_eq!(
+            set_count, 1,
+            "upgrading must not cascade-delete existing sets"
+        );
+
+        drop(pool);
+        let _ = std::fs::remove_file(&db_path);
+        let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
     #[tokio::test]

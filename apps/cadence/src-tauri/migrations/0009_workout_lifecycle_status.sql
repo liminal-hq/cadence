@@ -10,6 +10,14 @@
 -- correctly by name throughout — renaming `workouts` first would make SQLite silently repoint
 -- `workout_exercises`/`supersets`/`health_import_candidates`'s REFERENCES clauses at the
 -- soon-to-be-dropped name, breaking every future insert into those tables.
+--
+-- The DROP TABLE below relies on running with foreign-key enforcement OFF: with it on, SQLite
+-- treats dropping a table as deleting every row in it first, which fires `workout_exercises`/
+-- `supersets`'s `ON DELETE CASCADE` and would destroy every workout's exercises and sets on any
+-- populated database. `src/db/mod.rs`'s `run_migrations` is what actually guarantees this — it
+-- runs the whole migrator against a connection opened with enforcement off from the start, since
+-- `PRAGMA foreign_keys` can't be changed mid-transaction and sqlx's SQLite driver always runs each
+-- migration inside one.
 
 CREATE TABLE workouts_new (
     id                      TEXT PRIMARY KEY,

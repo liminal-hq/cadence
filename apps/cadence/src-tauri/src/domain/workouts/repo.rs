@@ -123,6 +123,23 @@ pub async fn list_in_range(
     Ok(rows.into_iter().map(Workout::from).collect())
 }
 
+/// The single `draft`/`active` workout, if one exists — SPEC.md 8.1's "only one workout is active
+/// ... by default" model is global, not scoped to today's date, so Today's "Continue workout"
+/// check (and anything else asking "is a workout already open") must look here rather than at a
+/// specific date's workouts. An open workout is never dated in the future relative to when it was
+/// last touched, so `updated_at_ms DESC` is enough to break ties if more than one is ever found.
+pub async fn get_open(conn: &mut SqliteConnection) -> Result<Option<Workout>> {
+    let row: Option<WorkoutRow> = sqlx::query_as(
+        "SELECT id, local_date, title, note, started_at_ms, completed_at_ms, status, source, \
+         logged_by_watch, source_routine_id, source_routine_name, hc_source_app, hc_record_id, \
+         hc_imported_at_ms, hc_unmapped_metrics, hc_overlaps_workout_id FROM workouts \
+         WHERE status IN ('draft', 'active') ORDER BY updated_at_ms DESC LIMIT 1",
+    )
+    .fetch_optional(conn)
+    .await?;
+    Ok(row.map(Workout::from))
+}
+
 /// Creates a brand-new active, manually-sourced workout with no exercises yet — the
 /// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
 /// minimal ceremony rather than requiring a routine or a pre-picked exercise list.
@@ -377,6 +394,36 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[tokio::test]
+    async fn get_open_returns_none_when_nothing_is_open() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        assert_eq!(get_open(&mut conn).await.unwrap(), None);
+    }
+
+    #[tokio::test]
+    async fn get_open_finds_an_active_workout_regardless_of_its_date() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        // Dated well in the past — SPEC.md 8.1's single-active-workout model is global, not
+        // scoped to today, so this must still be found (this is exactly what reopening an old
+        // completed/abandoned workout produces).
+        let created = create(&mut conn, "2020-01-01", "Old workout")
+            .await
+            .unwrap();
+        let found = get_open(&mut conn).await.unwrap();
+        assert_eq!(found.map(|w| w.id), Some(created.id));
+    }
+
+    #[tokio::test]
+    async fn get_open_ignores_completed_and_abandoned_workouts() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        abandon(&mut conn, &created.id).await.unwrap();
+        assert_eq!(get_open(&mut conn).await.unwrap(), None);
     }
 
     #[tokio::test]
