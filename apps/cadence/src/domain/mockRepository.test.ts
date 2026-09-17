@@ -344,7 +344,7 @@ describe('MockLoggingRepository', () => {
 			expect(duplicated.id).not.toBe('workout-2026-09-04');
 			expect(duplicated.date).toBe('2026-09-20');
 			expect(duplicated.title).toBe('Push A');
-			expect(duplicated.status).toBe('in-progress');
+			expect(duplicated.status).toBe('active');
 
 			const workoutExercises = await repo.listWorkoutExercisesByWorkout(duplicated.id);
 			expect(workoutExercises).toHaveLength(2);
@@ -369,12 +369,60 @@ describe('MockLoggingRepository', () => {
 			expect(await repo.getWorkout('workout-2026-09-04')).toEqual(updated);
 		});
 
-		it('creates a fresh in-progress workout with no exercises', async () => {
+		it('creates a fresh active workout with no exercises', async () => {
 			const created = await repo.createWorkout('2026-09-10', 'Push day');
 			expect(created.date).toBe('2026-09-10');
 			expect(created.title).toBe('Push day');
-			expect(created.status).toBe('in-progress');
+			expect(created.status).toBe('active');
 			expect(await repo.listWorkoutExercisesByWorkout(created.id)).toEqual([]);
+		});
+
+		describe('completing, abandoning, and reopening', () => {
+			it('rejects completing a workout with no completed sets', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+				await expect(repo.completeWorkout(workout.id)).rejects.toThrow('no completed sets');
+			});
+
+			it('completes a workout that has a completed set', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
+
+				const completed = await repo.completeWorkout(workout.id);
+				expect(completed.status).toBe('completed');
+				expect(completed.completedAt).toBeDefined();
+			});
+
+			it('abandons a workout with completed sets already logged, keeping them', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
+
+				const abandoned = await repo.abandonWorkout(workout.id);
+				expect(abandoned.status).toBe('abandoned');
+				expect(await repo.listSets(we.id)).toHaveLength(1);
+			});
+
+			it('rejects abandoning or completing an already-terminal workout', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.abandonWorkout(workout.id);
+				await expect(repo.abandonWorkout(workout.id)).rejects.toThrow();
+				await expect(repo.completeWorkout(workout.id)).rejects.toThrow();
+			});
+
+			it('reopens a completed or abandoned workout back to active', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.abandonWorkout(workout.id);
+				const reopened = await repo.reopenWorkout(workout.id);
+				expect(reopened.status).toBe('active');
+				expect(reopened.completedAt).toBeUndefined();
+			});
+
+			it('rejects reopening a workout that is still active', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await expect(repo.reopenWorkout(workout.id)).rejects.toThrow();
+			});
 		});
 
 		it('adds an exercise to a workout, appending at the end of its order', async () => {
@@ -599,7 +647,7 @@ describe('MockLoggingRepository', () => {
 			const workout = await repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]);
 			expect(workout.date).toBe('2026-09-20');
 			expect(workout.title).toBe('Push day');
-			expect(workout.status).toBe('in-progress');
+			expect(workout.status).toBe('active');
 			expect(workout.sourceRoutineId).toBe(routine.id);
 			expect(workout.sourceRoutineName).toBe('Push day');
 

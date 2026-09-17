@@ -11,6 +11,7 @@ import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import { todayLocalDate } from '../domain/format';
+import { isWorkoutOpen } from '../domain/types';
 import './screens.css';
 
 export function TodayScreen() {
@@ -24,7 +25,7 @@ export function TodayScreen() {
 		const today = todayLocalDate();
 		repository.listWorkoutsInRange(today, today).then((workouts) => {
 			if (cancelled) return;
-			setTodayWorkoutId(workouts.find((w) => w.status === 'in-progress')?.id ?? null);
+			setTodayWorkoutId(workouts.find((w) => isWorkoutOpen(w.status))?.id ?? null);
 		});
 		return () => {
 			cancelled = true;

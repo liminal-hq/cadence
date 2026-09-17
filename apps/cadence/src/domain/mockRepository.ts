@@ -31,7 +31,7 @@ import type {
 	Workout,
 	WorkoutExercise,
 } from './types';
-import { SEED_LAST_PERFORMANCE } from './types';
+import { isWorkoutOpen, SEED_LAST_PERFORMANCE } from './types';
 import {
 	BARBELL_CONFIGS,
 	CATEGORIES,
@@ -532,33 +532,42 @@ export class MockLoggingRepository implements LoggingRepository {
 		return this.settings;
 	}
 
-	/** The workoutExercise ids that belong to a completed workout — exactly what
+	/** Whether a workout counts as "history" for `getHistorySummary`/`deleteAllHistory` —
+	 *  `completed` and `abandoned` both do (SPEC.md 8.1: these states "do not lock history"),
+	 *  `draft`/`active` (still open) never do. */
+	private static isHistoryWorkout(workout: Workout): boolean {
+		return workout.status === 'completed' || workout.status === 'abandoned';
+	}
+
+	/** The workoutExercise ids that belong to a history workout — exactly what
 	 *  `deleteAllHistory` removes, and what `getHistorySummary`'s counts must agree with. */
-	private completedWorkoutExerciseIds(): Set<string> {
-		const completedWorkoutIds = new Set(
-			[...this.workouts.values()].filter((w) => w.status === 'completed').map((w) => w.id),
+	private historyWorkoutExerciseIds(): Set<string> {
+		const historyWorkoutIds = new Set(
+			[...this.workouts.values()].filter(MockLoggingRepository.isHistoryWorkout).map((w) => w.id),
 		);
 		return new Set(
 			[...this.workoutExercises.values()]
-				.filter((we) => completedWorkoutIds.has(we.workoutId))
+				.filter((we) => historyWorkoutIds.has(we.workoutId))
 				.map((we) => we.id),
 		);
 	}
 
 	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
-		const completedWorkouts = [...this.workouts.values()].filter((w) => w.status === 'completed');
-		const workoutExerciseIds = this.completedWorkoutExerciseIds();
+		const historyWorkouts = [...this.workouts.values()].filter(
+			MockLoggingRepository.isHistoryWorkout,
+		);
+		const workoutExerciseIds = this.historyWorkoutExerciseIds();
 		const setCount = [...this.sets.values()].filter((s) =>
 			workoutExerciseIds.has(s.workoutExerciseId),
 		).length;
-		return { workoutCount: completedWorkouts.length, setCount };
+		return { workoutCount: historyWorkouts.length, setCount };
 	}
 
 	async deleteAllHistory(): Promise<void> {
-		// Clears logged sets, completed workouts, and the workoutExercise occurrences that
-		// belonged to them — the in-progress routine scaffold Today and Logging navigate
-		// against survives, since none of its workouts (or their sets) are ever touched here.
-		const workoutExerciseIds = this.completedWorkoutExerciseIds();
+		// Clears logged sets, completed/abandoned workouts, and the workoutExercise occurrences
+		// that belonged to them — still-open (draft/active) workouts survive, since none of their
+		// workouts (or their sets) are ever touched here.
+		const workoutExerciseIds = this.historyWorkoutExerciseIds();
 		for (const id of workoutExerciseIds) {
 			this.workoutExercises.delete(id);
 		}
@@ -566,7 +575,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			if (workoutExerciseIds.has(set.workoutExerciseId)) this.sets.delete(id);
 		}
 		for (const [id, workout] of this.workouts) {
-			if (workout.status === 'completed') this.workouts.delete(id);
+			if (MockLoggingRepository.isHistoryWorkout(workout)) this.workouts.delete(id);
 		}
 		this.clearScheduledElapse();
 		this.setRestTimer({ status: 'inactive' });
@@ -589,7 +598,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			id: newId('workout'),
 			date: localDate,
 			title,
-			status: 'in-progress',
+			status: 'active',
 			source: 'manual',
 		};
 		this.workouts.set(created.id, created);
@@ -625,7 +634,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			id: newId('workout'),
 			date: targetDate,
 			title: source.title,
-			status: 'in-progress',
+			status: 'active',
 			source: 'manual',
 		};
 		this.workouts.set(duplicated.id, duplicated);
@@ -663,6 +672,51 @@ export class MockLoggingRepository implements LoggingRepository {
 	async updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout> {
 		const existing = await this.getWorkout(workoutId);
 		const updated = { ...existing, note };
+		this.workouts.set(workoutId, updated);
+		return updated;
+	}
+
+	async completeWorkout(workoutId: string): Promise<Workout> {
+		const workout = await this.getWorkout(workoutId);
+		if (!isWorkoutOpen(workout.status)) {
+			throw new Error(`workout ${workoutId} can't be completed from status '${workout.status}'`);
+		}
+		const hasCompletedSet = [...this.sets.values()].some((s) => {
+			const we = this.workoutExercises.get(s.workoutExerciseId);
+			return we?.workoutId === workoutId && s.status === 'completed';
+		});
+		if (!hasCompletedSet) {
+			throw new Error('workout has no completed sets — abandon or delete it instead');
+		}
+		const updated: Workout = {
+			...workout,
+			status: 'completed',
+			completedAt: new Date().toISOString(),
+		};
+		this.workouts.set(workoutId, updated);
+		return updated;
+	}
+
+	async abandonWorkout(workoutId: string): Promise<Workout> {
+		const workout = await this.getWorkout(workoutId);
+		if (!isWorkoutOpen(workout.status)) {
+			throw new Error(`workout ${workoutId} can't be abandoned from status '${workout.status}'`);
+		}
+		const updated: Workout = {
+			...workout,
+			status: 'abandoned',
+			completedAt: new Date().toISOString(),
+		};
+		this.workouts.set(workoutId, updated);
+		return updated;
+	}
+
+	async reopenWorkout(workoutId: string): Promise<Workout> {
+		const workout = await this.getWorkout(workoutId);
+		if (workout.status !== 'completed' && workout.status !== 'abandoned') {
+			throw new Error(`workout ${workoutId} can't be reopened from status '${workout.status}'`);
+		}
+		const updated: Workout = { ...workout, status: 'active', completedAt: undefined };
 		this.workouts.set(workoutId, updated);
 		return updated;
 	}
@@ -1019,7 +1073,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			id: newId('workout'),
 			date: targetDate,
 			title: routine.name,
-			status: 'in-progress',
+			status: 'active',
 			source: 'manual',
 			sourceRoutineId: routine.id,
 			sourceRoutineName: routine.name,

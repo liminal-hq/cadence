@@ -1020,21 +1020,21 @@ export const WORKOUTS: Workout[] = [
 		id: 'workout-push-a',
 		date: '2026-09-09',
 		title: 'Push A',
-		status: 'in-progress',
+		status: 'active',
 		source: 'manual',
 	},
 	{
 		id: 'workout-push-b',
 		date: '2026-09-09',
 		title: 'Superset A',
-		status: 'in-progress',
+		status: 'active',
 		source: 'manual',
 	},
 	{
 		id: 'workout-priya-1',
 		date: '2026-09-09',
 		title: 'Workout',
-		status: 'in-progress',
+		status: 'active',
 		source: 'manual',
 	},
 	{
@@ -1157,7 +1157,7 @@ export const WORKOUTS: Workout[] = [
 		id: 'workout-2026-09-12',
 		date: '2026-09-12',
 		title: 'Push A',
-		status: 'in-progress',
+		status: 'active',
 		source: 'manual',
 	},
 ];

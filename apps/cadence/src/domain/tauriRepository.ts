@@ -250,6 +250,18 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('update_workout_note', { workoutId, note });
 	}
 
+	async completeWorkout(workoutId: string): Promise<Workout> {
+		return call('complete_workout', { workoutId });
+	}
+
+	async abandonWorkout(workoutId: string): Promise<Workout> {
+		return call('abandon_workout', { workoutId });
+	}
+
+	async reopenWorkout(workoutId: string): Promise<Workout> {
+		return call('reopen_workout', { workoutId });
+	}
+
 	async addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise> {
 		return call('add_workout_exercise', { workoutId, exerciseId });
 	}

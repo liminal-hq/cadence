@@ -41,7 +41,7 @@ describe('loadExerciseHistory', () => {
 					id: 'w-future',
 					date: '2026-09-20',
 					title: 'Push A',
-					status: 'in-progress',
+					status: 'active',
 					source: 'manual',
 				},
 			],
@@ -79,14 +79,14 @@ describe('loadExerciseHistory', () => {
 		expect(history.map((h) => h.workout.id)).toEqual(['w-past']);
 	});
 
-	it('includes an in-progress workout once it has at least one completed set', async () => {
+	it('includes an active workout once it has at least one completed set', async () => {
 		const repo = fakeRepository(
 			[
 				{
 					id: 'w-today',
 					date: '2026-09-09',
 					title: 'Push A',
-					status: 'in-progress',
+					status: 'active',
 					source: 'manual',
 				},
 			],

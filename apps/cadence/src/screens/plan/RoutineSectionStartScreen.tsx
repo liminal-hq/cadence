@@ -22,7 +22,7 @@ import type {
 	RoutineSection,
 	SetTemplate,
 } from '../../domain/types';
-import { SEED_LAST_PERFORMANCE } from '../../domain/types';
+import { isWorkoutOpen, SEED_LAST_PERFORMANCE } from '../../domain/types';
 import { formatNumber, todayLocalDate } from '../../domain/format';
 import '../screens.css';
 import './plan.css';
@@ -72,7 +72,7 @@ export async function loadReviewState(
 		repository.listRoutineExercises(routineSectionId),
 		repository.listWorkoutsInRange(targetDate, targetDate),
 	]);
-	const activeWorkoutId = workoutsToday.find((w) => w.status === 'in-progress')?.id ?? null;
+	const activeWorkoutId = workoutsToday.find((w) => isWorkoutOpen(w.status))?.id ?? null;
 	const exercises = await Promise.all(
 		routineExercises.map(async (routineExercise) => {
 			const [exercise, templates] = await Promise.all([
