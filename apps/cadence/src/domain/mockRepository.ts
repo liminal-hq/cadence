@@ -31,7 +31,7 @@ import type {
 	Workout,
 	WorkoutExercise,
 } from './types';
-import { isWorkoutOpen, SEED_LAST_PERFORMANCE } from './types';
+import { isHistoryWorkout, isWorkoutOpen, SEED_LAST_PERFORMANCE } from './types';
 import {
 	BARBELL_CONFIGS,
 	CATEGORIES,
@@ -532,18 +532,11 @@ export class MockLoggingRepository implements LoggingRepository {
 		return this.settings;
 	}
 
-	/** Whether a workout counts as "history" for `getHistorySummary`/`deleteAllHistory` —
-	 *  `completed` and `abandoned` both do (SPEC.md 8.1: these states "do not lock history"),
-	 *  `draft`/`active` (still open) never do. */
-	private static isHistoryWorkout(workout: Workout): boolean {
-		return workout.status === 'completed' || workout.status === 'abandoned';
-	}
-
 	/** The workoutExercise ids that belong to a history workout — exactly what
 	 *  `deleteAllHistory` removes, and what `getHistorySummary`'s counts must agree with. */
 	private historyWorkoutExerciseIds(): Set<string> {
 		const historyWorkoutIds = new Set(
-			[...this.workouts.values()].filter(MockLoggingRepository.isHistoryWorkout).map((w) => w.id),
+			[...this.workouts.values()].filter((w) => isHistoryWorkout(w.status)).map((w) => w.id),
 		);
 		return new Set(
 			[...this.workoutExercises.values()]
@@ -553,9 +546,7 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async getHistorySummary(): Promise<{ workoutCount: number; setCount: number }> {
-		const historyWorkouts = [...this.workouts.values()].filter(
-			MockLoggingRepository.isHistoryWorkout,
-		);
+		const historyWorkouts = [...this.workouts.values()].filter((w) => isHistoryWorkout(w.status));
 		const workoutExerciseIds = this.historyWorkoutExerciseIds();
 		const setCount = [...this.sets.values()].filter((s) =>
 			workoutExerciseIds.has(s.workoutExerciseId),
@@ -575,7 +566,7 @@ export class MockLoggingRepository implements LoggingRepository {
 			if (workoutExerciseIds.has(set.workoutExerciseId)) this.sets.delete(id);
 		}
 		for (const [id, workout] of this.workouts) {
-			if (MockLoggingRepository.isHistoryWorkout(workout)) this.workouts.delete(id);
+			if (isHistoryWorkout(workout.status)) this.workouts.delete(id);
 		}
 		this.clearScheduledElapse();
 		this.setRestTimer({ status: 'inactive' });
@@ -597,13 +588,20 @@ export class MockLoggingRepository implements LoggingRepository {
 			.sort((a, b) => a.date.localeCompare(b.date));
 	}
 
-	async createWorkout(localDate: string, title: string): Promise<Workout> {
-		// "Start workout"'s whole job is creating an active workout, so it must not be possible to
-		// end up with two by starting a second one while the first is still open.
+	/** The single source of truth for SPEC.md 8.1's single-active-workout guard — every method
+	 *  that creates or reactivates an active workout (`createWorkout`, `reopenWorkout`,
+	 *  `duplicateWorkout`, `materializeRoutineSection`) calls this rather than repeating the check,
+	 *  so a future fifth method can't silently forget it. `action` names what's being attempted
+	 *  (e.g. "start a new workout") so the message reads naturally at each call site. */
+	private async ensureNoOpenWorkout(action: string): Promise<void> {
 		const open = await this.getOpenWorkout();
 		if (open) {
-			throw new Error(`can't start a new workout while workout ${open.id} is already open`);
+			throw new Error(`can't ${action} while workout ${open.id} is already open`);
 		}
+	}
+
+	async createWorkout(localDate: string, title: string): Promise<Workout> {
+		await this.ensureNoOpenWorkout('start a new workout');
 		const created: Workout = {
 			id: newId('workout'),
 			date: localDate,
@@ -636,12 +634,7 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout> {
 		const source = await this.getWorkout(workoutId);
-		// The copy always lands as 'active', so it must not be created while a workout is already
-		// open — otherwise this silently produces two active workouts at once.
-		const open = await this.getOpenWorkout();
-		if (open) {
-			throw new Error(`can't copy to a new workout while workout ${open.id} is already open`);
-		}
+		await this.ensureNoOpenWorkout('copy to a new workout');
 		const sourceWorkoutExercises = [...this.workoutExercises.values()]
 			.filter((we) => we.workoutId === workoutId)
 			.sort((a, b) => a.order - b.order);
@@ -740,13 +733,15 @@ export class MockLoggingRepository implements LoggingRepository {
 		if (workout.status !== 'completed' && workout.status !== 'abandoned') {
 			throw new Error(`workout ${workoutId} can't be reopened from status '${workout.status}'`);
 		}
-		const open = await this.getOpenWorkout();
-		if (open) {
-			throw new Error(
-				`workout ${workoutId} can't be reopened while workout ${open.id} is already open`,
-			);
-		}
-		const updated: Workout = { ...workout, status: 'active', completedAt: undefined };
+		await this.ensureNoOpenWorkout('reopen this workout');
+		// startedAt resets too — otherwise a reopened workout's eventual duration is measured from
+		// its original start, not from when it actually resumed being worked on.
+		const updated: Workout = {
+			...workout,
+			status: 'active',
+			startedAt: new Date().toISOString(),
+			completedAt: undefined,
+		};
 		this.workouts.set(workoutId, updated);
 		return updated;
 	}
@@ -1089,12 +1084,7 @@ export class MockLoggingRepository implements LoggingRepository {
 		targetDate: string,
 		selectedRoutineExerciseIds: string[],
 	): Promise<Workout> {
-		// The materialized workout always lands as active, so it must not be created while a
-		// workout is already open.
-		const open = await this.getOpenWorkout();
-		if (open) {
-			throw new Error(`can't start a new workout while workout ${open.id} is already open`);
-		}
+		await this.ensureNoOpenWorkout('start a new workout');
 		const section = await this.getRoutineSection(routineSectionId);
 		const routine = await this.getRoutine(section.routineId);
 		// Ordered by the caller's selectedRoutineExerciseIds — the reviewed order from the materialization review screen — not the routine's own order.

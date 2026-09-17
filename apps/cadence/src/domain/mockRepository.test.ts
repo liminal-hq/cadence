@@ -184,10 +184,10 @@ describe('MockLoggingRepository', () => {
 	describe('history management', () => {
 		it('summarizes the seeded completed workouts and sets', async () => {
 			const summary = await repo.getHistorySummary();
-			expect(summary.workoutCount).toBe(12);
+			expect(summary.workoutCount).toBe(15);
 			// Sets belonging to today's still-in-progress workouts aren't history yet, so they're
 			// excluded from this count too — it must match exactly what deleteAllHistory removes.
-			expect(summary.setCount).toBe(49);
+			expect(summary.setCount).toBe(57);
 		});
 
 		it('clears sets and completed workouts, keeping in-progress workouts, workout exercises, exercises, and settings intact', async () => {
@@ -474,6 +474,18 @@ describe('MockLoggingRepository', () => {
 				const reopened = await repo.reopenWorkout(workout.id);
 				expect(reopened.status).toBe('active');
 				expect(reopened.completedAt).toBeUndefined();
+			});
+
+			// A reopened workout must not keep pointing at its original start time — otherwise
+			// re-completing it later computes duration from months ago instead of from resumption.
+			it('resets startedAt when reopening, not keeping the original start time', async () => {
+				await withNoOpenWorkout(repo);
+				const before = await repo.getWorkout('workout-2026-09-04');
+				expect(before.startedAt).toBe('2026-09-04T09:25:00');
+
+				const reopened = await repo.reopenWorkout('workout-2026-09-04');
+
+				expect(reopened.startedAt).not.toBe('2026-09-04T09:25:00');
 			});
 
 			it('rejects reopening a workout while another is already open', async () => {
