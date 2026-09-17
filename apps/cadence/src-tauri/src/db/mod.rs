@@ -7,6 +7,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use sqlx::migrate::Migrate;
 use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions};
 use sqlx::{SqliteConnection, SqlitePool};
 
@@ -136,10 +137,50 @@ async fn run_migration_subset(
     Ok(())
 }
 
+/// Rejects a database that already has a migration applied which this binary's `MIGRATOR` doesn't
+/// define at all — e.g. a newer app version applied migration 10, then the binary was rolled back
+/// to one that only goes up to 9. `Migrator::run`'s own `ignore_missing: false` default normally
+/// catches exactly this, but every `filtered_migrator` subset forces `ignore_missing: true` so it
+/// doesn't also reject versions that ARE known to `MIGRATOR` as a whole and simply live in a
+/// *different* subset than the one currently running — which would incorrectly suppress this
+/// protection too. So it's checked once here, against the complete `MIGRATOR`, before any subset
+/// gets a chance to run.
+async fn reject_unknown_applied_migrations(db_path: &Path) -> Result<(), Error> {
+    let options = SqliteConnectOptions::new()
+        .filename(db_path)
+        .create_if_missing(true);
+    let pool = SqlitePoolOptions::new()
+        .max_connections(1)
+        .connect_with(options)
+        .await?;
+
+    let applied = {
+        let mut conn = pool.acquire().await?;
+        conn.ensure_migrations_table(&MIGRATOR.table_name)
+            .await
+            .map_err(|e| Error::Validation(e.to_string()))?;
+        conn.list_applied_migrations(&MIGRATOR.table_name)
+            .await
+            .map_err(|e| Error::Validation(e.to_string()))?
+    };
+    pool.close().await;
+
+    for migration in &applied {
+        if !MIGRATOR.version_exists(migration.version) {
+            return Err(Error::Validation(format!(
+                "migration {} is applied to this database but unknown to this build of the app",
+                migration.version
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// Runs the full migrator in version-ordered runs (see `migration_runs`) so each migration keeps
 /// the foreign-key enforcement it was actually written against. The real, long-lived pool
 /// `init_pool` hands out afterward reconnects with enforcement back on for actual app use.
 async fn run_migrations(db_path: &Path) -> Result<(), Error> {
+    reject_unknown_applied_migrations(db_path).await?;
     for (foreign_keys, versions) in migration_runs() {
         run_migration_subset(db_path, foreign_keys, move |v| versions.contains(&v)).await?;
     }
@@ -349,6 +390,49 @@ mod tests {
         );
 
         drop(pool);
+        let _ = std::fs::remove_file(&db_path);
+        let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    }
+
+    /// Regression test caught in review: forcing `ignore_missing: true` on every `filtered_migrator`
+    /// subset (needed so one subset doesn't reject versions applied by a *different* subset of the
+    /// same `MIGRATOR`) also silently disabled the unrelated protection against a migration that
+    /// isn't in `MIGRATOR` at all — e.g. one applied by a newer build before a rollback. This brings
+    /// a database fully up to date, hand-inserts a bookkeeping row for a migration version this
+    /// binary has never heard of, and asserts the real upgrade path now refuses to run rather than
+    /// silently ignoring it.
+    #[tokio::test]
+    async fn rejects_a_database_with_a_migration_this_build_does_not_know() {
+        let db_path = std::env::temp_dir().join(format!(
+            "cadence-unknown-migration-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+
+        run_migrations(&db_path).await.unwrap();
+
+        {
+            let options = SqliteConnectOptions::new()
+                .filename(&db_path)
+                .foreign_keys(true);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options)
+                .await
+                .unwrap();
+            sqlx::query(
+                "INSERT INTO _sqlx_migrations (version, description, success, checksum, \
+                 execution_time) VALUES (999, 'from a newer build', 1, x'00', 0)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            pool.close().await;
+        }
+
+        let err = run_migrations(&db_path).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
         let _ = std::fs::remove_file(&db_path);
         let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
