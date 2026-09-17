@@ -802,6 +802,15 @@ impl<R: Runtime> Coordinator<R> {
     ) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
 
+        // The materialized workout always lands as `active`, so it must not be created while a
+        // workout is already open — otherwise this silently produces two active workouts at once.
+        if let Some(open) = workouts::repo::get_open(&mut tx).await? {
+            return Err(Error::Validation(format!(
+                "can't start a new workout while workout {} is already open",
+                open.id
+            )));
+        }
+
         let section = routines::sections::get(&mut tx, routine_section_id).await?;
         let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
         // Ordered by the caller's `selected_routine_exercise_ids`, not the routine's own order — that array is the reviewed order from the materialization review screen, so it must drive the new workout's exercise order, not just filter membership.
@@ -2041,6 +2050,7 @@ mod tests {
         )
         .await
         .unwrap();
+        c.abandon_workout(&history_workout.id).await.unwrap();
 
         let routine = c.create_routine("Push day").await.unwrap();
         let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
@@ -2123,6 +2133,7 @@ mod tests {
         )
         .await
         .unwrap();
+        c.abandon_workout(&later_workout.id).await.unwrap();
 
         let routine = c.create_routine("Push day").await.unwrap();
         let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
@@ -2154,6 +2165,29 @@ mod tests {
             sets[0].weight_kg, None,
             "must not seed from future performance"
         );
+    }
+
+    /// Materialization always lands as `active`, so it must not be possible to end up with two
+    /// active workouts by materializing a section while a workout is already open.
+    #[tokio::test]
+    async fn rejects_materializing_while_a_workout_is_already_open() {
+        let c = test_coordinator().await;
+        let open = c.create_workout("2026-09-16", "Push A").await.unwrap();
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+
+        let err = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let still_open = c.get_workout(&open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
     }
 
     #[tokio::test]

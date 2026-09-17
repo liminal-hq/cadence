@@ -395,6 +395,47 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
+    /// The application-level checks in `workouts::repo::create`/`reopen`/`duplicate_workout` and
+    /// `Coordinator::materialize_routine_section` only close the common case — two near-simultaneous
+    /// calls could both pass a check-then-insert before either lands. 0010's partial unique index
+    /// is the real, atomic enforcement, so this proves it directly with two raw inserts bypassing
+    /// every application-level guard entirely.
+    #[tokio::test]
+    async fn the_single_open_workout_index_rejects_a_second_active_row_even_via_raw_sql() {
+        let pool = init_test_pool().await;
+
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             created_at_ms, updated_at_ms, revision) \
+             VALUES ('w-first', '2026-09-16', 'Push A', 'active', 'manual', 0, 0, 0, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let second_insert = sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             created_at_ms, updated_at_ms, revision) \
+             VALUES ('w-second', '2026-09-17', 'Pull A', 'draft', 'manual', 0, 0, 0, 1)",
+        )
+        .execute(&pool)
+        .await;
+        assert!(
+            second_insert.is_err(),
+            "a second draft/active row must violate the partial unique index"
+        );
+
+        // A row that isn't draft/active is unaffected — the index only ever sees at most one row.
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             created_at_ms, updated_at_ms, revision) \
+             VALUES ('w-completed', '2026-09-01', 'Old session', 'completed', 'manual', 0, 0, 0, 1)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+    }
+
     /// Every `filtered_migrator` subset forces `ignore_missing: true`, since one subset must not
     /// reject versions applied by a *different* subset of the same `MIGRATOR`. That permissiveness
     /// has to stay scoped to versions `MIGRATOR` actually defines — a migration applied by a newer

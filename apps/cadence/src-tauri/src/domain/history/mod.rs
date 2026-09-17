@@ -141,11 +141,30 @@ mod tests {
 
     /// An abandoned workout with a completed set already logged — decision #2's "abandoning never
     /// discards history" means this must be treated as history exactly like a completed workout.
+    /// Inserted directly as `abandoned` rather than via `create()` + a status flip: this is called
+    /// alongside a fixture that leaves its own workout genuinely open, and both the app-level guard
+    /// and the database's own partial unique index correctly refuse a second `active` row while
+    /// one already exists — this fixture only ever needs the row to end up abandoned, never active.
     async fn seed_an_abandoned_workout_with_a_completed_set(conn: &mut SqliteConnection) -> String {
-        let workout = workouts::repo::create(conn, "2026-09-05", "Push B")
-            .await
-            .unwrap();
-        let we = workouts::workout_exercises::add(conn, &workout.id, "ex-bench-press")
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp_millis();
+        let revision = crate::db::next_revision(conn).await.unwrap();
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             started_at_ms, created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, 'abandoned', \
+             'manual', 0, ?, ?, ?, ?)",
+        )
+        .bind(&id)
+        .bind("2026-09-05")
+        .bind("Push B")
+        .bind(now)
+        .bind(now)
+        .bind(now)
+        .bind(revision)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+        let we = workouts::workout_exercises::add(conn, &id, "ex-bench-press")
             .await
             .unwrap();
         sets::repo::log_new(
@@ -159,12 +178,7 @@ mod tests {
         )
         .await
         .unwrap();
-        sqlx::query("UPDATE workouts SET status = 'abandoned' WHERE id = ?")
-            .bind(&workout.id)
-            .execute(&mut *conn)
-            .await
-            .unwrap();
-        workout.id
+        id
     }
 
     #[tokio::test]

@@ -142,8 +142,19 @@ pub async fn get_open(conn: &mut SqliteConnection) -> Result<Option<Workout>> {
 
 /// Creates a brand-new active, manually-sourced workout with no exercises yet — the
 /// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
-/// minimal ceremony rather than requiring a routine or a pre-picked exercise list.
+/// minimal ceremony rather than requiring a routine or a pre-picked exercise list. Rejects while
+/// another workout is already open: a database-level partial unique index is the actual
+/// enforcement (it closes the race a check here alone can't — two near-simultaneous calls could
+/// otherwise both pass this check before either insert lands), so this exists to give the common,
+/// non-racing case a clean validation error instead of a raw constraint-violation message.
 pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) -> Result<Workout> {
+    if let Some(open) = get_open(conn).await? {
+        return Err(Error::Validation(format!(
+            "can't start a new workout while workout {} is already open",
+            open.id
+        )));
+    }
+
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
@@ -441,10 +452,13 @@ mod tests {
         let pool = init_test_pool().await;
         let mut conn = pool.acquire().await.unwrap();
         let inside_start = create(&mut conn, "2026-08-07", "Superset A").await.unwrap();
+        abandon(&mut conn, &inside_start.id).await.unwrap();
         let inside_end = create(&mut conn, "2026-08-29", "Push A").await.unwrap();
-        create(&mut conn, "2026-07-31", "Before the range")
+        abandon(&mut conn, &inside_end.id).await.unwrap();
+        let before = create(&mut conn, "2026-07-31", "Before the range")
             .await
             .unwrap();
+        abandon(&mut conn, &before.id).await.unwrap();
         create(&mut conn, "2026-09-01", "After the range")
             .await
             .unwrap();
@@ -649,6 +663,21 @@ mod tests {
         assert_eq!(still_open.status, "active");
         let still_terminal = get(&mut conn, &terminal.id).await.unwrap();
         assert_eq!(still_terminal.status, "abandoned");
+    }
+
+    /// `create` is "Start workout"'s whole job, so it must not be possible to end up with two
+    /// active workouts by simply starting a second one while the first is still open.
+    #[tokio::test]
+    async fn rejects_starting_a_new_workout_while_another_is_already_open() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let open = create(&mut conn, "2026-09-01", "Push A").await.unwrap();
+
+        let err = create(&mut conn, "2026-09-16", "Pull A").await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let still_open = get(&mut conn, &open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
     }
 
     #[tokio::test]
