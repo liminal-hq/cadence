@@ -84,11 +84,19 @@ pub async fn write_tombstone(
 /// A fresh, fully migrated in-memory database — the only schema-construction path in tests too.
 #[cfg(test)]
 pub async fn init_test_pool() -> SqlitePool {
+    // `foreign_keys` defaults off for a bare "sqlite::memory:" connection string, unlike
+    // `init_pool`'s explicit `SqliteConnectOptions` — enable it here too so tests actually
+    // exercise the same FK enforcement production does (a rebuild migration that's only FK-safe
+    // by accident would otherwise pass tests and break in the field).
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .expect("open an in-memory sqlite pool");
+    sqlx::query("PRAGMA foreign_keys = ON;")
+        .execute(&pool)
+        .await
+        .expect("enable foreign key enforcement on the in-memory db");
     MIGRATOR
         .run(&pool)
         .await

@@ -374,6 +374,21 @@ impl<R: Runtime> Coordinator<R> {
         workouts::repo::update_note(&mut conn, id, note).await
     }
 
+    pub async fn complete_workout(&self, id: &str) -> Result<Workout> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::complete(&mut conn, id).await
+    }
+
+    pub async fn abandon_workout(&self, id: &str) -> Result<Workout> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::abandon(&mut conn, id).await
+    }
+
+    pub async fn reopen_workout(&self, id: &str) -> Result<Workout> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::reopen(&mut conn, id).await
+    }
+
     pub async fn get_workout_exercise(&self, id: &str) -> Result<WorkoutExercise> {
         let mut conn = self.pool.acquire().await?;
         workouts::workout_exercises::get(&mut conn, id).await
@@ -444,14 +459,15 @@ impl<R: Runtime> Coordinator<R> {
         let workout_revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
-             created_at_ms, updated_at_ms, revision) \
-             VALUES (?, ?, ?, 'in-progress', 'manual', 0, ?, ?, ?)",
+             started_at_ms, created_at_ms, updated_at_ms, revision) \
+             VALUES (?, ?, ?, 'active', 'manual', 0, ?, ?, ?, ?)",
         )
         .bind(&new_workout_id)
         .bind(target_date)
         .bind(&source.title)
-        .bind(now)
-        .bind(now)
+        .bind(now) // started_at_ms
+        .bind(now) // created_at_ms
+        .bind(now) // updated_at_ms
         .bind(workout_revision)
         .execute(&mut *tx)
         .await?;
@@ -786,16 +802,17 @@ impl<R: Runtime> Coordinator<R> {
         let workout_revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
-             source_routine_id, source_routine_name, created_at_ms, updated_at_ms, revision) \
-             VALUES (?, ?, ?, 'in-progress', 'manual', 0, ?, ?, ?, ?, ?)",
+             source_routine_id, source_routine_name, started_at_ms, created_at_ms, updated_at_ms, \
+             revision) VALUES (?, ?, ?, 'active', 'manual', 0, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&new_workout_id)
         .bind(target_date)
         .bind(&routine.name)
         .bind(&routine.id)
         .bind(&routine.name)
-        .bind(now)
-        .bind(now)
+        .bind(now) // started_at_ms
+        .bind(now) // created_at_ms
+        .bind(now) // updated_at_ms
         .bind(workout_revision)
         .execute(&mut *tx)
         .await?;
@@ -1463,13 +1480,44 @@ mod tests {
         let created = c.create_workout("2026-09-10", "Push day").await.unwrap();
         assert_eq!(created.date, "2026-09-10");
         assert_eq!(created.title, "Push day");
-        assert_eq!(created.status, "in-progress");
+        assert_eq!(created.status, "active");
         assert_eq!(created.source, "manual");
         let workout_exercises = c
             .list_workout_exercises_by_workout(&created.id)
             .await
             .unwrap();
         assert!(workout_exercises.is_empty());
+    }
+
+    #[tokio::test]
+    async fn complete_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let we = c
+            .add_workout_exercise(&workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.log_new_set(&we.id, &SetValues::default()).await.unwrap();
+
+        let completed = c.complete_workout(&workout.id).await.unwrap();
+        assert_eq!(completed.status, "completed");
+    }
+
+    #[tokio::test]
+    async fn abandon_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let abandoned = c.abandon_workout(&workout.id).await.unwrap();
+        assert_eq!(abandoned.status, "abandoned");
+    }
+
+    #[tokio::test]
+    async fn reopen_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        c.abandon_workout(&workout.id).await.unwrap();
+        let reopened = c.reopen_workout(&workout.id).await.unwrap();
+        assert_eq!(reopened.status, "active");
     }
 
     #[tokio::test]
@@ -1537,7 +1585,7 @@ mod tests {
         assert_ne!(duplicated.id, source.id);
         assert_eq!(duplicated.date, "2026-09-20");
         assert_eq!(duplicated.title, "Push A");
-        assert_eq!(duplicated.status, "in-progress");
+        assert_eq!(duplicated.status, "active");
 
         let workout_exercises = c
             .list_workout_exercises_by_workout(&duplicated.id)
@@ -1818,7 +1866,7 @@ mod tests {
             .unwrap();
         assert_eq!(workout.date, "2026-09-20");
         assert_eq!(workout.title, "Push day");
-        assert_eq!(workout.status, "in-progress");
+        assert_eq!(workout.status, "active");
         assert_eq!(workout.source, "manual");
         assert_eq!(
             workout.source_routine_id.as_deref(),

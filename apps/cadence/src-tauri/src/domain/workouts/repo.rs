@@ -123,7 +123,7 @@ pub async fn list_in_range(
     Ok(rows.into_iter().map(Workout::from).collect())
 }
 
-/// Creates a brand-new in-progress, manually-sourced workout with no exercises yet — the
+/// Creates a brand-new active, manually-sourced workout with no exercises yet — the
 /// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
 /// minimal ceremony rather than requiring a routine or a pre-picked exercise list.
 pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) -> Result<Workout> {
@@ -132,14 +132,15 @@ pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) 
     let revision = crate::db::next_revision(conn).await?;
     sqlx::query(
         "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
-         created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, 'in-progress', 'manual', 0, \
-         ?, ?, ?)",
+         started_at_ms, created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, 'active', \
+         'manual', 0, ?, ?, ?, ?)",
     )
     .bind(&id)
     .bind(local_date)
     .bind(title)
-    .bind(now)
-    .bind(now)
+    .bind(now) // started_at_ms
+    .bind(now) // created_at_ms
+    .bind(now) // updated_at_ms
     .bind(revision)
     .execute(&mut *conn)
     .await?;
@@ -170,6 +171,122 @@ pub async fn update_note(
     get(conn, id).await
 }
 
+async fn current_status(conn: &mut SqliteConnection, id: &str) -> Result<String> {
+    sqlx::query_scalar("SELECT status FROM workouts WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&mut *conn)
+        .await?
+        .ok_or_else(|| Error::NotFound {
+            entity: "workout",
+            id: id.to_string(),
+        })
+}
+
+/// Marks a workout complete — requires it to currently be `draft`/`active` and to have at least
+/// one completed set (SPEC.md 8.1's "mark a workout complete"; an empty workout can't be
+/// completed, abandon or delete is the exit for that case instead).
+pub async fn complete(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
+    let status = current_status(conn, id).await?;
+    if status != "draft" && status != "active" {
+        return Err(Error::Validation(format!(
+            "workout {id} can't be completed from status '{status}'"
+        )));
+    }
+    let has_completed_set: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM sets WHERE workout_id = ? AND status = 'completed')",
+    )
+    .bind(id)
+    .fetch_one(&mut *conn)
+    .await?;
+    if !has_completed_set {
+        return Err(Error::Validation(
+            "workout has no completed sets — abandon or delete it instead".to_string(),
+        ));
+    }
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE workouts SET status = 'completed', completed_at_ms = ?, updated_at_ms = ?, \
+         revision = ? WHERE id = ?",
+    )
+    .bind(now)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(Error::NotFound {
+            entity: "workout",
+            id: id.to_string(),
+        });
+    }
+    get(conn, id).await
+}
+
+/// Abandons a workout — requires it to currently be `draft`/`active`, but unlike `complete` never
+/// requires a completed set: SPEC.md 8.1's lifecycle states "do not lock history," so abandoning a
+/// workout with sets already logged must still be allowed and never discards them.
+pub async fn abandon(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
+    let status = current_status(conn, id).await?;
+    if status != "draft" && status != "active" {
+        return Err(Error::Validation(format!(
+            "workout {id} can't be abandoned from status '{status}'"
+        )));
+    }
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE workouts SET status = 'abandoned', completed_at_ms = ?, updated_at_ms = ?, \
+         revision = ? WHERE id = ?",
+    )
+    .bind(now)
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(Error::NotFound {
+            entity: "workout",
+            id: id.to_string(),
+        });
+    }
+    get(conn, id).await
+}
+
+/// Returns a completed or abandoned workout to active — requires it to currently be one of those
+/// two terminal states, and clears `completed_at_ms` back to unset.
+pub async fn reopen(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
+    let status = current_status(conn, id).await?;
+    if status != "completed" && status != "abandoned" {
+        return Err(Error::Validation(format!(
+            "workout {id} can't be reopened from status '{status}'"
+        )));
+    }
+
+    let now = chrono::Utc::now().timestamp_millis();
+    let revision = crate::db::next_revision(conn).await?;
+    let result = sqlx::query(
+        "UPDATE workouts SET status = 'active', completed_at_ms = NULL, updated_at_ms = ?, \
+         revision = ? WHERE id = ?",
+    )
+    .bind(now)
+    .bind(revision)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    if result.rows_affected() == 0 {
+        return Err(Error::NotFound {
+            entity: "workout",
+            id: id.to_string(),
+        });
+    }
+    get(conn, id).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -183,7 +300,7 @@ mod tests {
         let workout = get(&mut conn, &created.id).await.unwrap();
         assert_eq!(workout.title, "Push A");
         assert_eq!(workout.date, "2026-09-09");
-        assert_eq!(workout.status, "in-progress");
+        assert_eq!(workout.status, "active");
         assert_eq!(workout.source, "manual");
         assert!(workout.health_connect.is_none());
     }
@@ -317,12 +434,158 @@ mod tests {
             .unwrap();
         assert_eq!(created.date, "2026-09-10");
         assert_eq!(created.title, "Today's workout");
-        assert_eq!(created.status, "in-progress");
+        assert_eq!(created.status, "active");
         assert_eq!(created.source, "manual");
         assert!(!created.logged_by_watch);
         assert!(created.health_connect.is_none());
+        assert!(created.started_at.is_some());
         // A freshly created workout is genuinely new, not a stale seeded fixture reused.
         let reloaded = get(&mut conn, &created.id).await.unwrap();
         assert_eq!(reloaded, created);
+    }
+
+    async fn log_a_completed_set(conn: &mut SqliteConnection, workout_id: &str) {
+        let workout_exercise = crate::domain::workouts::workout_exercises::add(
+            conn,
+            workout_id,
+            "ex-barbell-back-squat",
+        )
+        .await
+        .unwrap();
+        crate::domain::sets::repo::log_new(
+            conn,
+            &workout_exercise.id,
+            &crate::domain::sets::models::SetValues {
+                weight_kg: Some(60.0),
+                reps: Some(5),
+                distance_km: None,
+                duration_sec: None,
+            },
+        )
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn completes_a_workout_with_a_completed_set() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        log_a_completed_set(&mut conn, &created.id).await;
+
+        let completed = complete(&mut conn, &created.id).await.unwrap();
+        assert_eq!(completed.status, "completed");
+        assert!(completed.completed_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn rejects_completing_a_workout_with_no_completed_sets() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        let err = complete(&mut conn, &created.id).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_completing_an_already_completed_workout() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        log_a_completed_set(&mut conn, &created.id).await;
+        complete(&mut conn, &created.id).await.unwrap();
+
+        let err = complete(&mut conn, &created.id).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn abandons_a_workout_with_no_sets() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        let abandoned = abandon(&mut conn, &created.id).await.unwrap();
+        assert_eq!(abandoned.status, "abandoned");
+        assert!(abandoned.completed_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn abandons_a_workout_with_completed_sets_and_keeps_them() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        log_a_completed_set(&mut conn, &created.id).await;
+
+        let abandoned = abandon(&mut conn, &created.id).await.unwrap();
+        assert_eq!(abandoned.status, "abandoned");
+
+        let (set_count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM sets WHERE workout_id = ?")
+            .bind(&created.id)
+            .fetch_one(&mut *conn)
+            .await
+            .unwrap();
+        assert_eq!(set_count, 1, "abandoning must never discard logged sets");
+    }
+
+    #[tokio::test]
+    async fn rejects_abandoning_a_terminal_workout() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        abandon(&mut conn, &created.id).await.unwrap();
+
+        let err = abandon(&mut conn, &created.id).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn reopens_a_completed_workout_and_clears_completed_at() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        log_a_completed_set(&mut conn, &created.id).await;
+        complete(&mut conn, &created.id).await.unwrap();
+
+        let reopened = reopen(&mut conn, &created.id).await.unwrap();
+        assert_eq!(reopened.status, "active");
+        assert_eq!(reopened.completed_at, None);
+    }
+
+    #[tokio::test]
+    async fn reopens_an_abandoned_workout() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        abandon(&mut conn, &created.id).await.unwrap();
+
+        let reopened = reopen(&mut conn, &created.id).await.unwrap();
+        assert_eq!(reopened.status, "active");
+    }
+
+    #[tokio::test]
+    async fn rejects_reopening_an_active_workout() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
+        let err = reopen(&mut conn, &created.id).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+    }
+
+    #[tokio::test]
+    async fn rejects_mutating_an_unknown_workout_id() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        assert!(matches!(
+            complete(&mut conn, "no-such-workout").await.unwrap_err(),
+            Error::NotFound { .. }
+        ));
+        assert!(matches!(
+            abandon(&mut conn, "no-such-workout").await.unwrap_err(),
+            Error::NotFound { .. }
+        ));
+        assert!(matches!(
+            reopen(&mut conn, "no-such-workout").await.unwrap_err(),
+            Error::NotFound { .. }
+        ));
     }
 }

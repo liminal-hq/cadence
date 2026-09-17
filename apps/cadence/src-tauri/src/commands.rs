@@ -416,6 +416,30 @@ pub async fn update_workout_note(
 }
 
 #[tauri::command]
+pub async fn complete_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.complete_workout(&workout_id).await
+}
+
+#[tauri::command]
+pub async fn abandon_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.abandon_workout(&workout_id).await
+}
+
+#[tauri::command]
+pub async fn reopen_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.reopen_workout(&workout_id).await
+}
+
+#[tauri::command]
 pub async fn create_workout(
     state: State<'_, Coordinator>,
     local_date: String,
