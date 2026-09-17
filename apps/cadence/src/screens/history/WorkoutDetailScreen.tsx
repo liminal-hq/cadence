@@ -218,9 +218,15 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 				</div>
 
 				<div className="workout-detail__actions">
-					<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
-						Copy to today
-					</Button>
+					{
+						// Hidden while this workout is itself the open one — the copy always lands as
+						// active, so it can only ever fail here, referencing this same workout.
+						!isWorkoutOpen(workout.status) && (
+							<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
+								Copy to today
+							</Button>
+						)
+					}
 					{isWorkoutOpen(workout.status) ? (
 						// Reopening a workout dated before today (or navigating back here afterward)
 						// leaves no other route back to its live editor — Today only resumes it once

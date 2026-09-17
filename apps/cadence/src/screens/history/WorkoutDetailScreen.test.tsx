@@ -58,6 +58,9 @@ describe('WorkoutDetailScreen', () => {
 		await renderScreen(repository, workout.id);
 
 		expect(screen.queryByText('Reopen workout')).not.toBeInTheDocument();
+		// The copy always lands as active, so it can only ever fail here, referencing this same
+		// still-open workout — hidden rather than offered as a guaranteed-failing action.
+		expect(screen.queryByText('Copy to today')).not.toBeInTheDocument();
 		const continueButton = screen.getByText('Continue workout');
 		fireEvent.click(continueButton);
 		expect(navigateMock).toHaveBeenCalledWith({
