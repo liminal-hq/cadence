@@ -43,8 +43,12 @@ export function TodayScreen() {
 			navigate({ to: '/workout/$workoutId', params: { workoutId: created.id } });
 		} catch (err) {
 			// Most likely SPEC.md 8.1's single-active-workout guard: a workout became open (e.g. a
-			// double-tap, or another device) between this screen's own check and this call.
+			// double-tap, or another device) between this screen's own check and this call. Refetch
+			// rather than just showing the error, so the screen actually reflects the workout that
+			// now exists instead of continuing to offer a "Start workout" that will keep failing.
 			setError(err instanceof Error ? err.message : String(err));
+			const open = await repository.getOpenWorkout();
+			setTodayWorkoutId(open?.id ?? null);
 		}
 	}
 

@@ -47,4 +47,34 @@ describe('TodayScreen', () => {
 		expect(navigateMock).not.toHaveBeenCalled();
 		expect(screen.getByText(/already open/)).toBeInTheDocument();
 	});
+
+	it('refetches and switches to Continue workout after a start-workout race failure', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
+
+		render(
+			<RepositoryProvider repository={repository}>
+				<TodayScreen />
+			</RepositoryProvider>,
+		);
+		await act(async () => {}); // flush the initial getOpenWorkout load — finds nothing open
+
+		// Another workout becomes open in the race window between this screen's own check and the
+		// create call actually landing (a double-tap, or another device) — the real guard rejects
+		// the create the same way it would in production.
+		const racingWorkout = await repository.createWorkout('2026-09-16', 'Pull day');
+
+		const startButton = screen.getByRole('button', { name: 'Start workout' });
+		await act(async () => fireEvent.click(startButton));
+
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(screen.getByText(/already open/)).toBeInTheDocument();
+		const continueButton = await screen.findByRole('button', { name: 'Continue workout' });
+		fireEvent.click(continueButton);
+		expect(navigateMock).toHaveBeenCalledWith({
+			to: '/workout/$workoutId',
+			params: { workoutId: racingWorkout.id },
+		});
+	});
 });
