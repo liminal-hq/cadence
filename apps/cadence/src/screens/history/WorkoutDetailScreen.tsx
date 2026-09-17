@@ -7,6 +7,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { Button } from '../../components/ui/Button/Button';
 import { Tag } from '../../components/ui/Tag/Tag';
@@ -51,6 +52,7 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	const [summary, setSummary] = useState<WorkoutSummary | null>(null);
 	const [noteDraft, setNoteDraft] = useState('');
 	const [overlapWorkoutTitle, setOverlapWorkoutTitle] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -93,8 +95,16 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	}
 
 	async function handleReopen() {
-		await repository.reopenWorkout(workoutId);
-		navigate({ to: '/workout/$workoutId', params: { workoutId } });
+		try {
+			setError(null);
+			await repository.reopenWorkout(workoutId);
+			navigate({ to: '/workout/$workoutId', params: { workoutId } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: another workout is already
+			// open, and finishing/abandoning/switching to it isn't built yet, so this can only
+			// surface the conflict rather than resolve it.
+			setError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	return (
@@ -106,6 +116,9 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 				tag={WORKOUT_STATUS_TAG[workout.status]}
 			/>
 			<div className="screen-shell__content workout-detail">
+				{error && (
+					<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+				)}
 				<p className="workout-detail__date">{formatCalendarDateLabel(workout.date)}</p>
 
 				<Surface tone="container" radius="l" className="workout-detail__stats">

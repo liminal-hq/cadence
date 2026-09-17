@@ -91,4 +91,24 @@ describe('WorkoutDetailScreen', () => {
 		expect(screen.getByText('Reopen workout')).toBeInTheDocument();
 		expect(screen.getByText('Abandoned')).toBeInTheDocument();
 	});
+
+	// Regression test caught in review: reopening while another workout is already open is
+	// rejected by the repository, but the handler didn't catch that rejection at all — an
+	// unhandled promise rejection with no feedback and no navigation.
+	it('surfaces an error banner instead of navigating when another workout is already open', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		const workout = await repository.createWorkout('2026-09-10', 'Push A');
+		await repository.abandonWorkout(workout.id);
+		// The seed fixture already has an open workout — exactly the conflict under test.
+		await renderScreen(repository, workout.id);
+
+		const reopenButton = screen.getByText('Reopen workout');
+		await act(async () => fireEvent.click(reopenButton));
+
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(screen.getByText(/already open/)).toBeInTheDocument();
+		const reloaded = await repository.getWorkout(workout.id);
+		expect(reloaded.status).toBe('abandoned');
+	});
 });
