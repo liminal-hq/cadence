@@ -114,6 +114,45 @@ describe('loadExerciseHistory', () => {
 		const history = await loadExerciseHistory(repo, 'ex-bench');
 		expect(history.map((h) => h.workout.id)).toEqual(['w-today']);
 	});
+
+	// SPEC.md 8.1's abandoning "does not lock history" — an abandoned workout counts as history the
+	// same way a completed one does, even when this specific exercise's own sets never got marked
+	// completed within it (only planned).
+	it('includes an abandoned workout even when this exercise has no completed set', async () => {
+		const repo = fakeRepository(
+			[
+				{
+					id: 'w-abandoned',
+					date: '2026-09-05',
+					title: 'Push A',
+					status: 'abandoned',
+					source: 'manual',
+				},
+			],
+			[
+				{
+					id: 'we-abandoned',
+					exerciseId: 'ex-bench',
+					workoutId: 'w-abandoned',
+					workoutLabel: '',
+					order: 1,
+				},
+			],
+			[
+				{
+					id: 's-abandoned',
+					workoutExerciseId: 'we-abandoned',
+					order: 1,
+					status: 'planned',
+					weightKg: 80,
+					reps: 8,
+				},
+			],
+		);
+
+		const history = await loadExerciseHistory(repo, 'ex-bench');
+		expect(history.map((h) => h.workout.id)).toEqual(['w-abandoned']);
+	});
 });
 
 describe('flattenDatedSets', () => {

@@ -191,6 +191,13 @@ export function isWorkoutOpen(status: WorkoutStatus): boolean {
 	return status === 'draft' || status === 'active';
 }
 
+/** `completed`/`abandoned` are both terminal, and SPEC.md 8.1 treats them as equivalent for
+ *  history purposes — abandoning never locks or discards what was already logged. Kept as one
+ *  predicate so history summary/deletion and per-exercise history don't drift on what counts. */
+export function isHistoryWorkout(status: WorkoutStatus): boolean {
+	return status === 'completed' || status === 'abandoned';
+}
+
 export interface WorkoutHealthConnectProvenance {
 	sourceApp: string;
 	/** The external record ID — SPEC 10.2's dedup key for re-imports, not used by the mock yet. */

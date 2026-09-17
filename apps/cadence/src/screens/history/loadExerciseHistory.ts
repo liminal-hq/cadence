@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import type { LoggingRepository } from '../../domain/repository';
+import { isHistoryWorkout } from '../../domain/types';
 import type { SetEntry, Workout, WorkoutExercise } from '../../domain/types';
 
 export interface ExerciseHistoryEntry {
@@ -49,11 +50,11 @@ export async function loadExerciseHistory(
 	);
 
 	// A workout that's still all-planned hasn't happened yet — e.g. a future scheduled session —
-	// so it isn't history. A workout with at least one completed set (or itself marked completed)
-	// counts, even if it's today's still-in-progress session.
+	// so it isn't history. A workout with at least one completed set (or one that's itself
+	// terminal — completed or abandoned) counts, even if it's today's still-in-progress session.
 	const happened = entries.filter(
 		(entry) =>
-			entry.workout.status === 'completed' || entry.sets.some((s) => s.status === 'completed'),
+			isHistoryWorkout(entry.workout.status) || entry.sets.some((s) => s.status === 'completed'),
 	);
 
 	return happened.sort((a, b) => b.workout.date.localeCompare(a.workout.date));
