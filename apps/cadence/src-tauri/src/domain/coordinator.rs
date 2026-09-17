@@ -379,26 +379,32 @@ impl<R: Runtime> Coordinator<R> {
         workouts::repo::update_note(&mut conn, id, note).await
     }
 
-    /// Completes the workout, then dismisses the rest timer — it's a single global row (not
-    /// scoped per workout), so a timer still running or paused for this workout's last set would
-    /// otherwise leak its countdown and "next set" label into whatever workout gets started next.
+    /// Completes the workout and dismisses the rest timer in one transaction — it's a single
+    /// global row (not scoped per workout), so a timer still running or paused for this workout's
+    /// last set would otherwise leak its countdown and "next set" label into whatever workout gets
+    /// started next. Committing both writes together means a failure partway through can never
+    /// leave the workout terminal with the timer still persisted as running (which the status
+    /// guard would then make impossible to retry) or the reverse; the in-memory scheduled elapse
+    /// is only cancelled, and the change event only emitted, once the commit has actually landed.
     pub async fn complete_workout(&self, id: &str) -> Result<Workout> {
-        let completed = {
-            let mut conn = self.pool.acquire().await?;
-            workouts::repo::complete(&mut conn, id).await?
-        };
-        self.dismiss_rest_timer().await?;
+        let mut tx = self.pool.begin().await?;
+        let completed = workouts::repo::complete(&mut tx, id).await?;
+        let dismissed = rest_timer::repo::set(&mut tx, &RestTimerState::inactive()).await?;
+        tx.commit().await?;
+        self.clear_scheduled_elapse().await;
+        let _ = self.app.emit(REST_TIMER_CHANGED, &dismissed);
         Ok(completed)
     }
 
-    /// Abandons the workout, then dismisses the rest timer — see `complete_workout`'s doc comment
-    /// for why: it's a single global row, not scoped per workout.
+    /// Abandons the workout and dismisses the rest timer in one transaction — see
+    /// `complete_workout`'s doc comment for why both the transactional commit and the ordering matter.
     pub async fn abandon_workout(&self, id: &str) -> Result<Workout> {
-        let abandoned = {
-            let mut conn = self.pool.acquire().await?;
-            workouts::repo::abandon(&mut conn, id).await?
-        };
-        self.dismiss_rest_timer().await?;
+        let mut tx = self.pool.begin().await?;
+        let abandoned = workouts::repo::abandon(&mut tx, id).await?;
+        let dismissed = rest_timer::repo::set(&mut tx, &RestTimerState::inactive()).await?;
+        tx.commit().await?;
+        self.clear_scheduled_elapse().await;
+        let _ = self.app.emit(REST_TIMER_CHANGED, &dismissed);
         Ok(abandoned)
     }
 
