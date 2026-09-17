@@ -145,39 +145,56 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 						headline="No exercises yet"
 						body="Add an exercise to get started."
 						action={
-							<Button variant="filled" icon="add" onClick={() => setAddExerciseOpen(true)}>
-								Add exercise
-							</Button>
+							isWorkoutOpen(workout.status) ? (
+								<Button variant="filled" icon="add" onClick={() => setAddExerciseOpen(true)}>
+									Add exercise
+								</Button>
+							) : undefined
 						}
 					/>
 				) : (
 					<>
 						<div className="active-workout__exercises">
-							{exercises.map((exercise) => (
-								<button
-									key={exercise.workoutExerciseId}
-									type="button"
-									className="active-workout__exercise-link"
-									onClick={() =>
-										navigate({
-											to: '/workout-exercise/$workoutExerciseId',
-											params: { workoutExerciseId: exercise.workoutExerciseId },
-											state: { fromWorkoutDetail: true },
-										})
-									}
-								>
-									<SetChipRow
-										exerciseName={exercise.name}
-										metricProfile={exercise.metricProfile}
-										archived={exercise.archived}
-										sets={exercise.sets}
-									/>
-								</button>
-							))}
+							{exercises.map((exercise) =>
+								isWorkoutOpen(workout.status) ? (
+									<button
+										key={exercise.workoutExerciseId}
+										type="button"
+										className="active-workout__exercise-link"
+										onClick={() =>
+											navigate({
+												to: '/workout-exercise/$workoutExerciseId',
+												params: { workoutExerciseId: exercise.workoutExerciseId },
+												state: { fromWorkoutDetail: true },
+											})
+										}
+									>
+										<SetChipRow
+											exerciseName={exercise.name}
+											metricProfile={exercise.metricProfile}
+											archived={exercise.archived}
+											sets={exercise.sets}
+										/>
+									</button>
+								) : (
+									// A completed/abandoned workout is history now — its exercises are shown for
+									// reference, but not as an entry point back into logging more sets against it.
+									<div key={exercise.workoutExerciseId} className="active-workout__exercise-link">
+										<SetChipRow
+											exerciseName={exercise.name}
+											metricProfile={exercise.metricProfile}
+											archived={exercise.archived}
+											sets={exercise.sets}
+										/>
+									</div>
+								),
+							)}
 						</div>
-						<Button variant="tonal" icon="add" onClick={() => setAddExerciseOpen(true)}>
-							Add exercise
-						</Button>
+						{isWorkoutOpen(workout.status) && (
+							<Button variant="tonal" icon="add" onClick={() => setAddExerciseOpen(true)}>
+								Add exercise
+							</Button>
+						)}
 					</>
 				)}
 				{isWorkoutOpen(workout.status) && (

@@ -177,4 +177,22 @@ describe('ActiveWorkoutScreen', () => {
 		expect(screen.queryByRole('button', { name: 'Abandon workout' })).not.toBeInTheDocument();
 		expect(screen.queryByRole('button', { name: 'Finish workout' })).not.toBeInTheDocument();
 	});
+
+	// A completed/abandoned workout is history — reachable if this screen is ever shown for one
+	// again (a stale route, back-navigation), it must not still offer a way to mutate it further.
+	it('hides Add exercise and stops exercise rows from opening the logger for a terminal workout', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		const we = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
+		await repository.logNewSet(we.id, { weightKg: 60, reps: 5 });
+		await repository.abandonWorkout(workout.id);
+		await renderScreen(repository, workout.id);
+
+		expect(screen.queryByRole('button', { name: /Add exercise/ })).not.toBeInTheDocument();
+		expect(screen.getByText('Bench Press')).toBeInTheDocument();
+		fireEvent.click(screen.getByText('Bench Press'));
+		expect(navigateMock).not.toHaveBeenCalled();
+	});
 });
