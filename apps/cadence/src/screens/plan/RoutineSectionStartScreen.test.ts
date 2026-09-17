@@ -1,6 +1,6 @@
-// Regression coverage for two Codex-review findings on the P-20 materialization review screen:
-// blocking materialization while a workout is already active, and previewing a seeded target via
-// a direct lookup instead of fetching an exercise's entire history.
+// Coverage for the P-20 materialization review screen's two behaviours: blocking materialization
+// while a workout is already active, and previewing a seeded target via a direct lookup instead of
+// fetching an exercise's entire history.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT

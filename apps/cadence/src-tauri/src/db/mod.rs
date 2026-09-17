@@ -298,13 +298,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    /// Regression test for a real data-loss bug caught in review: with foreign-key enforcement on,
-    /// SQLite treats 0009's `DROP TABLE workouts` as deleting every row in it first, which fires
-    /// `workout_exercises`/`supersets`'s `ON DELETE CASCADE` and destroys every workout's
-    /// exercises and sets on any populated database upgrading through it. This brings a
-    /// file-backed database up to just before 0009 via a real sub-migrator (so `_sqlx_migrations`
-    /// bookkeeping matches a genuine existing install), inserts a realistic logged set, then runs
-    /// the actual upgrade path (`run_migrations`) and asserts nothing was lost.
+    /// With foreign-key enforcement on, SQLite treats 0009's `DROP TABLE workouts` as deleting
+    /// every row in it first, which fires `workout_exercises`/`supersets`'s `ON DELETE CASCADE`
+    /// and would destroy every workout's exercises and sets on any populated database upgrading
+    /// through it. This brings a file-backed database up to just before 0009 via a real
+    /// sub-migrator (so `_sqlx_migrations` bookkeeping matches a genuine existing install),
+    /// inserts a realistic logged set, then runs the actual upgrade path (`run_migrations`) and
+    /// asserts nothing was lost.
     #[tokio::test]
     async fn upgrading_a_populated_database_preserves_workout_children() {
         let db_path =
@@ -395,13 +395,13 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
-    /// Regression test caught in review: forcing `ignore_missing: true` on every `filtered_migrator`
-    /// subset (needed so one subset doesn't reject versions applied by a *different* subset of the
-    /// same `MIGRATOR`) also silently disabled the unrelated protection against a migration that
-    /// isn't in `MIGRATOR` at all — e.g. one applied by a newer build before a rollback. This brings
-    /// a database fully up to date, hand-inserts a bookkeeping row for a migration version this
-    /// binary has never heard of, and asserts the real upgrade path now refuses to run rather than
-    /// silently ignoring it.
+    /// Every `filtered_migrator` subset forces `ignore_missing: true`, since one subset must not
+    /// reject versions applied by a *different* subset of the same `MIGRATOR`. That permissiveness
+    /// has to stay scoped to versions `MIGRATOR` actually defines — a migration applied by a newer
+    /// build (e.g. before a rollback) that this binary has never heard of at all still needs to be
+    /// rejected. This brings a database fully up to date, hand-inserts a bookkeeping row for such
+    /// an unknown version, and asserts the real upgrade path refuses to run rather than silently
+    /// ignoring it.
     #[tokio::test]
     async fn rejects_a_database_with_a_migration_this_build_does_not_know() {
         let db_path = std::env::temp_dir().join(format!(
@@ -438,13 +438,13 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
-    /// Regression test caught in review: nothing before 0009 ever enforced a single-active-workout
-    /// invariant, so a real install can genuinely have more than one 'in-progress' workout at
-    /// once. Mapping every one of them to 'active' would carry that inconsistency forward into a
-    /// schema that now assumes at most one is ever open — `get_open`'s `LIMIT 1` would then hide
-    /// every extra one from Today, with no way back in and no way to delete it (history deletion
-    /// only touches completed/abandoned workouts). Only the most-recently-updated one should
-    /// survive as 'active'; the rest become 'abandoned' without losing anything they logged.
+    /// Nothing before 0009 ever enforced a single-active-workout invariant, so a real install can
+    /// genuinely have more than one 'in-progress' workout at once. Mapping every one of them to
+    /// 'active' would carry that inconsistency forward into a schema that now assumes at most one
+    /// is ever open — `get_open`'s `LIMIT 1` would then hide every extra one from Today, with no
+    /// way back in and no way to delete it (history deletion only touches completed/abandoned
+    /// workouts). Only the most-recently-updated one should survive as 'active'; the rest become
+    /// 'abandoned' without losing anything they logged.
     #[tokio::test]
     async fn upgrading_multiple_legacy_in_progress_workouts_keeps_only_the_most_recent_active() {
         let db_path = std::env::temp_dir().join(format!(
@@ -511,13 +511,12 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
-    /// Regression test for a second data-integrity bug caught in review, introduced by the first
-    /// fix above: running the *entire* migrator with foreign-key enforcement off (rather than just
-    /// 0009) meant a fresh install's 0004 migration — whose `DELETE FROM workouts` relies on
-    /// `ON DELETE CASCADE` to clean up the demo workouts' own `workout_exercises`/`sets`/
-    /// `supersets` — silently orphaned all of them instead, since cascades don't fire with
-    /// enforcement off. This runs the real fresh-install path end to end and asserts every
-    /// `workout_exercises`/`sets`/`supersets` row still points at a workout that actually exists.
+    /// A fresh install's 0004 migration — whose `DELETE FROM workouts` relies on `ON DELETE
+    /// CASCADE` to clean up the demo workouts' own `workout_exercises`/`sets`/`supersets` — needs
+    /// foreign-key enforcement on to actually cascade; running it with enforcement off would
+    /// silently orphan all of them instead. This runs the real fresh-install path end to end and
+    /// asserts every `workout_exercises`/`sets`/`supersets` row still points at a workout that
+    /// actually exists.
     #[tokio::test]
     async fn a_fresh_install_leaves_no_orphaned_workout_children() {
         let db_path =
@@ -573,12 +572,12 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
-    /// Regression test for a third bug caught in review: the earlier two-phase split ran
-    /// everything except `FK_OFF_MIGRATION_VERSIONS` as one batch before that subset, regardless
-    /// of version order. A future migration after 9 would then run ahead of 9 rather than after
-    /// it. Grouping by version order first means a hypothetical 10 (foreign_keys on) after 9
-    /// (foreign_keys off) gets its own later run, in the correct order, rather than being merged
-    /// into the "everything else" run that precedes 9.
+    /// Batching migrations by foreign-key mode rather than by version order would run everything
+    /// except `FK_OFF_MIGRATION_VERSIONS` as one group before that subset, regardless of version
+    /// order — so a future migration after 9 would run ahead of 9 rather than after it. Grouping
+    /// by version order first means a hypothetical 10 (foreign_keys on) after 9 (foreign_keys off)
+    /// gets its own later run, in the correct order, rather than being merged into the group that
+    /// precedes 9.
     #[test]
     fn groups_versions_by_fk_mode_without_reordering_across_a_later_version() {
         let runs = group_versions_by_fk_mode(&[1, 2, 3, 9, 10, 11]);

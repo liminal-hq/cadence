@@ -628,10 +628,11 @@ mod tests {
         assert!(matches!(err, Error::Validation(_)));
     }
 
-    /// Regression test caught in review: `reopen` only checked the *target* workout's own status,
-    /// so reopening a terminal workout while a different one was still open would put two
-    /// workouts into `active` at once, silently violating SPEC.md 8.1's single-active-workout
-    /// model and leaving `get_open`'s `LIMIT 1` hiding whichever one it didn't return.
+    /// `reopen` must check more than the *target* workout's own status — a different workout
+    /// could already be draft/active. Reopening a terminal workout while another is open would
+    /// otherwise put two workouts into `active` at once, silently violating SPEC.md 8.1's
+    /// single-active-workout model and leaving `get_open`'s `LIMIT 1` hiding whichever one it
+    /// didn't return.
     #[tokio::test]
     async fn rejects_reopening_a_workout_while_another_is_already_open() {
         let pool = init_test_pool().await;
