@@ -1,6 +1,7 @@
-// The logging screen's header "add exercise" action: adding exactly one exercise switches
-// straight into logging it in place, without leaving the screen; adding several drops back to
-// the workout screen instead, since there's no single exercise among them to land on.
+// The logging screen's header "add exercise" action: adding exactly one exercise replaces the
+// route with the new exercise's logger (keeping the URL/selfPath honest, without growing history);
+// adding several pops back to the workout screen already directly below, since there's no single
+// exercise among them to land on.
 //
 // (c) Copyright 2026 Liminal HQ, Scott Morris
 // SPDX-License-Identifier: Apache-2.0 OR MIT
@@ -12,6 +13,7 @@ import { RepositoryProvider } from '../domain/RepositoryProvider';
 import { MockLoggingRepository } from '../domain/mockRepository';
 
 const navigateMock = vi.fn();
+const historyBackMock = vi.fn();
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
@@ -20,6 +22,7 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	useNavigate: () => navigateMock,
+	useRouter: () => ({ history: { back: historyBackMock } }),
 }));
 
 async function renderScreen(repository: MockLoggingRepository, workoutExerciseId: string) {
@@ -42,8 +45,9 @@ async function seedWorkoutWithOneExercise(repository: MockLoggingRepository) {
 }
 
 describe('ExerciseLoggingScreen', () => {
-	it('switches straight into the new exercise when exactly one is added from the header', async () => {
+	it('replaces the route with the new exercise’s logger when exactly one is added from the header', async () => {
 		navigateMock.mockClear();
+		historyBackMock.mockClear();
 		const repository = new MockLoggingRepository();
 		const { workoutExercise } = await seedWorkoutWithOneExercise(repository);
 		await renderScreen(repository, workoutExercise.id);
@@ -56,14 +60,23 @@ describe('ExerciseLoggingScreen', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Add 1 exercise(s)' })),
 		);
 
-		expect(navigateMock).not.toHaveBeenCalled();
-		expect(await screen.findByText('Running')).toBeInTheDocument();
+		const workoutExercises = await repository.listWorkoutExercisesByWorkout(
+			workoutExercise.workoutId,
+		);
+		const running = workoutExercises.find((we) => we.exerciseId === 'ex-running');
+		expect(historyBackMock).not.toHaveBeenCalled();
+		expect(navigateMock).toHaveBeenCalledWith({
+			to: '/workout-exercise/$workoutExerciseId',
+			params: { workoutExerciseId: running?.id },
+			replace: true,
+		});
 	});
 
-	it('returns to the workout screen when several exercises are added from the header', async () => {
+	it('pops back to the workout screen when several exercises are added from the header', async () => {
 		navigateMock.mockClear();
+		historyBackMock.mockClear();
 		const repository = new MockLoggingRepository();
-		const { workout, workoutExercise } = await seedWorkoutWithOneExercise(repository);
+		const { workoutExercise } = await seedWorkoutWithOneExercise(repository);
 		await renderScreen(repository, workoutExercise.id);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }));
@@ -73,10 +86,7 @@ describe('ExerciseLoggingScreen', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Add 2 exercise(s)' })),
 		);
 
-		expect(navigateMock).toHaveBeenCalledWith({
-			to: '/workout/$workoutId',
-			params: { workoutId: workout.id },
-			replace: true,
-		});
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(historyBackMock).toHaveBeenCalledTimes(1);
 	});
 });

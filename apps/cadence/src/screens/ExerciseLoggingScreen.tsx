@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useRouter } from '@tanstack/react-router';
 import { AddExerciseSheet } from '../components/AddExerciseSheet/AddExerciseSheet';
 import { DetailAppBar } from '../components/DetailAppBar/DetailAppBar';
 import { SetRow, type SetRowState } from '../components/SetRow/SetRow';
@@ -91,6 +91,7 @@ export function ExerciseLoggingScreen({
 }: ExerciseLoggingScreenProps) {
 	const repository = useLoggingRepository();
 	const navigate = useNavigate();
+	const router = useRouter();
 	const [currentWorkoutExerciseId, setCurrentWorkoutExerciseId] = useState(workoutExerciseId);
 	const [workoutExercise, setWorkoutExercise] = useState<WorkoutExercise | null>(null);
 	const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -645,17 +646,21 @@ export function ExerciseLoggingScreen({
 					onAdded={(added) => {
 						setAddExerciseOpen(false);
 						// Adding exactly one exercise drops straight into logging it, without a trip back
-						// through the workout screen — adding several has no single obvious exercise to
-						// land on, so those land there instead.
+						// through the workout screen — replacing the route (not pushing, and not just
+						// switching local state) keeps the URL/selfPath honest for refresh and for History's
+						// own back-here action, without growing the history stack. Adding several has no
+						// single obvious exercise to land on, so those pop back to the workout screen that's
+						// already the entry directly below this one, rather than pushing/replacing in a
+						// second copy of it.
 						if (added.length === 1) {
-							setCurrentWorkoutExerciseId(added[0].id);
+							navigate({
+								to: '/workout-exercise/$workoutExerciseId',
+								params: { workoutExerciseId: added[0].id },
+								replace: true,
+							});
 							return;
 						}
-						navigate({
-							to: '/workout/$workoutId',
-							params: { workoutId: workoutExercise.workoutId },
-							replace: true,
-						});
+						router.history.back();
 					}}
 				/>
 			)}
