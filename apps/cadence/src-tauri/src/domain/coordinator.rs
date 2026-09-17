@@ -15,7 +15,7 @@ use super::analysis::models::{AnalysisFavourite, AnalysisSetEntry};
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
-use super::error::Result;
+use super::error::{Error, Result};
 use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::{Exercise, ExerciseValues};
 use super::goals::models::{ExerciseGoal, ExerciseGoalValues};
@@ -467,6 +467,16 @@ impl<R: Runtime> Coordinator<R> {
     /// workout's superset.
     pub async fn duplicate_workout(&self, workout_id: &str, target_date: &str) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
+
+        // The copy always lands as `active`, so it must not be created while a workout is
+        // already open — otherwise this silently produces two active workouts at once, and
+        // `get_open`'s `LIMIT 1` would then hide whichever one it didn't return.
+        if let Some(open) = workouts::repo::get_open(&mut tx).await? {
+            return Err(Error::Validation(format!(
+                "can't copy to a new workout while workout {} is already open",
+                open.id
+            )));
+        }
 
         let source = workouts::repo::get(&mut tx, workout_id).await?;
         let source_workout_exercises =
@@ -1313,9 +1323,9 @@ mod tests {
         assert_eq!(state.owner_device.as_deref(), Some("phone"));
     }
 
-    /// Regression test caught in review: the rest timer is a single global row, not scoped per
-    /// workout, so a timer still running for a workout's last set would otherwise leak its
-    /// countdown and "next set" label into whatever workout gets started next.
+    /// The rest timer is a single global row, not scoped per workout, so a timer still running
+    /// for a workout's last set must be dismissed on completion — otherwise its countdown and
+    /// "next set" label would leak into whatever workout gets started next.
     #[tokio::test]
     async fn completing_a_workout_dismisses_the_rest_timer() {
         let c = test_coordinator().await;
@@ -1635,6 +1645,25 @@ mod tests {
         assert!(remaining.is_empty());
     }
 
+    /// The copy always lands as `active`, so it can't be created while a workout is already open
+    /// — otherwise it would silently produce two active workouts at once.
+    #[tokio::test]
+    async fn rejects_duplicating_a_workout_while_another_is_already_open() {
+        let c = test_coordinator().await;
+        let source = c.create_workout("2026-09-04", "Push A").await.unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
+        let currently_open = c.create_workout("2026-09-16", "Pull A").await.unwrap();
+
+        let err = c
+            .duplicate_workout(&source.id, "2026-09-20")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let still_open = c.get_workout(&currently_open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
+    }
+
     #[tokio::test]
     async fn duplicate_workout_copies_sets_as_planned_and_drops_day_specific_fields() {
         let c = test_coordinator().await;
@@ -1656,6 +1685,7 @@ mod tests {
         c.add_workout_exercise(&source.id, "ex-running")
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         assert_ne!(duplicated.id, source.id);
@@ -1710,6 +1740,7 @@ mod tests {
             .execute(&c.pool)
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1746,6 +1777,7 @@ mod tests {
             .execute(&c.pool)
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1793,6 +1825,7 @@ mod tests {
                 .unwrap();
             }
         }
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1840,6 +1873,7 @@ mod tests {
                 .await
                 .unwrap();
         }
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c

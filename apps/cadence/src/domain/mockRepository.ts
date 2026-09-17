@@ -630,6 +630,12 @@ export class MockLoggingRepository implements LoggingRepository {
 
 	async duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout> {
 		const source = await this.getWorkout(workoutId);
+		// The copy always lands as 'active', so it must not be created while a workout is already
+		// open — otherwise this silently produces two active workouts at once.
+		const open = await this.getOpenWorkout();
+		if (open) {
+			throw new Error(`can't copy to a new workout while workout ${open.id} is already open`);
+		}
 		const sourceWorkoutExercises = [...this.workoutExercises.values()]
 			.filter((we) => we.workoutId === workoutId)
 			.sort((a, b) => a.order - b.order);

@@ -90,8 +90,15 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	}
 
 	async function handleCopyToToday() {
-		const duplicated = await repository.duplicateWorkout(workoutId, todayLocalDate());
-		navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
+		try {
+			setError(null);
+			const duplicated = await repository.duplicateWorkout(workoutId, todayLocalDate());
+			navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: the copy always lands as
+			// active, so it can't be created while another workout is already open.
+			setError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	async function handleReopen() {

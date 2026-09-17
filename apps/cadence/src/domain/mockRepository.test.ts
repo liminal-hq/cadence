@@ -339,6 +339,13 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('duplicates a workout into a new planned workout on the target date', async () => {
+			// The seed fixture's own already-open workouts would otherwise trip the
+			// single-active-workout guard duplicateWorkout now enforces.
+			let open = await repo.getOpenWorkout();
+			while (open) {
+				await repo.abandonWorkout(open.id);
+				open = await repo.getOpenWorkout();
+			}
 			const duplicated = await repo.duplicateWorkout('workout-2026-09-04', '2026-09-20');
 
 			expect(duplicated.id).not.toBe('workout-2026-09-04');
@@ -361,6 +368,14 @@ describe('MockLoggingRepository', () => {
 			// The source workout is untouched.
 			const sourceExercise = await repo.getWorkoutExercise('we-2026-09-04-bench');
 			expect((await repo.listSets(sourceExercise.id))[0].status).toBe('completed');
+		});
+
+		it('rejects duplicating a workout while another is already open', async () => {
+			// The seed fixture already has an open workout, which is exactly the conflict under
+			// test — the copy always lands as 'active', so it can't be created alongside it.
+			await expect(repo.duplicateWorkout('workout-2026-09-04', '2026-09-20')).rejects.toThrow(
+				'already open',
+			);
 		});
 
 		it('updates a workout note', async () => {
@@ -411,9 +426,9 @@ describe('MockLoggingRepository', () => {
 				await expect(repo.completeWorkout(workout.id)).rejects.toThrow();
 			});
 
-			// Regression test caught in review: the rest timer is a single global row, not scoped
-			// per workout, so a timer still running for a workout's last set would otherwise leak
-			// its countdown and "next set" label into whatever workout gets started next.
+			// The rest timer is a single global row, not scoped per workout, so a timer still
+			// running for a workout's last set must be dismissed on completion — otherwise its
+			// countdown and "next set" label would leak into whatever workout gets started next.
 			it('dismisses the rest timer when completing a workout', async () => {
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');

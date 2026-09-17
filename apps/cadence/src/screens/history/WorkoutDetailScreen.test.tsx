@@ -92,9 +92,9 @@ describe('WorkoutDetailScreen', () => {
 		expect(screen.getByText('Abandoned')).toBeInTheDocument();
 	});
 
-	// Regression test caught in review: reopening while another workout is already open is
-	// rejected by the repository, but the handler didn't catch that rejection at all — an
-	// unhandled promise rejection with no feedback and no navigation.
+	// Reopening while another workout is already open is rejected by the repository; the handler
+	// must catch that rejection rather than let it become an unhandled promise rejection with no
+	// feedback and no navigation.
 	it('surfaces an error banner instead of navigating when another workout is already open', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
@@ -110,5 +110,20 @@ describe('WorkoutDetailScreen', () => {
 		expect(screen.getByText(/already open/)).toBeInTheDocument();
 		const reloaded = await repository.getWorkout(workout.id);
 		expect(reloaded.status).toBe('abandoned');
+	});
+
+	// Copying always lands the new workout as active, so it's rejected under the same
+	// single-active-workout guard as Reopen — the handler must surface that, not navigate.
+	it('surfaces an error banner instead of copying when another workout is already open', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		// The seed fixture already has an open workout — exactly the conflict under test.
+		await renderScreen(repository, 'workout-2026-09-04');
+
+		const copyButton = screen.getByText('Copy to today');
+		await act(async () => fireEvent.click(copyButton));
+
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(screen.getByText(/already open/)).toBeInTheDocument();
 	});
 });
