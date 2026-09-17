@@ -414,9 +414,24 @@ describe('MockLoggingRepository', () => {
 			it('reopens a completed or abandoned workout back to active', async () => {
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.abandonWorkout(workout.id);
+				// The seed fixture's own already-open workouts would otherwise trip the
+				// single-active-workout guard reopen now enforces.
+				let open = await repo.getOpenWorkout();
+				while (open) {
+					await repo.abandonWorkout(open.id);
+					open = await repo.getOpenWorkout();
+				}
 				const reopened = await repo.reopenWorkout(workout.id);
 				expect(reopened.status).toBe('active');
 				expect(reopened.completedAt).toBeUndefined();
+			});
+
+			it('rejects reopening a workout while another is already open', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.abandonWorkout(workout.id);
+				// The seed fixture already has an open workout, which is exactly the scenario
+				// under test — no need to create one.
+				await expect(repo.reopenWorkout(workout.id)).rejects.toThrow('already open');
 			});
 
 			it('rejects reopening a workout that is still active', async () => {

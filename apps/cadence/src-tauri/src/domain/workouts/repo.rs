@@ -275,12 +275,22 @@ pub async fn abandon(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
 }
 
 /// Returns a completed or abandoned workout to active — requires it to currently be one of those
-/// two terminal states, and clears `completed_at_ms` back to unset.
+/// two terminal states, and clears `completed_at_ms` back to unset. Also requires no *other*
+/// workout to already be open: SPEC.md 8.1's single-active-workout model is enforced nowhere else
+/// today, but `reopen` is the one path that can otherwise put a second workout into `draft`/
+/// `active` behind the user's back, and `get_open`'s `LIMIT 1` would then silently hide whichever
+/// one it didn't return.
 pub async fn reopen(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
     let status = current_status(conn, id).await?;
     if status != "completed" && status != "abandoned" {
         return Err(Error::Validation(format!(
             "workout {id} can't be reopened from status '{status}'"
+        )));
+    }
+    if let Some(open) = get_open(conn).await? {
+        return Err(Error::Validation(format!(
+            "workout {id} can't be reopened while workout {} is already open",
+            open.id
         )));
     }
 
@@ -616,6 +626,28 @@ mod tests {
         let created = create(&mut conn, "2026-09-16", "Push A").await.unwrap();
         let err = reopen(&mut conn, &created.id).await.unwrap_err();
         assert!(matches!(err, Error::Validation(_)));
+    }
+
+    /// Regression test caught in review: `reopen` only checked the *target* workout's own status,
+    /// so reopening a terminal workout while a different one was still open would put two
+    /// workouts into `active` at once, silently violating SPEC.md 8.1's single-active-workout
+    /// model and leaving `get_open`'s `LIMIT 1` hiding whichever one it didn't return.
+    #[tokio::test]
+    async fn rejects_reopening_a_workout_while_another_is_already_open() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let terminal = create(&mut conn, "2026-09-01", "Push A").await.unwrap();
+        abandon(&mut conn, &terminal.id).await.unwrap();
+        let currently_open = create(&mut conn, "2026-09-16", "Pull A").await.unwrap();
+
+        let err = reopen(&mut conn, &terminal.id).await.unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        // The already-open workout must be untouched, and the terminal one must stay terminal.
+        let still_open = get(&mut conn, &currently_open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
+        let still_terminal = get(&mut conn, &terminal.id).await.unwrap();
+        assert_eq!(still_terminal.status, "abandoned");
     }
 
     #[tokio::test]

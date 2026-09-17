@@ -30,7 +30,19 @@ async function renderScreen(repository: MockLoggingRepository, workoutId: string
 	await act(async () => {}); // flush the initial load
 }
 
+// The mock's default seed data includes several already-open workouts — reopening while one is
+// still open is now rejected (SPEC.md 8.1's single-active-workout model), so tests that reopen a
+// workout need to start from a genuinely clean "nothing open" state first.
+async function withNoOpenWorkout(repository: MockLoggingRepository) {
+	let open = await repository.getOpenWorkout();
+	while (open) {
+		await repository.abandonWorkout(open.id);
+		open = await repository.getOpenWorkout();
+	}
+}
+
 async function seedCompletedWorkout(repository: MockLoggingRepository) {
+	await withNoOpenWorkout(repository);
 	const workout = await repository.createWorkout('2026-09-10', 'Push A');
 	const we = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
 	await repository.logNewSet(we.id, { weightKg: 60, reps: 5 });

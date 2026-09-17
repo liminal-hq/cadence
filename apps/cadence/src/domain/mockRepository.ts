@@ -720,6 +720,12 @@ export class MockLoggingRepository implements LoggingRepository {
 		if (workout.status !== 'completed' && workout.status !== 'abandoned') {
 			throw new Error(`workout ${workoutId} can't be reopened from status '${workout.status}'`);
 		}
+		const open = await this.getOpenWorkout();
+		if (open) {
+			throw new Error(
+				`workout ${workoutId} can't be reopened while workout ${open.id} is already open`,
+			);
+		}
 		const updated: Workout = { ...workout, status: 'active', completedAt: undefined };
 		this.workouts.set(workoutId, updated);
 		return updated;
