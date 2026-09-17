@@ -164,7 +164,7 @@ Watch
 
 **Entry:** Today; Workout detail; exercise logging; routine review.
 
-**Content and actions:** favourites; recent exercises; category browse; partial-text search; create exercise; choose one or many exercises; add to current workout.
+**Content and actions:** favourites; recent exercises; category browse; partial-text search; create exercise; choose one or many exercises; add to current workout — selecting exactly one opens its Exercise logging directly, selecting several returns to Workout detail instead.
 
 **States:** no favourites/recent items; search has no results; archived exercise included/excluded; exercise already in workout; a routine-only section selected.
 
@@ -175,7 +175,7 @@ Watch
 
 **Entry:** Workout detail; Add exercise; watch hand-off; previous/next exercise navigation; superset flow.
 
-**Content and actions:** exercise name/category; current workout context; persistent exercise note; previous-performance reference; planned/logged set list; metric inputs; log, complete, edit, duplicate, reorder, and delete set; rest timer; navigation to next exercise; history/progress shortcut.
+**Content and actions:** exercise name/category; current workout context; persistent exercise note; previous-performance reference; planned/logged set list; metric inputs; log, complete, edit, duplicate, reorder, and delete set; rest timer; add another exercise via Add exercise without returning to Workout detail first; navigation to next exercise; history/progress shortcut.
 
 **States:** no prior history; new manual set; prefilled from prior workout; planned incomplete set; completed set; selected set being edited; mixed completed/planned list; rest timer running; current exercise in superset; temporary device disconnect.
 

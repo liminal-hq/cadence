@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { AddExerciseSheet } from '../components/AddExerciseSheet/AddExerciseSheet';
 import { DetailAppBar } from '../components/DetailAppBar/DetailAppBar';
 import { SetRow, type SetRowState } from '../components/SetRow/SetRow';
 import { StepperCluster, type StepperField } from '../components/StepperCluster/StepperCluster';
@@ -105,6 +106,7 @@ export function ExerciseLoggingScreen({
 		Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>
 	> | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
+	const [addExerciseOpen, setAddExerciseOpen] = useState(false);
 	// Settings' Rest & workout timers screen — read once on mount since nothing here needs to
 	// react live to a change made in a different screen mid-workout.
 	const [restSettings, setRestSettings] = useState({ restAutoStart: true, defaultRestMs: 120_000 });
@@ -358,6 +360,11 @@ export function ExerciseLoggingScreen({
 				subtitle={workoutExercise.workoutLabel}
 				backTo={effectiveBackTo}
 				actions={[
+					{
+						icon: 'add',
+						label: 'Add exercise',
+						onClick: () => setAddExerciseOpen(true),
+					},
 					{
 						icon: 'monitoring',
 						label: 'History',
@@ -629,6 +636,29 @@ export function ExerciseLoggingScreen({
 				{coachMarks.active && coachMarks.step < 3 && <CoachMarkBadge step={4} />}
 				<RestTimerBar onOpen={() => setOverlay({ type: 'restTimer' })} />
 			</div>
+
+			{addExerciseOpen && (
+				<AddExerciseSheet
+					workoutId={workoutExercise.workoutId}
+					existingExerciseIds={siblings.map((s) => s.exerciseId)}
+					onClose={() => setAddExerciseOpen(false)}
+					onAdded={(added) => {
+						setAddExerciseOpen(false);
+						// Adding exactly one exercise drops straight into logging it, without a trip back
+						// through the workout screen — adding several has no single obvious exercise to
+						// land on, so those land there instead.
+						if (added.length === 1) {
+							setCurrentWorkoutExerciseId(added[0].id);
+							return;
+						}
+						navigate({
+							to: '/workout/$workoutId',
+							params: { workoutId: workoutExercise.workoutId },
+							replace: true,
+						});
+					}}
+				/>
+			)}
 
 			{overlay?.type === 'setEditor' && editorSet && (
 				<SetEditorSheet

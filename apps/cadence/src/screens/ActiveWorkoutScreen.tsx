@@ -136,8 +136,17 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 					workoutId={workoutId}
 					existingExerciseIds={exercises.map((e) => e.exerciseId)}
 					onClose={() => setAddExerciseOpen(false)}
-					onAdded={() => {
+					onAdded={(added) => {
 						setAddExerciseOpen(false);
+						// Adding exactly one exercise skips the list and drops straight into logging it —
+						// adding several has no single obvious exercise to land on, so those land back here.
+						if (added.length === 1) {
+							navigate({
+								to: '/workout-exercise/$workoutExerciseId',
+								params: { workoutExerciseId: added[0].id },
+							});
+							return;
+						}
 						reload();
 					}}
 				/>
