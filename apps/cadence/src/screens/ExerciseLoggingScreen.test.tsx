@@ -13,7 +13,6 @@ import { RepositoryProvider } from '../domain/RepositoryProvider';
 import { MockLoggingRepository } from '../domain/mockRepository';
 
 const navigateMock = vi.fn();
-const historyBackMock = vi.fn();
 
 vi.mock('@tanstack/react-router', () => ({
 	Link: ({ to, children, ...rest }: { to: string; children: React.ReactNode }) => (
@@ -22,7 +21,6 @@ vi.mock('@tanstack/react-router', () => ({
 		</a>
 	),
 	useNavigate: () => navigateMock,
-	useRouter: () => ({ history: { back: historyBackMock } }),
 }));
 
 async function renderScreen(repository: MockLoggingRepository, workoutExerciseId: string) {
@@ -47,7 +45,6 @@ async function seedWorkoutWithOneExercise(repository: MockLoggingRepository) {
 describe('ExerciseLoggingScreen', () => {
 	it('replaces the route with the new exercise’s logger when exactly one is added from the header', async () => {
 		navigateMock.mockClear();
-		historyBackMock.mockClear();
 		const repository = new MockLoggingRepository();
 		const { workoutExercise } = await seedWorkoutWithOneExercise(repository);
 		await renderScreen(repository, workoutExercise.id);
@@ -64,7 +61,6 @@ describe('ExerciseLoggingScreen', () => {
 			workoutExercise.workoutId,
 		);
 		const running = workoutExercises.find((we) => we.exerciseId === 'ex-running');
-		expect(historyBackMock).not.toHaveBeenCalled();
 		expect(navigateMock).toHaveBeenCalledWith({
 			to: '/workout-exercise/$workoutExerciseId',
 			params: { workoutExerciseId: running?.id },
@@ -72,11 +68,10 @@ describe('ExerciseLoggingScreen', () => {
 		});
 	});
 
-	it('pops back to the workout screen when several exercises are added from the header', async () => {
+	it('returns to the workout screen when several exercises are added from the header', async () => {
 		navigateMock.mockClear();
-		historyBackMock.mockClear();
 		const repository = new MockLoggingRepository();
-		const { workoutExercise } = await seedWorkoutWithOneExercise(repository);
+		const { workout, workoutExercise } = await seedWorkoutWithOneExercise(repository);
 		await renderScreen(repository, workoutExercise.id);
 
 		fireEvent.click(screen.getByRole('button', { name: 'Add exercise' }));
@@ -86,7 +81,10 @@ describe('ExerciseLoggingScreen', () => {
 			fireEvent.click(screen.getByRole('button', { name: 'Add 2 exercise(s)' })),
 		);
 
-		expect(navigateMock).not.toHaveBeenCalled();
-		expect(historyBackMock).toHaveBeenCalledTimes(1);
+		expect(navigateMock).toHaveBeenCalledWith({
+			to: '/workout/$workoutId',
+			params: { workoutId: workout.id },
+			replace: true,
+		});
 	});
 });
