@@ -201,7 +201,18 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 					<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
 						Copy to today
 					</Button>
-					{!isWorkoutOpen(workout.status) && (
+					{isWorkoutOpen(workout.status) ? (
+						// Reopening a workout dated before today (or navigating back here afterward)
+						// leaves no other route back to its live editor — Today only resumes it once
+						// its own date is today, and this screen would otherwise just be a dead end.
+						<Button
+							variant="tonal"
+							icon="play_arrow"
+							onClick={() => navigate({ to: '/workout/$workoutId', params: { workoutId } })}
+						>
+							Continue workout
+						</Button>
+					) : (
 						<Button variant="tonal" icon="undo" onClick={handleReopen}>
 							Reopen workout
 						</Button>

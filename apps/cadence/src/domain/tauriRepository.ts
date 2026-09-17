@@ -234,6 +234,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('get_workout', { id });
 	}
 
+	async getOpenWorkout(): Promise<Workout | null> {
+		return call('get_open_workout');
+	}
+
 	async listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]> {
 		return call('list_workouts_in_range', { startDate, endDate });
 	}

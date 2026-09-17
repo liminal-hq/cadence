@@ -87,6 +87,7 @@ pub fn run() {
             commands::reorder_analysis_favourites,
             commands::delete_analysis_favourite,
             commands::get_workout,
+            commands::get_open_workout,
             commands::list_workouts_in_range,
             commands::update_workout_note,
             commands::complete_workout,

@@ -396,6 +396,11 @@ pub async fn get_workout(state: State<'_, Coordinator>, id: String) -> Result<Wo
 }
 
 #[tauri::command]
+pub async fn get_open_workout(state: State<'_, Coordinator>) -> Result<Option<Workout>, Error> {
+    state.get_open_workout().await
+}
+
+#[tauri::command]
 pub async fn list_workouts_in_range(
     state: State<'_, Coordinator>,
     start_date: String,

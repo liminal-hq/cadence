@@ -38,12 +38,19 @@ async function seedCompletedWorkout(repository: MockLoggingRepository) {
 }
 
 describe('WorkoutDetailScreen', () => {
-	it('does not offer Reopen for a workout that is still active', async () => {
+	it('offers Continue instead of Reopen for a workout that is still active', async () => {
+		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
 		const workout = await repository.createWorkout('2026-09-10', 'Push A');
 		await renderScreen(repository, workout.id);
 
 		expect(screen.queryByText('Reopen workout')).not.toBeInTheDocument();
+		const continueButton = screen.getByText('Continue workout');
+		fireEvent.click(continueButton);
+		expect(navigateMock).toHaveBeenCalledWith({
+			to: '/workout/$workoutId',
+			params: { workoutId: workout.id },
+		});
 	});
 
 	it('reopens a completed workout and navigates back to its live editor', async () => {

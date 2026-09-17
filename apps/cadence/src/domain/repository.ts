@@ -99,6 +99,11 @@ export interface LoggingRepository {
 	deleteAllHistory(): Promise<void>;
 
 	getWorkout(id: string): Promise<Workout>;
+	/** The single draft/active workout, or `null` if there isn't one — SPEC.md 8.1's "only one
+	 *  workout is active ... by default" model is global, not scoped to today's date (reopening an
+	 *  older completed or abandoned workout produces exactly this: an open workout dated in the
+	 *  past). */
+	getOpenWorkout(): Promise<Workout | null>;
 	/** Inclusive of both bounds, ordered by date — drives both Calendar's month queries and
 	 *  List's pagination. */
 	listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]>;

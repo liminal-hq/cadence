@@ -360,6 +360,11 @@ impl<R: Runtime> Coordinator<R> {
         workouts::repo::get(&mut conn, id).await
     }
 
+    pub async fn get_open_workout(&self) -> Result<Option<Workout>> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::get_open(&mut conn).await
+    }
+
     pub async fn list_workouts_in_range(
         &self,
         start_date: &str,
@@ -1487,6 +1492,15 @@ mod tests {
             .await
             .unwrap();
         assert!(workout_exercises.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_open_workout_finds_a_workout_regardless_of_date() {
+        let c = test_coordinator().await;
+        assert_eq!(c.get_open_workout().await.unwrap(), None);
+        let created = c.create_workout("2020-01-01", "Old workout").await.unwrap();
+        let found = c.get_open_workout().await.unwrap();
+        assert_eq!(found.map(|w| w.id), Some(created.id));
     }
 
     #[tokio::test]

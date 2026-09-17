@@ -425,6 +425,38 @@ describe('MockLoggingRepository', () => {
 			});
 		});
 
+		describe('getOpenWorkout', () => {
+			// Clears the seed fixture's own already-open workouts, so these tests start from a
+			// genuinely clean "nothing open" state.
+			async function abandonEveryOpenWorkout() {
+				let open = await repo.getOpenWorkout();
+				while (open) {
+					await repo.abandonWorkout(open.id);
+					open = await repo.getOpenWorkout();
+				}
+			}
+
+			it('returns null when nothing is open', async () => {
+				await abandonEveryOpenWorkout();
+				expect(await repo.getOpenWorkout()).toBeNull();
+			});
+
+			it('finds an open workout regardless of its date', async () => {
+				await abandonEveryOpenWorkout();
+				// SPEC.md 8.1's single-active-workout model is global, not scoped to today —
+				// exactly what reopening an older completed/abandoned workout produces.
+				const workout = await repo.createWorkout('2020-01-01', 'Old workout');
+				expect((await repo.getOpenWorkout())?.id).toBe(workout.id);
+			});
+
+			it('ignores completed and abandoned workouts', async () => {
+				await abandonEveryOpenWorkout();
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.abandonWorkout(workout.id);
+				expect(await repo.getOpenWorkout()).toBeNull();
+			});
+		});
+
 		it('adds an exercise to a workout, appending at the end of its order', async () => {
 			const workout = await repo.createWorkout('2026-09-10', 'Push day');
 			const first = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');

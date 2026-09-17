@@ -587,6 +587,10 @@ export class MockLoggingRepository implements LoggingRepository {
 		return workout;
 	}
 
+	async getOpenWorkout(): Promise<Workout | null> {
+		return [...this.workouts.values()].find((w) => isWorkoutOpen(w.status)) ?? null;
+	}
+
 	async listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]> {
 		return [...this.workouts.values()]
 			.filter((w) => w.date >= startDate && w.date <= endDate)

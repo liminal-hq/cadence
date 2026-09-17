@@ -11,7 +11,6 @@ import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import { todayLocalDate } from '../domain/format';
-import { isWorkoutOpen } from '../domain/types';
 import './screens.css';
 
 export function TodayScreen() {
@@ -22,10 +21,11 @@ export function TodayScreen() {
 
 	useEffect(() => {
 		let cancelled = false;
-		const today = todayLocalDate();
-		repository.listWorkoutsInRange(today, today).then((workouts) => {
+		// Not scoped to today's date — SPEC.md 8.1's single-active-workout model is global, so a
+		// workout reopened from any earlier date is still "the one to resume" here.
+		repository.getOpenWorkout().then((workout) => {
 			if (cancelled) return;
-			setTodayWorkoutId(workouts.find((w) => isWorkoutOpen(w.status))?.id ?? null);
+			setTodayWorkoutId(workout?.id ?? null);
 		});
 		return () => {
 			cancelled = true;

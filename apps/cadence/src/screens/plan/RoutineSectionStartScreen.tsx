@@ -22,7 +22,7 @@ import type {
 	RoutineSection,
 	SetTemplate,
 } from '../../domain/types';
-import { isWorkoutOpen, SEED_LAST_PERFORMANCE } from '../../domain/types';
+import { SEED_LAST_PERFORMANCE } from '../../domain/types';
 import { formatNumber, todayLocalDate } from '../../domain/format';
 import '../screens.css';
 import './plan.css';
@@ -67,12 +67,14 @@ export async function loadReviewState(
 	routineSectionId: string,
 	targetDate: string,
 ): Promise<ReviewState> {
-	const [routineSection, routineExercises, workoutsToday] = await Promise.all([
+	const [routineSection, routineExercises, openWorkout] = await Promise.all([
 		repository.getRoutineSection(routineSectionId),
 		repository.listRoutineExercises(routineSectionId),
-		repository.listWorkoutsInRange(targetDate, targetDate),
+		// Not scoped to `targetDate` — SPEC.md 8.1's single-active-workout model is global, so a
+		// workout reopened from any earlier date still blocks materializing a new one here.
+		repository.getOpenWorkout(),
 	]);
-	const activeWorkoutId = workoutsToday.find((w) => isWorkoutOpen(w.status))?.id ?? null;
+	const activeWorkoutId = openWorkout?.id ?? null;
 	const exercises = await Promise.all(
 		routineExercises.map(async (routineExercise) => {
 			const [exercise, templates] = await Promise.all([

@@ -37,8 +37,20 @@ describe('resolveSeedPreview', () => {
 });
 
 describe('loadReviewState', () => {
-	it("sets activeWorkoutId to null when there's no in-progress workout on the target date", async () => {
+	// The mock's default seed data includes several already-open workouts — abandon all of them
+	// first so these tests start from a genuinely clean "nothing open" state, matching what
+	// they're testing. `getOpenWorkout` only ever surfaces one at a time, so loop until it's clear.
+	async function withNoOpenWorkout(repo: MockLoggingRepository) {
+		let seeded = await repo.getOpenWorkout();
+		while (seeded) {
+			await repo.abandonWorkout(seeded.id);
+			seeded = await repo.getOpenWorkout();
+		}
+	}
+
+	it("sets activeWorkoutId to null when there's no open workout at all", async () => {
 		const repo = new MockLoggingRepository();
+		await withNoOpenWorkout(repo);
 		const routine = await repo.createRoutine('Push day');
 		const section = await repo.addRoutineSection(routine.id, 'A');
 		await repo.addRoutineExercise(section.id, 'ex-bench-press');
@@ -47,12 +59,15 @@ describe('loadReviewState', () => {
 		expect(state.activeWorkoutId).toBeNull();
 	});
 
-	it('resolves an in-progress workout already dated the target date as activeWorkoutId', async () => {
+	it('resolves an open workout as activeWorkoutId even when dated well before the target date', async () => {
+		// SPEC.md 8.1's single-active-workout model is global, not scoped to a date — this is
+		// exactly the shape reopening an older completed/abandoned workout produces.
 		const repo = new MockLoggingRepository();
+		await withNoOpenWorkout(repo);
 		const routine = await repo.createRoutine('Push day');
 		const section = await repo.addRoutineSection(routine.id, 'A');
 		await repo.addRoutineExercise(section.id, 'ex-bench-press');
-		const active = await repo.createWorkout('2026-09-20', 'Today');
+		const active = await repo.createWorkout('2020-01-01', 'Old workout');
 
 		const state = await loadReviewState(repo, section.id, '2026-09-20');
 		expect(state.activeWorkoutId).toBe(active.id);
