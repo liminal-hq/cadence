@@ -11,6 +11,8 @@ import { Surface } from '../../components/ui/Surface/Surface';
 import { Button } from '../../components/ui/Button/Button';
 import { Tag } from '../../components/ui/Tag/Tag';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { isWorkoutOpen } from '../../domain/types';
+import { WORKOUT_STATUS_TAG } from '../../data/workoutStatusTag';
 import { formatWorkoutDuration, formatNumber, todayLocalDate } from '../../domain/format';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { formatCalendarDateLabel } from './historyDates';
@@ -90,9 +92,19 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 		navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
 	}
 
+	async function handleReopen() {
+		await repository.reopenWorkout(workoutId);
+		navigate({ to: '/workout/$workoutId', params: { workoutId } });
+	}
+
 	return (
 		<div className="screen-shell">
-			<AppBar title={workout.title} size="medium" back={{ to: '/history' }} />
+			<AppBar
+				title={workout.title}
+				size="medium"
+				back={{ to: '/history' }}
+				tag={WORKOUT_STATUS_TAG[workout.status]}
+			/>
 			<div className="screen-shell__content workout-detail">
 				<p className="workout-detail__date">{formatCalendarDateLabel(workout.date)}</p>
 
@@ -189,6 +201,11 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 					<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
 						Copy to today
 					</Button>
+					{!isWorkoutOpen(workout.status) && (
+						<Button variant="tonal" icon="undo" onClick={handleReopen}>
+							Reopen workout
+						</Button>
+					)}
 					{workout.loggedByWatch && (
 						<Tag
 							label="Logged from watch"

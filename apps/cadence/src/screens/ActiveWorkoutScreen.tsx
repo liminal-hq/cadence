@@ -12,10 +12,12 @@ import { AppBar } from '../components/ui/AppBar/AppBar';
 import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { AddExerciseSheet } from '../components/AddExerciseSheet/AddExerciseSheet';
+import { AbandonWorkoutDialog } from './AbandonWorkoutDialog';
 import { SetChipRow } from './history/SetChipRow';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
 import type { LoggingRepository } from '../domain/repository';
-import type { MetricProfile, SetEntry, Workout } from '../domain/types';
+import { isWorkoutOpen, type MetricProfile, type SetEntry, type Workout } from '../domain/types';
+import { WORKOUT_STATUS_TAG } from '../data/workoutStatusTag';
 import './screens.css';
 import './ActiveWorkoutScreen.css';
 
@@ -69,6 +71,7 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 	const navigate = useNavigate();
 	const [active, setActive] = useState<ActiveWorkout | null>(null);
 	const [addExerciseOpen, setAddExerciseOpen] = useState(false);
+	const [abandonOpen, setAbandonOpen] = useState(false);
 
 	const reload = useCallback(() => {
 		loadActiveWorkout(repository, workoutId).then(setActive);
@@ -86,10 +89,31 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 
 	if (!active) return null;
 	const { workout, exercises } = active;
+	const hasCompletedSet = exercises.some((e) => e.sets.some((s) => s.status === 'completed'));
+
+	async function handleFinish() {
+		await repository.completeWorkout(workoutId);
+		navigate({ to: '/today' });
+	}
+
+	async function handleAbandon() {
+		await repository.abandonWorkout(workoutId);
+		navigate({ to: '/today' });
+	}
 
 	return (
 		<div className="screen-shell">
-			<AppBar title={workout.title || 'Workout'} size="medium" back={{ to: '/today' }} />
+			<AppBar
+				title={workout.title || 'Workout'}
+				size="medium"
+				back={{ to: '/today' }}
+				tag={WORKOUT_STATUS_TAG[workout.status]}
+				actions={
+					isWorkoutOpen(workout.status)
+						? [{ icon: 'flag', label: 'Abandon workout', onClick: () => setAbandonOpen(true) }]
+						: undefined
+				}
+			/>
 			<div className="screen-shell__content active-workout">
 				{exercises.length === 0 ? (
 					<EmptyState
@@ -131,7 +155,24 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 						</Button>
 					</>
 				)}
+				{isWorkoutOpen(workout.status) && (
+					<div className="active-workout__finish">
+						<Button variant="filled" disabled={!hasCompletedSet} onClick={handleFinish}>
+							Finish workout
+						</Button>
+						{!hasCompletedSet && (
+							<p className="active-workout__finish-hint">Log at least one set before finishing.</p>
+						)}
+					</div>
+				)}
 			</div>
+			{abandonOpen && (
+				<AbandonWorkoutDialog
+					open={abandonOpen}
+					onClose={() => setAbandonOpen(false)}
+					onConfirm={handleAbandon}
+				/>
+			)}
 			{addExerciseOpen && (
 				<AddExerciseSheet
 					workoutId={workoutId}

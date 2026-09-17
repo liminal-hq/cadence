@@ -69,4 +69,58 @@ describe('ActiveWorkoutScreen', () => {
 		expect(await screen.findByText('Bench Press')).toBeInTheDocument();
 		expect(screen.getByText('Running')).toBeInTheDocument();
 	});
+
+	it('disables Finish workout with a hint until a set is completed', async () => {
+		const repository = new MockLoggingRepository();
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
+		await renderScreen(repository, workout.id);
+
+		expect(screen.getByRole('button', { name: 'Finish workout' })).toBeDisabled();
+		expect(screen.getByText('Log at least one set before finishing.')).toBeInTheDocument();
+	});
+
+	it('finishes a workout with a completed set and navigates to Today', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		const we = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
+		await repository.logNewSet(we.id, { weightKg: 60, reps: 5 });
+		await renderScreen(repository, workout.id);
+
+		const finishButton = screen.getByRole('button', { name: 'Finish workout' });
+		expect(finishButton).toBeEnabled();
+		await act(async () => fireEvent.click(finishButton));
+
+		const reloaded = await repository.getWorkout(workout.id);
+		expect(reloaded.status).toBe('completed');
+		expect(navigateMock).toHaveBeenCalledWith({ to: '/today' });
+	});
+
+	it('abandons a workout through the confirmation dialog and navigates to Today', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		await renderScreen(repository, workout.id);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Abandon workout' }));
+		expect(screen.getByText('Abandon this workout?')).toBeInTheDocument();
+
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Abandon' })));
+
+		const reloaded = await repository.getWorkout(workout.id);
+		expect(reloaded.status).toBe('abandoned');
+		expect(navigateMock).toHaveBeenCalledWith({ to: '/today' });
+	});
+
+	it('shows an Abandoned tag and hides mutating actions for an already-abandoned workout', async () => {
+		const repository = new MockLoggingRepository();
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		await repository.abandonWorkout(workout.id);
+		await renderScreen(repository, workout.id);
+
+		expect(screen.getByText('Abandoned')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Abandon workout' })).not.toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: 'Finish workout' })).not.toBeInTheDocument();
+	});
 });
