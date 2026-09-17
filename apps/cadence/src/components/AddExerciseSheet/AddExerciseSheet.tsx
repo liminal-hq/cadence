@@ -13,7 +13,7 @@ import { Chip } from '../ui/Chip/Chip';
 import { IconButton } from '../ui/IconButton/IconButton';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
 import { CATEGORY_COLOURS } from '../../data/categoryColours';
-import type { Exercise } from '../../domain/types';
+import type { Exercise, WorkoutExercise } from '../../domain/types';
 import './AddExerciseSheet.css';
 
 interface AddExerciseSheetProps {
@@ -22,7 +22,10 @@ interface AddExerciseSheetProps {
 	 *  workout" state), so a duplicate add isn't offered as if it were a fresh one. */
 	existingExerciseIds: string[];
 	onClose: () => void;
-	onAdded: () => void;
+	/** Passes back exactly what was added, in selection order — callers use the count to decide
+	 *  where to land: straight into the one exercise just added, or back on the workout list when
+	 *  several went in at once. */
+	onAdded: (added: WorkoutExercise[]) => void;
 }
 
 export function AddExerciseSheet({
@@ -68,11 +71,12 @@ export function AddExerciseSheet({
 		setAdding(true);
 		// Sequential, not Promise.all — add_workout_exercise reads the workout's current highest
 		// sort_order before inserting, and concurrent calls could race on that read.
+		const added: WorkoutExercise[] = [];
 		for (const exerciseId of selectedIds) {
-			await repository.addWorkoutExercise(workoutId, exerciseId);
+			added.push(await repository.addWorkoutExercise(workoutId, exerciseId));
 		}
 		setAdding(false);
-		onAdded();
+		onAdded(added);
 	}
 
 	const categories = Object.keys(CATEGORY_COLOURS);

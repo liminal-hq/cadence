@@ -6,7 +6,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useNavigate, useRouter } from '@tanstack/react-router';
+import { AddExerciseSheet } from '../components/AddExerciseSheet/AddExerciseSheet';
 import { DetailAppBar } from '../components/DetailAppBar/DetailAppBar';
 import { SetRow, type SetRowState } from '../components/SetRow/SetRow';
 import { StepperCluster, type StepperField } from '../components/StepperCluster/StepperCluster';
@@ -90,6 +91,7 @@ export function ExerciseLoggingScreen({
 }: ExerciseLoggingScreenProps) {
 	const repository = useLoggingRepository();
 	const navigate = useNavigate();
+	const router = useRouter();
 	const [currentWorkoutExerciseId, setCurrentWorkoutExerciseId] = useState(workoutExerciseId);
 	const [workoutExercise, setWorkoutExercise] = useState<WorkoutExercise | null>(null);
 	const [exercise, setExercise] = useState<Exercise | null>(null);
@@ -105,6 +107,7 @@ export function ExerciseLoggingScreen({
 		Pick<SetEntry, 'weightKg' | 'reps' | 'distanceKm' | 'durationSec'>
 	> | null>(null);
 	const [overlay, setOverlay] = useState<Overlay | null>(null);
+	const [addExerciseOpen, setAddExerciseOpen] = useState(false);
 	// Settings' Rest & workout timers screen — read once on mount since nothing here needs to
 	// react live to a change made in a different screen mid-workout.
 	const [restSettings, setRestSettings] = useState({ restAutoStart: true, defaultRestMs: 120_000 });
@@ -358,6 +361,11 @@ export function ExerciseLoggingScreen({
 				subtitle={workoutExercise.workoutLabel}
 				backTo={effectiveBackTo}
 				actions={[
+					{
+						icon: 'add',
+						label: 'Add exercise',
+						onClick: () => setAddExerciseOpen(true),
+					},
 					{
 						icon: 'monitoring',
 						label: 'History',
@@ -629,6 +637,48 @@ export function ExerciseLoggingScreen({
 				{coachMarks.active && coachMarks.step < 3 && <CoachMarkBadge step={4} />}
 				<RestTimerBar onOpen={() => setOverlay({ type: 'restTimer' })} />
 			</div>
+
+			{addExerciseOpen && (
+				<AddExerciseSheet
+					workoutId={workoutExercise.workoutId}
+					existingExerciseIds={siblings.map((s) => s.exerciseId)}
+					onClose={() => setAddExerciseOpen(false)}
+					onAdded={(added) => {
+						setAddExerciseOpen(false);
+						// A `replace` navigate doesn't change what's below this entry in real browser
+						// history, so whether the current entry was reached directly from Workout detail
+						// is equally true of whatever we replace it with.
+						const fromWorkoutDetail = router.state.location.state.fromWorkoutDetail === true;
+						// Adding exactly one exercise drops straight into logging it, without a trip back
+						// through the workout screen — replacing the route (not pushing, and not just
+						// switching local state) keeps the URL/selfPath honest for refresh and for History's
+						// own back-here action, without growing the history stack.
+						if (added.length === 1) {
+							navigate({
+								to: '/workout-exercise/$workoutExerciseId',
+								params: { workoutExerciseId: added[0].id },
+								replace: true,
+								state: { fromWorkoutDetail },
+							});
+							return;
+						}
+						// Adding several has no single obvious exercise to land on, so those return to the
+						// workout screen instead — popping only when it's known to be the entry directly
+						// below (a direct push from Workout detail), since a blind pop can otherwise land
+						// somewhere else entirely (e.g. after a logger → History → Back round trip, which
+						// pushes its own entries in between).
+						if (fromWorkoutDetail) {
+							router.history.back();
+							return;
+						}
+						navigate({
+							to: '/workout/$workoutId',
+							params: { workoutId: workoutExercise.workoutId },
+							replace: true,
+						});
+					}}
+				/>
+			)}
 
 			{overlay?.type === 'setEditor' && editorSet && (
 				<SetEditorSheet

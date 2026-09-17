@@ -247,7 +247,7 @@ Each exercise definition includes:
 
 Categories include name, colour, order, and archived state. Cadence ships a useful editable starter library, but built-in exercises and categories are not privileged immutable records. Users can create, rename, move, archive, merge, and safely delete unreferenced definitions. Referenced exercises are archived by default so history stays intelligible. Until the equipment/barbell association above is built, equipment is named directly in the exercise ("Cable Lateral Raise", "Smith Machine Shoulder Press") rather than tracked as a separate field — the starter library follows this convention throughout, and user-created exercises are free to as well.
 
-Exercise selection supports favourites, recent use, routines, category browsing, and search in the same reusable picker. Selection can be single or multi-select depending on entry point. Creating an exercise from a no-results query carries the query into the name field.
+Exercise selection supports favourites, recent use, routines, category browsing, and search in the same reusable picker, and always allows multi-select. Picking exactly one exercise adds it and opens straight into logging it; picking several adds them all and returns to the workout view instead, since there is no single exercise among them to land on. Creating an exercise from a no-results query carries the query into the name field.
 
 Changing a metric profile that would make historical values ambiguous must explain the effect and offer a safer alternative: create a new exercise or preserve compatible fields. Historical data must never be silently discarded.
 
@@ -262,7 +262,8 @@ The exercise logging screen is the highest-frequency surface. It includes:
 - completion control and fast repeat/duplicate action;
 - previous workout reference;
 - rest-timer status;
-- quick access to set note/edit/delete and exercise history.
+- quick access to set note/edit/delete and exercise history;
+- an add-exercise action that reaches the same picker as Workout detail, so another exercise can be added without leaving the logging flow first.
 
 Supported initial metric profiles are Weight + Reps, Distance + Duration, Reps Only, Duration Only, and Weight Only. The data model must support other valid combinations so they can be enabled later without migration.
 

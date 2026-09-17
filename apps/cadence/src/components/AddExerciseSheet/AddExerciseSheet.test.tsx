@@ -83,6 +83,12 @@ describe('AddExerciseSheet', () => {
 		expect(addSpy).toHaveBeenCalledWith('workout-push-a', 'ex-running');
 		expect(addSpy).toHaveBeenCalledTimes(2);
 		expect(onAdded).toHaveBeenCalledTimes(1);
+		const added = onAdded.mock.calls[0][0];
+		expect(added).toHaveLength(2);
+		expect(added.map((we: { exerciseId: string }) => we.exerciseId)).toEqual([
+			'ex-bench-press',
+			'ex-running',
+		]);
 	});
 
 	it('keeps Add disabled with nothing selected', async () => {
