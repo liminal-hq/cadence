@@ -691,6 +691,9 @@ mod tests {
         )
         .await
         .unwrap();
+        crate::domain::workouts::repo::abandon(&mut conn, &newer_workout.id)
+            .await
+            .unwrap();
 
         // ...then an earlier-dated workout is entered afterward, giving its set a later
         // `completed_at_ms` even though its training day came first. The nearer training day must

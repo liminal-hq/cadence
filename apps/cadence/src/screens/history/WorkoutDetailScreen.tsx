@@ -7,10 +7,13 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Surface } from '../../components/ui/Surface/Surface';
 import { Button } from '../../components/ui/Button/Button';
 import { Tag } from '../../components/ui/Tag/Tag';
 import { useLoggingRepository } from '../../domain/RepositoryProvider';
+import { isWorkoutOpen } from '../../domain/types';
+import { WORKOUT_STATUS_TAG } from '../../data/workoutStatusTag';
 import { formatWorkoutDuration, formatNumber, todayLocalDate } from '../../domain/format';
 import { loadWorkoutSummary, type WorkoutSummary } from './loadWorkoutSummary';
 import { formatCalendarDateLabel } from './historyDates';
@@ -49,6 +52,7 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	const [summary, setSummary] = useState<WorkoutSummary | null>(null);
 	const [noteDraft, setNoteDraft] = useState('');
 	const [overlapWorkoutTitle, setOverlapWorkoutTitle] = useState<string | null>(null);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -86,14 +90,42 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 	}
 
 	async function handleCopyToToday() {
-		const duplicated = await repository.duplicateWorkout(workoutId, todayLocalDate());
-		navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
+		try {
+			setError(null);
+			const duplicated = await repository.duplicateWorkout(workoutId, todayLocalDate());
+			navigate({ to: '/history/workout/$workoutId', params: { workoutId: duplicated.id } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: the copy always lands as
+			// active, so it can't be created while another workout is already open.
+			setError(err instanceof Error ? err.message : String(err));
+		}
+	}
+
+	async function handleReopen() {
+		try {
+			setError(null);
+			await repository.reopenWorkout(workoutId);
+			navigate({ to: '/workout/$workoutId', params: { workoutId } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: another workout is already
+			// open, and finishing/abandoning/switching to it isn't built yet, so this can only
+			// surface the conflict rather than resolve it.
+			setError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	return (
 		<div className="screen-shell">
-			<AppBar title={workout.title} size="medium" back={{ to: '/history' }} />
+			<AppBar
+				title={workout.title}
+				size="medium"
+				back={{ to: '/history' }}
+				tag={WORKOUT_STATUS_TAG[workout.status]}
+			/>
 			<div className="screen-shell__content workout-detail">
+				{error && (
+					<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+				)}
 				<p className="workout-detail__date">{formatCalendarDateLabel(workout.date)}</p>
 
 				<Surface tone="container" radius="l" className="workout-detail__stats">
@@ -186,9 +218,31 @@ export function WorkoutDetailScreen({ workoutId }: WorkoutDetailScreenProps) {
 				</div>
 
 				<div className="workout-detail__actions">
-					<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
-						Copy to today
-					</Button>
+					{
+						// Hidden while this workout is itself the open one — the copy always lands as
+						// active, so it can only ever fail here, referencing this same workout.
+						!isWorkoutOpen(workout.status) && (
+							<Button variant="tonal" icon="content_copy" onClick={handleCopyToToday}>
+								Copy to today
+							</Button>
+						)
+					}
+					{isWorkoutOpen(workout.status) ? (
+						// Reopening a workout dated before today (or navigating back here afterward)
+						// leaves no other route back to its live editor — Today only resumes it once
+						// its own date is today, and this screen would otherwise just be a dead end.
+						<Button
+							variant="tonal"
+							icon="play_arrow"
+							onClick={() => navigate({ to: '/workout/$workoutId', params: { workoutId } })}
+						>
+							Continue workout
+						</Button>
+					) : (
+						<Button variant="tonal" icon="undo" onClick={handleReopen}>
+							Reopen workout
+						</Button>
+					)}
 					{workout.loggedByWatch && (
 						<Tag
 							label="Logged from watch"

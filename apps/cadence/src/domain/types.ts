@@ -182,7 +182,21 @@ export interface Settings {
  *  into an otherwise-manual workout (see WorkoutExercise), not a distinct provenance. */
 export type WorkoutSource = 'manual' | 'fitnotes-import' | 'health-connect-import';
 
-export type WorkoutStatus = 'in-progress' | 'completed';
+export type WorkoutStatus = 'draft' | 'active' | 'completed' | 'abandoned';
+
+/** `draft`/`active` are still open — the workout Today's "Continue workout" resumes, and the one
+ *  P-20 materialization checks for before offering to start a second one. Kept as one predicate so
+ *  those two call sites can't drift on what "open" means. */
+export function isWorkoutOpen(status: WorkoutStatus): boolean {
+	return status === 'draft' || status === 'active';
+}
+
+/** `completed`/`abandoned` are both terminal, and SPEC.md 8.1 treats them as equivalent for
+ *  history purposes — abandoning never locks or discards what was already logged. Kept as one
+ *  predicate so history summary/deletion and per-exercise history don't drift on what counts. */
+export function isHistoryWorkout(status: WorkoutStatus): boolean {
+	return status === 'completed' || status === 'abandoned';
+}
 
 export interface WorkoutHealthConnectProvenance {
 	sourceApp: string;

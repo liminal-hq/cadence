@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../../components/ui/AppBar/AppBar';
+import { Banner } from '../../components/ui/Banner/Banner';
 import { Button } from '../../components/ui/Button/Button';
 import { EmptyState } from '../../components/ui/EmptyState/EmptyState';
 import { ReorderableList } from '../../components/ui/ReorderableList/ReorderableList';
@@ -67,12 +68,14 @@ export async function loadReviewState(
 	routineSectionId: string,
 	targetDate: string,
 ): Promise<ReviewState> {
-	const [routineSection, routineExercises, workoutsToday] = await Promise.all([
+	const [routineSection, routineExercises, openWorkout] = await Promise.all([
 		repository.getRoutineSection(routineSectionId),
 		repository.listRoutineExercises(routineSectionId),
-		repository.listWorkoutsInRange(targetDate, targetDate),
+		// Not scoped to `targetDate` — SPEC.md 8.1's single-active-workout model is global, so a
+		// workout reopened from any earlier date still blocks materializing a new one here.
+		repository.getOpenWorkout(),
 	]);
-	const activeWorkoutId = workoutsToday.find((w) => w.status === 'in-progress')?.id ?? null;
+	const activeWorkoutId = openWorkout?.id ?? null;
 	const exercises = await Promise.all(
 		routineExercises.map(async (routineExercise) => {
 			const [exercise, templates] = await Promise.all([
@@ -139,6 +142,7 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 	const navigate = useNavigate();
 	const [state, setState] = useState<ReviewState | null>(null);
 	const [starting, setStarting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 	const targetDate = todayLocalDate();
 
 	useEffect(() => {
@@ -165,15 +169,23 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 	async function handleStart() {
 		if (activeWorkoutId) return;
 		setStarting(true);
-		const selectedIds = exercises
-			.filter((item) => item.included)
-			.map((item) => item.routineExercise.id);
-		const workout = await repository.materializeRoutineSection(
-			routineSectionId,
-			targetDate,
-			selectedIds,
-		);
-		navigate({ to: '/workout/$workoutId', params: { workoutId: workout.id } });
+		setError(null);
+		try {
+			const selectedIds = exercises
+				.filter((item) => item.included)
+				.map((item) => item.routineExercise.id);
+			const workout = await repository.materializeRoutineSection(
+				routineSectionId,
+				targetDate,
+				selectedIds,
+			);
+			navigate({ to: '/workout/$workoutId', params: { workoutId: workout.id } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: a workout became open (e.g. a
+			// double-tap, or another device) between this screen's own check and this call.
+			setError(err instanceof Error ? err.message : String(err));
+			setStarting(false);
+		}
 	}
 
 	return (
@@ -184,6 +196,9 @@ export function RoutineSectionStartScreen({ routineSectionId }: RoutineSectionSt
 				back={{ to: `/plan/routine/${routineSection.routineId}` }}
 			/>
 			<div className="screen-shell__content routine-screen__content">
+				{error && (
+					<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+				)}
 				{activeWorkoutId ? (
 					<EmptyState
 						headline="Workout in progress"

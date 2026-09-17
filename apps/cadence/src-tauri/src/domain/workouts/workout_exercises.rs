@@ -315,6 +315,9 @@ mod tests {
                 .await
                 .unwrap();
             add(&mut conn, &workout.id, "ex-bench-press").await.unwrap();
+            crate::domain::workouts::repo::abandon(&mut conn, &workout.id)
+                .await
+                .unwrap();
         }
         let occurrences = list_by_exercise(&mut conn, "ex-bench-press").await.unwrap();
         assert_eq!(occurrences.len(), 3);

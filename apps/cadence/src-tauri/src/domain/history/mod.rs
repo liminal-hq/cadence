@@ -21,14 +21,16 @@ pub struct HistorySummary {
 
 /// Counts of what P-62's delete-all confirmation is about to remove — must agree exactly with
 /// `delete_all`'s own scope below, since the confirmation dialog describes what deletion removes.
+/// `completed` and `abandoned` are both "history" here (SPEC.md 8.1: the lifecycle states "do not
+/// lock history"); `draft`/`active` workouts are still open and never counted.
 pub async fn get_summary(conn: &mut SqliteConnection) -> Result<HistorySummary> {
     let (workout_count,): (i64,) =
-        sqlx::query_as("SELECT COUNT(*) FROM workouts WHERE status = 'completed'")
+        sqlx::query_as("SELECT COUNT(*) FROM workouts WHERE status IN ('completed', 'abandoned')")
             .fetch_one(&mut *conn)
             .await?;
     let (set_count,): (i64,) = sqlx::query_as(
         "SELECT COUNT(*) FROM sets s JOIN workouts w ON w.id = s.workout_id \
-         WHERE w.status = 'completed'",
+         WHERE w.status IN ('completed', 'abandoned')",
     )
     .fetch_one(&mut *conn)
     .await?;
@@ -38,16 +40,17 @@ pub async fn get_summary(conn: &mut SqliteConnection) -> Result<HistorySummary> 
     })
 }
 
-/// Deletes completed workouts and everything that belongs to them (workout_exercises and sets,
-/// via cascading foreign keys) — in-progress workouts, exercises, barbells, and settings are
-/// never touched, matching the mock's exact scope. Tombstones are written for every affected row
-/// before the cascade runs, since a cascading delete never calls back into application code.
+/// Deletes completed or abandoned workouts and everything that belongs to them (workout_exercises
+/// and sets, via cascading foreign keys) — still-open (draft/active) workouts, exercises,
+/// barbells, and settings are never touched, matching the mock's exact scope. Tombstones are
+/// written for every affected row before the cascade runs, since a cascading delete never calls
+/// back into application code.
 pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
     let now = chrono::Utc::now().timestamp_millis();
 
     let set_ids: Vec<(String,)> = sqlx::query_as(
         "SELECT s.id FROM sets s JOIN workouts w ON w.id = s.workout_id \
-         WHERE w.status = 'completed'",
+         WHERE w.status IN ('completed', 'abandoned')",
     )
     .fetch_all(&mut *conn)
     .await?;
@@ -61,7 +64,7 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
 
     let workout_exercise_ids: Vec<(String,)> = sqlx::query_as(
         "SELECT we.id FROM workout_exercises we JOIN workouts w ON w.id = we.workout_id \
-         WHERE w.status = 'completed'",
+         WHERE w.status IN ('completed', 'abandoned')",
     )
     .fetch_all(&mut *conn)
     .await?;
@@ -71,7 +74,7 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
     }
 
     let workout_ids: Vec<(String,)> =
-        sqlx::query_as("SELECT id FROM workouts WHERE status = 'completed'")
+        sqlx::query_as("SELECT id FROM workouts WHERE status IN ('completed', 'abandoned')")
             .fetch_all(&mut *conn)
             .await?;
     for (id,) in workout_ids {
@@ -79,7 +82,7 @@ pub async fn delete_all(conn: &mut SqliteConnection) -> Result<()> {
         crate::db::write_tombstone(conn, "workout", &id, revision, now).await?;
     }
 
-    sqlx::query("DELETE FROM workouts WHERE status = 'completed'")
+    sqlx::query("DELETE FROM workouts WHERE status IN ('completed', 'abandoned')")
         .execute(&mut *conn)
         .await?;
     Ok(())
@@ -134,6 +137,78 @@ mod tests {
         sets::repo::add(conn, &survivor_we.id).await.unwrap();
 
         (completed.id, set_ids, survivor_we.id)
+    }
+
+    /// An abandoned workout with a completed set already logged — decision #2's "abandoning never
+    /// discards history" means this must be treated as history exactly like a completed workout.
+    /// Inserted directly as `abandoned` rather than via `create()` + a status flip: this is called
+    /// alongside a fixture that leaves its own workout genuinely open, and both the app-level guard
+    /// and the database's own partial unique index correctly refuse a second `active` row while
+    /// one already exists — this fixture only ever needs the row to end up abandoned, never active.
+    async fn seed_an_abandoned_workout_with_a_completed_set(conn: &mut SqliteConnection) -> String {
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = chrono::Utc::now().timestamp_millis();
+        let revision = crate::db::next_revision(conn).await.unwrap();
+        sqlx::query(
+            "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+             started_at_ms, created_at_ms, updated_at_ms, revision) VALUES (?, ?, ?, 'abandoned', \
+             'manual', 0, ?, ?, ?, ?)",
+        )
+        .bind(&id)
+        .bind("2026-09-05")
+        .bind("Push B")
+        .bind(now)
+        .bind(now)
+        .bind(now)
+        .bind(revision)
+        .execute(&mut *conn)
+        .await
+        .unwrap();
+        let we = workouts::workout_exercises::add(conn, &id, "ex-bench-press")
+            .await
+            .unwrap();
+        sets::repo::log_new(
+            conn,
+            &we.id,
+            &SetValues {
+                weight_kg: Some(70.0),
+                reps: Some(6),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+        id
+    }
+
+    #[tokio::test]
+    async fn summarizes_and_deletes_abandoned_workouts_alongside_completed_ones() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let (_, _, survivor_we_id) = seed_completed_and_in_progress_workouts(&mut conn).await;
+        let abandoned_id = seed_an_abandoned_workout_with_a_completed_set(&mut conn).await;
+
+        let summary = get_summary(&mut conn).await.unwrap();
+        assert_eq!(summary.workout_count, 2, "completed + abandoned");
+        assert_eq!(summary.set_count, 3, "2 completed + 1 abandoned");
+
+        delete_all(&mut conn).await.unwrap();
+
+        let (abandoned_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM workouts WHERE id = ?")
+                .bind(&abandoned_id)
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        assert_eq!(abandoned_count, 0, "abandoned workout is removed too");
+
+        let (survivor_count,): (i64,) =
+            sqlx::query_as("SELECT COUNT(*) FROM workout_exercises WHERE id = ?")
+                .bind(&survivor_we_id)
+                .fetch_one(&mut *conn)
+                .await
+                .unwrap();
+        assert_eq!(survivor_count, 1, "the still-active workout is untouched");
     }
 
     #[tokio::test]

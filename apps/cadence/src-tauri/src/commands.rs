@@ -396,6 +396,11 @@ pub async fn get_workout(state: State<'_, Coordinator>, id: String) -> Result<Wo
 }
 
 #[tauri::command]
+pub async fn get_open_workout(state: State<'_, Coordinator>) -> Result<Option<Workout>, Error> {
+    state.get_open_workout().await
+}
+
+#[tauri::command]
 pub async fn list_workouts_in_range(
     state: State<'_, Coordinator>,
     start_date: String,
@@ -413,6 +418,30 @@ pub async fn update_workout_note(
     state
         .update_workout_note(&workout_id, note.as_deref())
         .await
+}
+
+#[tauri::command]
+pub async fn complete_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.complete_workout(&workout_id).await
+}
+
+#[tauri::command]
+pub async fn abandon_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.abandon_workout(&workout_id).await
+}
+
+#[tauri::command]
+pub async fn reopen_workout(
+    state: State<'_, Coordinator>,
+    workout_id: String,
+) -> Result<Workout, Error> {
+    state.reopen_workout(&workout_id).await
 }
 
 #[tauri::command]

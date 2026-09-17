@@ -153,9 +153,9 @@ Watch
 
 **Entry:** Today; History; Calendar; notification; watch-originated hand-off.
 
-**Content and actions:** ordered workout exercises and concise set summaries; add/reorder/remove exercise; open exercise logging; start/stop workout timer; add workout title/note; launch superset management; copy/duplicate/move/delete controls; complete/reopen workout.
+**Content and actions:** ordered workout exercises and concise set summaries; add/reorder/remove exercise; open exercise logging; start/stop workout timer; add workout title/note; launch superset management; copy/duplicate/move/delete controls; complete/abandon/reopen workout.
 
-**States:** empty; planned-only; in-progress; complete; historical; an exercise with no sets; all sets complete; watch sync pending; same-day sibling workout available; Health Connect export pending/complete/failed (Planned — see P-64).
+**States:** empty; planned-only; active; complete; abandoned; historical; an exercise with no sets; all sets complete; watch sync pending; same-day sibling workout available; Health Connect export pending/complete/failed (Planned — see P-64).
 
 ### P-13 — Add exercise
 
@@ -219,9 +219,9 @@ Watch
 
 **Entry:** Workout detail controls.
 
-**Content and actions:** workout title/note; start/end timestamps; manual time adjustment; duration; complete/reopen action.
+**Content and actions:** workout title/note; start/end timestamps; manual time adjustment; duration; complete/abandon/reopen action.
 
-**States:** no title/note/time; timer-started workout; manually dated workout; invalid end-before-start correction; unsaved change confirmation.
+**States:** no title/note/time; timer-started workout; manually dated workout; abandoned workout; invalid end-before-start correction; unsaved change confirmation.
 
 ### P-19 — Superset/circuit editor
 

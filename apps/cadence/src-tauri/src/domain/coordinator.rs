@@ -15,6 +15,8 @@ use super::analysis::models::{AnalysisFavourite, AnalysisSetEntry};
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
+#[cfg(test)]
+use super::error::Error;
 use super::error::Result;
 use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::{Exercise, ExerciseValues};
@@ -360,6 +362,11 @@ impl<R: Runtime> Coordinator<R> {
         workouts::repo::get(&mut conn, id).await
     }
 
+    pub async fn get_open_workout(&self) -> Result<Option<Workout>> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::get_open(&mut conn).await
+    }
+
     pub async fn list_workouts_in_range(
         &self,
         start_date: &str,
@@ -372,6 +379,40 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn update_workout_note(&self, id: &str, note: Option<&str>) -> Result<Workout> {
         let mut conn = self.pool.acquire().await?;
         workouts::repo::update_note(&mut conn, id, note).await
+    }
+
+    /// Completes the workout and dismisses the rest timer in one transaction — it's a single
+    /// global row (not scoped per workout), so a timer still running or paused for this workout's
+    /// last set would otherwise leak its countdown and "next set" label into whatever workout gets
+    /// started next. Committing both writes together means a failure partway through can never
+    /// leave the workout terminal with the timer still persisted as running (which the status
+    /// guard would then make impossible to retry) or the reverse; the in-memory scheduled elapse
+    /// is only cancelled, and the change event only emitted, once the commit has actually landed.
+    pub async fn complete_workout(&self, id: &str) -> Result<Workout> {
+        let mut tx = self.pool.begin().await?;
+        let completed = workouts::repo::complete(&mut tx, id).await?;
+        let dismissed = rest_timer::repo::set(&mut tx, &RestTimerState::inactive()).await?;
+        tx.commit().await?;
+        self.clear_scheduled_elapse().await;
+        let _ = self.app.emit(REST_TIMER_CHANGED, &dismissed);
+        Ok(completed)
+    }
+
+    /// Abandons the workout and dismisses the rest timer in one transaction — see
+    /// `complete_workout`'s doc comment for why both the transactional commit and the ordering matter.
+    pub async fn abandon_workout(&self, id: &str) -> Result<Workout> {
+        let mut tx = self.pool.begin().await?;
+        let abandoned = workouts::repo::abandon(&mut tx, id).await?;
+        let dismissed = rest_timer::repo::set(&mut tx, &RestTimerState::inactive()).await?;
+        tx.commit().await?;
+        self.clear_scheduled_elapse().await;
+        let _ = self.app.emit(REST_TIMER_CHANGED, &dismissed);
+        Ok(abandoned)
+    }
+
+    pub async fn reopen_workout(&self, id: &str) -> Result<Workout> {
+        let mut conn = self.pool.acquire().await?;
+        workouts::repo::reopen(&mut conn, id).await
     }
 
     pub async fn get_workout_exercise(&self, id: &str) -> Result<WorkoutExercise> {
@@ -435,6 +476,8 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn duplicate_workout(&self, workout_id: &str, target_date: &str) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
 
+        workouts::repo::ensure_no_open_workout(&mut tx, "copy to a new workout").await?;
+
         let source = workouts::repo::get(&mut tx, workout_id).await?;
         let source_workout_exercises =
             workouts::workout_exercises::list_by_workout(&mut tx, workout_id).await?;
@@ -444,14 +487,15 @@ impl<R: Runtime> Coordinator<R> {
         let workout_revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
-             created_at_ms, updated_at_ms, revision) \
-             VALUES (?, ?, ?, 'in-progress', 'manual', 0, ?, ?, ?)",
+             started_at_ms, created_at_ms, updated_at_ms, revision) \
+             VALUES (?, ?, ?, 'active', 'manual', 0, ?, ?, ?, ?)",
         )
         .bind(&new_workout_id)
         .bind(target_date)
         .bind(&source.title)
-        .bind(now)
-        .bind(now)
+        .bind(now) // started_at_ms
+        .bind(now) // created_at_ms
+        .bind(now) // updated_at_ms
         .bind(workout_revision)
         .execute(&mut *tx)
         .await?;
@@ -758,6 +802,8 @@ impl<R: Runtime> Coordinator<R> {
     ) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
 
+        workouts::repo::ensure_no_open_workout(&mut tx, "start a new workout").await?;
+
         let section = routines::sections::get(&mut tx, routine_section_id).await?;
         let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
         // Ordered by the caller's `selected_routine_exercise_ids`, not the routine's own order — that array is the reviewed order from the materialization review screen, so it must drive the new workout's exercise order, not just filter membership.
@@ -786,16 +832,17 @@ impl<R: Runtime> Coordinator<R> {
         let workout_revision = crate::db::next_revision(&mut tx).await?;
         sqlx::query(
             "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
-             source_routine_id, source_routine_name, created_at_ms, updated_at_ms, revision) \
-             VALUES (?, ?, ?, 'in-progress', 'manual', 0, ?, ?, ?, ?, ?)",
+             source_routine_id, source_routine_name, started_at_ms, created_at_ms, updated_at_ms, \
+             revision) VALUES (?, ?, ?, 'active', 'manual', 0, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&new_workout_id)
         .bind(target_date)
         .bind(&routine.name)
         .bind(&routine.id)
         .bind(&routine.name)
-        .bind(now)
-        .bind(now)
+        .bind(now) // started_at_ms
+        .bind(now) // created_at_ms
+        .bind(now) // updated_at_ms
         .bind(workout_revision)
         .execute(&mut *tx)
         .await?;
@@ -1278,6 +1325,55 @@ mod tests {
         assert_eq!(state.owner_device.as_deref(), Some("phone"));
     }
 
+    /// The rest timer is a single global row, not scoped per workout, so a timer still running
+    /// for a workout's last set must be dismissed on completion — otherwise its countdown and
+    /// "next set" label would leak into whatever workout gets started next.
+    #[tokio::test]
+    async fn completing_a_workout_dismisses_the_rest_timer() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-17", "Push A").await.unwrap();
+        let we = c
+            .add_workout_exercise(&workout.id, "ex-barbell-back-squat")
+            .await
+            .unwrap();
+        let set = c
+            .log_new_set(
+                &we.id,
+                &SetValues {
+                    weight_kg: Some(60.0),
+                    reps: Some(5),
+                    distance_km: None,
+                    duration_sec: None,
+                },
+            )
+            .await
+            .unwrap();
+        c.complete_set(&set.id).await.unwrap();
+        c.start_rest_timer(120_000, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+
+        c.complete_workout(&workout.id).await.unwrap();
+
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "inactive");
+    }
+
+    /// See `completing_a_workout_dismisses_the_rest_timer` — abandon needs the same fix.
+    #[tokio::test]
+    async fn abandoning_a_workout_dismisses_the_rest_timer() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-17", "Push A").await.unwrap();
+        c.start_rest_timer(120_000, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+
+        c.abandon_workout(&workout.id).await.unwrap();
+
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "inactive");
+    }
+
     #[tokio::test]
     async fn a_second_start_is_dropped_while_replaces_running_is_off() {
         let c = test_coordinator().await;
@@ -1463,13 +1559,53 @@ mod tests {
         let created = c.create_workout("2026-09-10", "Push day").await.unwrap();
         assert_eq!(created.date, "2026-09-10");
         assert_eq!(created.title, "Push day");
-        assert_eq!(created.status, "in-progress");
+        assert_eq!(created.status, "active");
         assert_eq!(created.source, "manual");
         let workout_exercises = c
             .list_workout_exercises_by_workout(&created.id)
             .await
             .unwrap();
         assert!(workout_exercises.is_empty());
+    }
+
+    #[tokio::test]
+    async fn get_open_workout_finds_a_workout_regardless_of_date() {
+        let c = test_coordinator().await;
+        assert_eq!(c.get_open_workout().await.unwrap(), None);
+        let created = c.create_workout("2020-01-01", "Old workout").await.unwrap();
+        let found = c.get_open_workout().await.unwrap();
+        assert_eq!(found.map(|w| w.id), Some(created.id));
+    }
+
+    #[tokio::test]
+    async fn complete_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let we = c
+            .add_workout_exercise(&workout.id, "ex-bench-press")
+            .await
+            .unwrap();
+        c.log_new_set(&we.id, &SetValues::default()).await.unwrap();
+
+        let completed = c.complete_workout(&workout.id).await.unwrap();
+        assert_eq!(completed.status, "completed");
+    }
+
+    #[tokio::test]
+    async fn abandon_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        let abandoned = c.abandon_workout(&workout.id).await.unwrap();
+        assert_eq!(abandoned.status, "abandoned");
+    }
+
+    #[tokio::test]
+    async fn reopen_workout_delegates_to_the_repo() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-10", "Push day").await.unwrap();
+        c.abandon_workout(&workout.id).await.unwrap();
+        let reopened = c.reopen_workout(&workout.id).await.unwrap();
+        assert_eq!(reopened.status, "active");
     }
 
     #[tokio::test]
@@ -1511,6 +1647,25 @@ mod tests {
         assert!(remaining.is_empty());
     }
 
+    /// The copy always lands as `active`, so it can't be created while a workout is already open
+    /// — otherwise it would silently produce two active workouts at once.
+    #[tokio::test]
+    async fn rejects_duplicating_a_workout_while_another_is_already_open() {
+        let c = test_coordinator().await;
+        let source = c.create_workout("2026-09-04", "Push A").await.unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
+        let currently_open = c.create_workout("2026-09-16", "Pull A").await.unwrap();
+
+        let err = c
+            .duplicate_workout(&source.id, "2026-09-20")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let still_open = c.get_workout(&currently_open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
+    }
+
     #[tokio::test]
     async fn duplicate_workout_copies_sets_as_planned_and_drops_day_specific_fields() {
         let c = test_coordinator().await;
@@ -1532,12 +1687,13 @@ mod tests {
         c.add_workout_exercise(&source.id, "ex-running")
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         assert_ne!(duplicated.id, source.id);
         assert_eq!(duplicated.date, "2026-09-20");
         assert_eq!(duplicated.title, "Push A");
-        assert_eq!(duplicated.status, "in-progress");
+        assert_eq!(duplicated.status, "active");
 
         let workout_exercises = c
             .list_workout_exercises_by_workout(&duplicated.id)
@@ -1586,6 +1742,7 @@ mod tests {
             .execute(&c.pool)
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1622,6 +1779,7 @@ mod tests {
             .execute(&c.pool)
             .await
             .unwrap();
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1669,6 +1827,7 @@ mod tests {
                 .unwrap();
             }
         }
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1716,6 +1875,7 @@ mod tests {
                 .await
                 .unwrap();
         }
+        c.abandon_workout(&source.id).await.unwrap();
 
         let duplicated = c.duplicate_workout(&source.id, "2026-09-20").await.unwrap();
         let workout_exercises = c
@@ -1818,7 +1978,7 @@ mod tests {
             .unwrap();
         assert_eq!(workout.date, "2026-09-20");
         assert_eq!(workout.title, "Push day");
-        assert_eq!(workout.status, "in-progress");
+        assert_eq!(workout.status, "active");
         assert_eq!(workout.source, "manual");
         assert_eq!(
             workout.source_routine_id.as_deref(),
@@ -1883,6 +2043,7 @@ mod tests {
         )
         .await
         .unwrap();
+        c.abandon_workout(&history_workout.id).await.unwrap();
 
         let routine = c.create_routine("Push day").await.unwrap();
         let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
@@ -1965,6 +2126,7 @@ mod tests {
         )
         .await
         .unwrap();
+        c.abandon_workout(&later_workout.id).await.unwrap();
 
         let routine = c.create_routine("Push day").await.unwrap();
         let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
@@ -1996,6 +2158,29 @@ mod tests {
             sets[0].weight_kg, None,
             "must not seed from future performance"
         );
+    }
+
+    /// Materialization always lands as `active`, so it must not be possible to end up with two
+    /// active workouts by materializing a section while a workout is already open.
+    #[tokio::test]
+    async fn rejects_materializing_while_a_workout_is_already_open() {
+        let c = test_coordinator().await;
+        let open = c.create_workout("2026-09-16", "Push A").await.unwrap();
+        let routine = c.create_routine("Push day").await.unwrap();
+        let section = c.add_routine_section(&routine.id, Some("A")).await.unwrap();
+        let re = c
+            .add_routine_exercise(&section.id, "ex-bench-press")
+            .await
+            .unwrap();
+
+        let err = c
+            .materialize_routine_section(&section.id, "2026-09-20", std::slice::from_ref(&re.id))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Validation(_)));
+
+        let still_open = c.get_workout(&open.id).await.unwrap();
+        assert_eq!(still_open.status, "active");
     }
 
     #[tokio::test]

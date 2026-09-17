@@ -42,6 +42,13 @@ async function renderScreen(repository: MockLoggingRepository, workoutExerciseId
 }
 
 async function seedWorkoutWithOneExercise(repository: MockLoggingRepository) {
+	// The mock's default seed data includes several already-open workouts — starting a new one is
+	// now rejected while one is open (SPEC.md 8.1's single-active-workout model).
+	let open = await repository.getOpenWorkout();
+	while (open) {
+		await repository.abandonWorkout(open.id);
+		open = await repository.getOpenWorkout();
+	}
 	const workout = await repository.createWorkout('2026-09-16', 'Push day');
 	const workoutExercise = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
 	return { workout, workoutExercise };

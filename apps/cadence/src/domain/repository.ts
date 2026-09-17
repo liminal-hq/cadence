@@ -99,16 +99,29 @@ export interface LoggingRepository {
 	deleteAllHistory(): Promise<void>;
 
 	getWorkout(id: string): Promise<Workout>;
+	/** The single draft/active workout, or `null` if there isn't one — SPEC.md 8.1's "only one
+	 *  workout is active ... by default" model is global, not scoped to today's date (reopening an
+	 *  older completed or abandoned workout produces exactly this: an open workout dated in the
+	 *  past). */
+	getOpenWorkout(): Promise<Workout | null>;
 	/** Inclusive of both bounds, ordered by date — drives both Calendar's month queries and
 	 *  List's pagination. */
 	listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]>;
-	/** Creates a fresh in-progress workout with no exercises yet — "Start workout" with minimal
+	/** Creates a fresh active workout with no exercises yet — "Start workout" with minimal
 	 *  ceremony (SPEC.md 8.1). An empty `title` means unnamed. */
 	createWorkout(localDate: string, title: string): Promise<Workout>;
 	/** Creates a new planned-status copy of every set in `workoutId`, dated `targetDate` — the
 	 *  "Copy to today" action, one level up from duplicateSet's already-established pattern. */
 	duplicateWorkout(workoutId: string, targetDate: string): Promise<Workout>;
 	updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout>;
+	/** Requires at least one completed set — an empty workout can't be marked complete (abandon or
+	 *  delete is the exit for that case instead). Rejects if the workout isn't currently draft/active. */
+	completeWorkout(workoutId: string): Promise<Workout>;
+	/** Allowed even with completed sets already logged — abandoning never discards history
+	 *  (SPEC.md 8.1: these states "do not lock history"). Rejects if not currently draft/active. */
+	abandonWorkout(workoutId: string): Promise<Workout>;
+	/** Returns a completed or abandoned workout to active. Rejects if not currently completed/abandoned. */
+	reopenWorkout(workoutId: string): Promise<Workout>;
 	/** Appends an exercise at the end of the workout's order. */
 	addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise>;
 	/** A no-op when the workout-exercise doesn't exist. */

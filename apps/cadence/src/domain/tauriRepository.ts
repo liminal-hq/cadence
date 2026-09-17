@@ -234,6 +234,10 @@ export class TauriLoggingRepository implements LoggingRepository {
 		return call('get_workout', { id });
 	}
 
+	async getOpenWorkout(): Promise<Workout | null> {
+		return call('get_open_workout');
+	}
+
 	async listWorkoutsInRange(startDate: string, endDate: string): Promise<Workout[]> {
 		return call('list_workouts_in_range', { startDate, endDate });
 	}
@@ -248,6 +252,18 @@ export class TauriLoggingRepository implements LoggingRepository {
 
 	async updateWorkoutNote(workoutId: string, note: string | undefined): Promise<Workout> {
 		return call('update_workout_note', { workoutId, note });
+	}
+
+	async completeWorkout(workoutId: string): Promise<Workout> {
+		return call('complete_workout', { workoutId });
+	}
+
+	async abandonWorkout(workoutId: string): Promise<Workout> {
+		return call('abandon_workout', { workoutId });
+	}
+
+	async reopenWorkout(workoutId: string): Promise<Workout> {
+		return call('reopen_workout', { workoutId });
 	}
 
 	async addWorkoutExercise(workoutId: string, exerciseId: string): Promise<WorkoutExercise> {

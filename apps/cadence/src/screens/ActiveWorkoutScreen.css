@@ -18,3 +18,15 @@
 	text-align: left;
 	cursor: pointer;
 }
+
+.active-workout__finish {
+	display: flex;
+	flex-direction: column;
+	gap: var(--cadence-space-2);
+}
+
+.active-workout__finish-hint {
+	margin: 0;
+	color: var(--cadence-on-surface-variant);
+	font-size: var(--cadence-type-body-m-size);
+}

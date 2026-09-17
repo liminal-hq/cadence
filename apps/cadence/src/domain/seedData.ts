@@ -1020,21 +1020,29 @@ export const WORKOUTS: Workout[] = [
 		id: 'workout-push-a',
 		date: '2026-09-09',
 		title: 'Push A',
-		status: 'in-progress',
+		status: 'active',
 		source: 'manual',
 	},
+	// SPEC.md 8.1 allows at most one active workout at a time — 'workout-push-a' above is the one
+	// seeded as genuinely open; these represent sessions that were started but not finished, kept
+	// abandoned (rather than deleted) so their partial data still exercises superset rendering,
+	// the offline-watch banner, and single-exercise layouts elsewhere in the fixtures.
 	{
 		id: 'workout-push-b',
 		date: '2026-09-09',
 		title: 'Superset A',
-		status: 'in-progress',
+		startedAt: '2026-09-09T10:00:00',
+		completedAt: '2026-09-09T10:20:00',
+		status: 'abandoned',
 		source: 'manual',
 	},
 	{
 		id: 'workout-priya-1',
 		date: '2026-09-09',
 		title: 'Workout',
-		status: 'in-progress',
+		startedAt: '2026-09-09T07:00:00',
+		completedAt: '2026-09-09T07:10:00',
+		status: 'abandoned',
 		source: 'manual',
 	},
 	{
@@ -1153,11 +1161,18 @@ export const WORKOUTS: Workout[] = [
 		status: 'completed',
 		source: 'manual',
 	},
+	// A future, still-all-planned session — there's no seeded 'draft' status to model "scheduled
+	// but not yet started" (nothing produces one today), and 'draft' would violate the same
+	// single-active invariant as 'active' anyway, so this is modelled as abandoned instead; its
+	// sets staying 'planned' is what actually signals nothing was logged, matching how
+	// `loadExerciseHistory` treats an all-planned occurrence regardless of workout status.
 	{
 		id: 'workout-2026-09-12',
 		date: '2026-09-12',
 		title: 'Push A',
-		status: 'in-progress',
+		startedAt: '2026-09-12T09:00:00',
+		completedAt: '2026-09-12T09:05:00',
+		status: 'abandoned',
 		source: 'manual',
 	},
 ];
