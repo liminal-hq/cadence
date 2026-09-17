@@ -43,34 +43,77 @@ pub async fn init_pool(db_path: &Path) -> Result<SqlitePool, Error> {
     Ok(pool)
 }
 
-/// Runs the migrator against its own short-lived, single connection with foreign-key enforcement
-/// OFF. Some migrations (a `CHECK` constraint change, which SQLite only supports by rebuilding the
-/// table) must temporarily drop a table that still has children configured with `ON DELETE
-/// CASCADE` — with enforcement on, SQLite treats that `DROP TABLE` as deleting every row in it
-/// first, cascading into real data loss for every one of that table's children. `PRAGMA
-/// foreign_keys` can only be changed outside a transaction, and sqlx's SQLite driver always runs
-/// each migration inside one (it doesn't honour the `-- no-transaction` marker some other
-/// backends do), so this has to be a connection that started with enforcement off rather than one
-/// toggled mid-migration. The real, long-lived pool `init_pool` hands out afterward reconnects
-/// with enforcement back on for actual app use.
-async fn run_migrations(db_path: &Path) -> Result<(), Error> {
+/// Migrations that must run with foreign-key enforcement OFF — currently only the
+/// workout-lifecycle-status rebuild, which needs to temporarily drop a table (`workouts`) that
+/// still has children configured with `ON DELETE CASCADE`: with enforcement on, SQLite treats that
+/// `DROP TABLE` as deleting every row in it first, cascading into real data loss for every one of
+/// that table's children. Every other migration keeps enforcement on, matching production — a
+/// migration like 0004's demo-data cleanup relies on `ON DELETE CASCADE` to remove its own
+/// children, and running it with enforcement off would silently orphan them instead. Adding a
+/// migration to this list is opt-in: a future rebuild-style migration needs to be added here
+/// explicitly, the same way 9 was.
+const FK_OFF_MIGRATION_VERSIONS: &[i64] = &[9];
+
+/// Builds a `Migrator` over a subset of `MIGRATOR`'s migrations, keeping every other field
+/// identical (`Migrator` doesn't derive `Clone`, so this copies each field by hand) except
+/// `ignore_missing`, which is forced on: `Migrator::run` otherwise rejects any database where a
+/// migration recorded in `_sqlx_migrations` is absent from this migrator's own (partial) list —
+/// exactly what running a subset against a database another subset already partly migrated does.
+fn filtered_migrator(keep: impl Fn(i64) -> bool) -> sqlx::migrate::Migrator {
+    sqlx::migrate::Migrator {
+        migrations: std::borrow::Cow::Owned(
+            MIGRATOR
+                .iter()
+                .filter(|m| keep(m.version))
+                .cloned()
+                .collect(),
+        ),
+        ignore_missing: true,
+        locking: MIGRATOR.locking,
+        no_tx: MIGRATOR.no_tx,
+        create_schemas: MIGRATOR.create_schemas.clone(),
+        table_name: MIGRATOR.table_name.clone(),
+    }
+}
+
+/// Runs one migration subset against its own short-lived, single connection opened with the given
+/// foreign-key setting from the start — `PRAGMA foreign_keys` can only be changed outside a
+/// transaction, and sqlx's SQLite driver always runs each migration inside one (it doesn't honour
+/// the `-- no-transaction` marker some other backends do), so enforcement has to be fixed for the
+/// whole connection rather than toggled mid-migration.
+async fn run_migration_subset(
+    db_path: &Path,
+    foreign_keys: bool,
+    keep: impl Fn(i64) -> bool,
+) -> Result<(), Error> {
     let options = SqliteConnectOptions::new()
         .filename(db_path)
         .create_if_missing(true)
         .journal_mode(SqliteJournalMode::Wal)
-        .foreign_keys(false);
+        .foreign_keys(foreign_keys);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect_with(options)
         .await?;
 
-    MIGRATOR
+    filtered_migrator(keep)
         .run(&pool)
         .await
         .map_err(|e| Error::Validation(e.to_string()))?;
 
     pool.close().await;
+    Ok(())
+}
+
+/// Runs the full migrator in two passes so each migration keeps the foreign-key enforcement it was
+/// actually written against: everything except `FK_OFF_MIGRATION_VERSIONS` runs with enforcement
+/// on (matching production, so a migration relying on `ON DELETE CASCADE` still gets it), then
+/// that small subset runs with enforcement off (see its doc comment for why). The real, long-lived
+/// pool `init_pool` hands out afterward reconnects with enforcement back on for actual app use.
+async fn run_migrations(db_path: &Path) -> Result<(), Error> {
+    run_migration_subset(db_path, true, |v| !FK_OFF_MIGRATION_VERSIONS.contains(&v)).await?;
+    run_migration_subset(db_path, false, |v| FK_OFF_MIGRATION_VERSIONS.contains(&v)).await?;
     Ok(())
 }
 
@@ -110,25 +153,41 @@ pub async fn write_tombstone(
 }
 
 /// A fresh, fully migrated in-memory database — the only schema-construction path in tests too.
+/// Mirrors `run_migrations`'s two-phase split for the same reason: an in-memory connection can't
+/// be closed and reopened between phases the way the file-backed production path does (a second
+/// `sqlite::memory:` connection would be a distinct, empty database), so this toggles the pragma
+/// directly on the one connection the pool ever hands out — safe here because each phase's
+/// `Migrator::run` finishes (and commits) before the next pragma change, so it's never mid-transaction.
 #[cfg(test)]
 pub async fn init_test_pool() -> SqlitePool {
-    // `foreign_keys` defaults off for a bare "sqlite::memory:" connection string, which is
-    // exactly what a rebuild-style migration needs while it runs (see `run_migrations`'s doc
-    // comment) — enforcement is turned on only *after* migrating, so tests exercise the same
-    // enforcement production does for every write path this pool is actually used for.
     let pool = SqlitePoolOptions::new()
         .max_connections(1)
         .connect("sqlite::memory:")
         .await
         .expect("open an in-memory sqlite pool");
-    MIGRATOR
-        .run(&pool)
-        .await
-        .expect("run migrations against the in-memory db");
+
     sqlx::query("PRAGMA foreign_keys = ON;")
         .execute(&pool)
         .await
-        .expect("enable foreign key enforcement on the in-memory db");
+        .expect("enable foreign key enforcement for the ordinary migrations");
+    filtered_migrator(|v| !FK_OFF_MIGRATION_VERSIONS.contains(&v))
+        .run(&pool)
+        .await
+        .expect("run the ordinary migrations against the in-memory db");
+
+    sqlx::query("PRAGMA foreign_keys = OFF;")
+        .execute(&pool)
+        .await
+        .expect("disable foreign key enforcement for the rebuild migration");
+    filtered_migrator(|v| FK_OFF_MIGRATION_VERSIONS.contains(&v))
+        .run(&pool)
+        .await
+        .expect("run the rebuild migration against the in-memory db");
+
+    sqlx::query("PRAGMA foreign_keys = ON;")
+        .execute(&pool)
+        .await
+        .expect("re-enable foreign key enforcement for actual test use");
     pool
 }
 
@@ -181,16 +240,7 @@ mod tests {
             std::env::temp_dir().join(format!("cadence-upgrade-test-{}.db", uuid::Uuid::new_v4()));
 
         {
-            let pre_0009 = sqlx::migrate::Migrator {
-                migrations: std::borrow::Cow::Owned(
-                    MIGRATOR.iter().filter(|m| m.version < 9).cloned().collect(),
-                ),
-                ignore_missing: MIGRATOR.ignore_missing,
-                locking: MIGRATOR.locking,
-                no_tx: MIGRATOR.no_tx,
-                create_schemas: MIGRATOR.create_schemas.clone(),
-                table_name: MIGRATOR.table_name.clone(),
-            };
+            let pre_0009 = filtered_migrator(|v| v < 9);
             let options = SqliteConnectOptions::new()
                 .filename(&db_path)
                 .create_if_missing(true)
@@ -266,6 +316,68 @@ mod tests {
         assert_eq!(
             set_count, 1,
             "upgrading must not cascade-delete existing sets"
+        );
+
+        drop(pool);
+        let _ = std::fs::remove_file(&db_path);
+        let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    }
+
+    /// Regression test for a second data-integrity bug caught in review, introduced by the first
+    /// fix above: running the *entire* migrator with foreign-key enforcement off (rather than just
+    /// 0009) meant a fresh install's 0004 migration — whose `DELETE FROM workouts` relies on
+    /// `ON DELETE CASCADE` to clean up the demo workouts' own `workout_exercises`/`sets`/
+    /// `supersets` — silently orphaned all of them instead, since cascades don't fire with
+    /// enforcement off. This runs the real fresh-install path end to end and asserts every
+    /// `workout_exercises`/`sets`/`supersets` row still points at a workout that actually exists.
+    #[tokio::test]
+    async fn a_fresh_install_leaves_no_orphaned_workout_children() {
+        let db_path =
+            std::env::temp_dir().join(format!("cadence-fresh-test-{}.db", uuid::Uuid::new_v4()));
+
+        run_migrations(&db_path).await.unwrap();
+
+        let options = SqliteConnectOptions::new()
+            .filename(&db_path)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+
+        let (orphaned_workout_exercises,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM workout_exercises WHERE workout_id NOT IN (SELECT id FROM workouts)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            orphaned_workout_exercises, 0,
+            "workout_exercises has rows pointing at a deleted workout"
+        );
+
+        let (orphaned_sets,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM sets WHERE workout_id NOT IN (SELECT id FROM workouts)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            orphaned_sets, 0,
+            "sets has rows pointing at a deleted workout"
+        );
+
+        let (orphaned_supersets,): (i64,) = sqlx::query_as(
+            "SELECT COUNT(*) FROM supersets WHERE workout_id NOT IN (SELECT id FROM workouts)",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(
+            orphaned_supersets, 0,
+            "supersets has rows pointing at a deleted workout"
         );
 
         drop(pool);
