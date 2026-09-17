@@ -129,6 +129,43 @@ describe('ActiveWorkoutScreen', () => {
 		expect(navigateMock).toHaveBeenCalledWith({ to: '/today' });
 	});
 
+	it('surfaces an error banner and re-enables Finish workout when completing fails', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		const we = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
+		await repository.logNewSet(we.id, { weightKg: 60, reps: 5 });
+		vi.spyOn(repository, 'completeWorkout').mockRejectedValue(
+			new Error('workout status changed underneath this screen'),
+		);
+		await renderScreen(repository, workout.id);
+
+		const finishButton = screen.getByRole('button', { name: 'Finish workout' });
+		await act(async () => fireEvent.click(finishButton));
+
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(screen.getByText(/status changed underneath/)).toBeInTheDocument();
+		expect(finishButton).toBeEnabled();
+	});
+
+	it('surfaces an error banner instead of navigating when abandoning fails', async () => {
+		navigateMock.mockClear();
+		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
+		const workout = await repository.createWorkout('2026-09-16', 'Push day');
+		vi.spyOn(repository, 'abandonWorkout').mockRejectedValue(
+			new Error('workout status changed underneath this screen'),
+		);
+		await renderScreen(repository, workout.id);
+
+		fireEvent.click(screen.getByRole('button', { name: 'Abandon workout' }));
+		await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Abandon' })));
+
+		expect(navigateMock).not.toHaveBeenCalled();
+		expect(screen.getByText(/status changed underneath/)).toBeInTheDocument();
+	});
+
 	it('shows an Abandoned tag and hides mutating actions for an already-abandoned workout', async () => {
 		const repository = new MockLoggingRepository();
 		await withNoOpenWorkout(repository);

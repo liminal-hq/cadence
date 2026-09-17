@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
 import { AppBar } from '../components/ui/AppBar/AppBar';
+import { Banner } from '../components/ui/Banner/Banner';
 import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { AddExerciseSheet } from '../components/AddExerciseSheet/AddExerciseSheet';
@@ -72,6 +73,8 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 	const [active, setActive] = useState<ActiveWorkout | null>(null);
 	const [addExerciseOpen, setAddExerciseOpen] = useState(false);
 	const [abandonOpen, setAbandonOpen] = useState(false);
+	const [submitting, setSubmitting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	const reload = useCallback(() => {
 		loadActiveWorkout(repository, workoutId).then(setActive);
@@ -92,13 +95,32 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 	const hasCompletedSet = exercises.some((e) => e.sets.some((s) => s.status === 'completed'));
 
 	async function handleFinish() {
-		await repository.completeWorkout(workoutId);
-		navigate({ to: '/today' });
+		if (submitting) return;
+		setSubmitting(true);
+		setError(null);
+		try {
+			await repository.completeWorkout(workoutId);
+			navigate({ to: '/today' });
+		} catch (err) {
+			// Most likely the workout's own status changed underneath this screen (another device,
+			// or a second in-flight submission) — completing/abandoning is a one-way status
+			// transition with no conflict to resolve here, so this can only surface it.
+			setError(err instanceof Error ? err.message : String(err));
+			setSubmitting(false);
+		}
 	}
 
 	async function handleAbandon() {
-		await repository.abandonWorkout(workoutId);
-		navigate({ to: '/today' });
+		if (submitting) return;
+		setSubmitting(true);
+		setError(null);
+		try {
+			await repository.abandonWorkout(workoutId);
+			navigate({ to: '/today' });
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			setSubmitting(false);
+		}
 	}
 
 	return (
@@ -109,12 +131,15 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 				back={{ to: '/today' }}
 				tag={WORKOUT_STATUS_TAG[workout.status]}
 				actions={
-					isWorkoutOpen(workout.status)
+					isWorkoutOpen(workout.status) && !submitting
 						? [{ icon: 'flag', label: 'Abandon workout', onClick: () => setAbandonOpen(true) }]
 						: undefined
 				}
 			/>
 			<div className="screen-shell__content active-workout">
+				{error && (
+					<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+				)}
 				{exercises.length === 0 ? (
 					<EmptyState
 						headline="No exercises yet"
@@ -157,7 +182,11 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 				)}
 				{isWorkoutOpen(workout.status) && (
 					<div className="active-workout__finish">
-						<Button variant="filled" disabled={!hasCompletedSet} onClick={handleFinish}>
+						<Button
+							variant="filled"
+							disabled={!hasCompletedSet || submitting}
+							onClick={handleFinish}
+						>
 							Finish workout
 						</Button>
 						{!hasCompletedSet && (
