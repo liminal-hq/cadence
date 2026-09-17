@@ -379,14 +379,27 @@ impl<R: Runtime> Coordinator<R> {
         workouts::repo::update_note(&mut conn, id, note).await
     }
 
+    /// Completes the workout, then dismisses the rest timer — it's a single global row (not
+    /// scoped per workout), so a timer still running or paused for this workout's last set would
+    /// otherwise leak its countdown and "next set" label into whatever workout gets started next.
     pub async fn complete_workout(&self, id: &str) -> Result<Workout> {
-        let mut conn = self.pool.acquire().await?;
-        workouts::repo::complete(&mut conn, id).await
+        let completed = {
+            let mut conn = self.pool.acquire().await?;
+            workouts::repo::complete(&mut conn, id).await?
+        };
+        self.dismiss_rest_timer().await?;
+        Ok(completed)
     }
 
+    /// Abandons the workout, then dismisses the rest timer — see `complete_workout`'s doc comment
+    /// for why: it's a single global row, not scoped per workout.
     pub async fn abandon_workout(&self, id: &str) -> Result<Workout> {
-        let mut conn = self.pool.acquire().await?;
-        workouts::repo::abandon(&mut conn, id).await
+        let abandoned = {
+            let mut conn = self.pool.acquire().await?;
+            workouts::repo::abandon(&mut conn, id).await?
+        };
+        self.dismiss_rest_timer().await?;
+        Ok(abandoned)
     }
 
     pub async fn reopen_workout(&self, id: &str) -> Result<Workout> {
@@ -1298,6 +1311,55 @@ mod tests {
         assert_eq!(state.status, "running");
         assert_eq!(state.total_ms, Some(120_000));
         assert_eq!(state.owner_device.as_deref(), Some("phone"));
+    }
+
+    /// Regression test caught in review: the rest timer is a single global row, not scoped per
+    /// workout, so a timer still running for a workout's last set would otherwise leak its
+    /// countdown and "next set" label into whatever workout gets started next.
+    #[tokio::test]
+    async fn completing_a_workout_dismisses_the_rest_timer() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-17", "Push A").await.unwrap();
+        let we = c
+            .add_workout_exercise(&workout.id, "ex-barbell-back-squat")
+            .await
+            .unwrap();
+        let set = c
+            .log_new_set(
+                &we.id,
+                &SetValues {
+                    weight_kg: Some(60.0),
+                    reps: Some(5),
+                    distance_km: None,
+                    duration_sec: None,
+                },
+            )
+            .await
+            .unwrap();
+        c.complete_set(&set.id).await.unwrap();
+        c.start_rest_timer(120_000, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+
+        c.complete_workout(&workout.id).await.unwrap();
+
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "inactive");
+    }
+
+    /// See `completing_a_workout_dismisses_the_rest_timer` — abandon needs the same fix.
+    #[tokio::test]
+    async fn abandoning_a_workout_dismisses_the_rest_timer() {
+        let c = test_coordinator().await;
+        let workout = c.create_workout("2026-09-17", "Push A").await.unwrap();
+        c.start_rest_timer(120_000, &StartRestTimerOptions::default())
+            .await
+            .unwrap();
+
+        c.abandon_workout(&workout.id).await.unwrap();
+
+        let state = c.get_rest_timer_state().await.unwrap();
+        assert_eq!(state.status, "inactive");
     }
 
     #[tokio::test]

@@ -698,6 +698,11 @@ export class MockLoggingRepository implements LoggingRepository {
 			completedAt: new Date().toISOString(),
 		};
 		this.workouts.set(workoutId, updated);
+		// The rest timer is a single global row, not scoped per workout — a timer still running or
+		// paused for this workout's last set would otherwise leak its countdown and "next set"
+		// label into whatever workout gets started next.
+		this.clearScheduledElapse();
+		this.setRestTimer({ status: 'inactive' });
 		return updated;
 	}
 
@@ -712,6 +717,9 @@ export class MockLoggingRepository implements LoggingRepository {
 			completedAt: new Date().toISOString(),
 		};
 		this.workouts.set(workoutId, updated);
+		// See completeWorkout's comment: the rest timer is global, not scoped per workout.
+		this.clearScheduledElapse();
+		this.setRestTimer({ status: 'inactive' });
 		return updated;
 	}
 

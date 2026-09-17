@@ -411,6 +411,29 @@ describe('MockLoggingRepository', () => {
 				await expect(repo.completeWorkout(workout.id)).rejects.toThrow();
 			});
 
+			// Regression test caught in review: the rest timer is a single global row, not scoped
+			// per workout, so a timer still running for a workout's last set would otherwise leak
+			// its countdown and "next set" label into whatever workout gets started next.
+			it('dismisses the rest timer when completing a workout', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
+				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
+				await repo.startRestTimer(120_000);
+
+				await repo.completeWorkout(workout.id);
+
+				expect((await repo.getRestTimerState()).status).toBe('inactive');
+			});
+
+			it('dismisses the rest timer when abandoning a workout', async () => {
+				const workout = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.startRestTimer(120_000);
+
+				await repo.abandonWorkout(workout.id);
+
+				expect((await repo.getRestTimerState()).status).toBe('inactive');
+			});
+
 			it('reopens a completed or abandoned workout back to active', async () => {
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.abandonWorkout(workout.id);
