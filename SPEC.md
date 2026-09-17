@@ -222,13 +222,14 @@ Users can:
 - copy all or part of a previous workout;
 - move, merge, duplicate, reorder, or delete workout content;
 - leave a workout open and return later;
-- optionally mark a workout complete without preventing later edits.
+- optionally mark a workout complete without preventing later edits;
+- abandon a workout that won't be finished, and reopen a completed or abandoned workout back to active — neither action discards its logged sets.
 
 The workout list presents exercises in deliberate order. An exercise can be removed from a workout without deleting its definition or history.
 
 Workout-level operations include selection of some or all exercises/sets, copy to another date or new workout, move to another date/workout, reorder, share, and delete. Bulk operations must preview scope. Moving a set across workouts updates all workout context atomically and preserves the exercise and original audit timestamps.
 
-A workout may be `draft`, `active`, `completed`, or `abandoned`. These states communicate intent and drive resume behaviour; they do not lock history. Only one workout is active across a paired phone/watch device group by default. Starting another asks whether to finish, pause, or switch from the current workout.
+A workout may be `draft`, `active`, `completed`, or `abandoned`. These states communicate intent and drive resume behaviour; they do not lock history, and completing or abandoning a workout can be undone by reopening it back to active. Completing requires at least one completed set — an empty workout's exit is abandoning or deleting it instead. Only one workout is active across a paired phone/watch device group by default. Starting another asks whether to finish, pause, or switch from the current workout.
 
 ### 8.2 Exercise library
 
