@@ -140,20 +140,29 @@ pub async fn get_open(conn: &mut SqliteConnection) -> Result<Option<Workout>> {
     Ok(row.map(Workout::from))
 }
 
-/// Creates a brand-new active, manually-sourced workout with no exercises yet — the
-/// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
-/// minimal ceremony rather than requiring a routine or a pre-picked exercise list. Rejects while
-/// another workout is already open: a database-level partial unique index is the actual
-/// enforcement (it closes the race a check here alone can't — two near-simultaneous calls could
-/// otherwise both pass this check before either insert lands), so this exists to give the common,
-/// non-racing case a clean validation error instead of a raw constraint-violation message.
-pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) -> Result<Workout> {
+/// The single source of truth for SPEC.md 8.1's single-active-workout guard — every path that
+/// creates or reactivates an `active` workout (`create`, `reopen`, `Coordinator::duplicate_workout`,
+/// `Coordinator::materialize_routine_section`) calls this rather than repeating the check, so a
+/// future fifth path can't silently forget it. `action` names what's being attempted (e.g. "start
+/// a new workout") so the message reads naturally at each call site. A database-level partial
+/// unique index is the actual atomic enforcement (it closes the race this check alone can't — two
+/// near-simultaneous calls could both pass it before either insert lands); this exists to give the
+/// common, non-racing case a clean validation error instead of a raw constraint-violation message.
+pub async fn ensure_no_open_workout(conn: &mut SqliteConnection, action: &str) -> Result<()> {
     if let Some(open) = get_open(conn).await? {
         return Err(Error::Validation(format!(
-            "can't start a new workout while workout {} is already open",
+            "can't {action} while workout {} is already open",
             open.id
         )));
     }
+    Ok(())
+}
+
+/// Creates a brand-new active, manually-sourced workout with no exercises yet — the
+/// "Start workout" action's whole job, per SPEC.md 8.1's allowance to create a workout with
+/// minimal ceremony rather than requiring a routine or a pre-picked exercise list.
+pub async fn create(conn: &mut SqliteConnection, local_date: &str, title: &str) -> Result<Workout> {
+    ensure_no_open_workout(conn, "start a new workout").await?;
 
     let id = uuid::Uuid::new_v4().to_string();
     let now = chrono::Utc::now().timestamp_millis();
@@ -298,19 +307,17 @@ pub async fn reopen(conn: &mut SqliteConnection, id: &str) -> Result<Workout> {
             "workout {id} can't be reopened from status '{status}'"
         )));
     }
-    if let Some(open) = get_open(conn).await? {
-        return Err(Error::Validation(format!(
-            "workout {id} can't be reopened while workout {} is already open",
-            open.id
-        )));
-    }
+    ensure_no_open_workout(conn, "reopen this workout").await?;
 
+    // started_at_ms resets to now too — otherwise a reopened workout's eventual duration is
+    // measured from its original start, not from when it actually resumed being worked on.
     let now = chrono::Utc::now().timestamp_millis();
     let revision = crate::db::next_revision(conn).await?;
     let result = sqlx::query(
-        "UPDATE workouts SET status = 'active', completed_at_ms = NULL, updated_at_ms = ?, \
-         revision = ? WHERE id = ?",
+        "UPDATE workouts SET status = 'active', started_at_ms = ?, completed_at_ms = NULL, \
+         updated_at_ms = ?, revision = ? WHERE id = ?",
     )
+    .bind(now)
     .bind(now)
     .bind(revision)
     .bind(id)
@@ -620,6 +627,32 @@ mod tests {
         let reopened = reopen(&mut conn, &created.id).await.unwrap();
         assert_eq!(reopened.status, "active");
         assert_eq!(reopened.completed_at, None);
+    }
+
+    /// A reopened workout's `started_at` must reset, not keep pointing at when it was originally
+    /// started — otherwise re-completing it after being reopened weeks or months later computes
+    /// its duration from the original start instead of from when it actually resumed.
+    #[tokio::test]
+    async fn reopening_resets_started_at() {
+        let pool = init_test_pool().await;
+        let mut conn = pool.acquire().await.unwrap();
+        let created = create(&mut conn, "2026-06-01", "Push A").await.unwrap();
+        log_a_completed_set(&mut conn, &created.id).await;
+        complete(&mut conn, &created.id).await.unwrap();
+        sqlx::query("UPDATE workouts SET started_at_ms = 0 WHERE id = ?")
+            .bind(&created.id)
+            .execute(&mut *conn)
+            .await
+            .unwrap();
+
+        let before_reopen = chrono::Utc::now().timestamp_millis();
+        let reopened = reopen(&mut conn, &created.id).await.unwrap();
+
+        let started_at_ms = crate::domain::units::iso_to_ms(&reopened.started_at.unwrap()).unwrap();
+        assert!(
+            started_at_ms >= before_reopen,
+            "started_at must reset to now on reopen, not stay at its original value"
+        );
     }
 
     #[tokio::test]

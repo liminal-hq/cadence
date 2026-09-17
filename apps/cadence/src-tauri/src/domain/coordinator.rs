@@ -15,7 +15,9 @@ use super::analysis::models::{AnalysisFavourite, AnalysisSetEntry};
 use super::barbells::models::{BarbellConfig, NewBarbellConfig};
 use super::barbells::plates::{self, PlateCalculationResult};
 use super::categories::models::Category;
-use super::error::{Error, Result};
+#[cfg(test)]
+use super::error::Error;
+use super::error::Result;
 use super::events::REST_TIMER_CHANGED;
 use super::exercises::models::{Exercise, ExerciseValues};
 use super::goals::models::{ExerciseGoal, ExerciseGoalValues};
@@ -474,15 +476,7 @@ impl<R: Runtime> Coordinator<R> {
     pub async fn duplicate_workout(&self, workout_id: &str, target_date: &str) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
 
-        // The copy always lands as `active`, so it must not be created while a workout is
-        // already open — otherwise this silently produces two active workouts at once, and
-        // `get_open`'s `LIMIT 1` would then hide whichever one it didn't return.
-        if let Some(open) = workouts::repo::get_open(&mut tx).await? {
-            return Err(Error::Validation(format!(
-                "can't copy to a new workout while workout {} is already open",
-                open.id
-            )));
-        }
+        workouts::repo::ensure_no_open_workout(&mut tx, "copy to a new workout").await?;
 
         let source = workouts::repo::get(&mut tx, workout_id).await?;
         let source_workout_exercises =
@@ -808,14 +802,7 @@ impl<R: Runtime> Coordinator<R> {
     ) -> Result<Workout> {
         let mut tx = self.pool.begin().await?;
 
-        // The materialized workout always lands as `active`, so it must not be created while a
-        // workout is already open — otherwise this silently produces two active workouts at once.
-        if let Some(open) = workouts::repo::get_open(&mut tx).await? {
-            return Err(Error::Validation(format!(
-                "can't start a new workout while workout {} is already open",
-                open.id
-            )));
-        }
+        workouts::repo::ensure_no_open_workout(&mut tx, "start a new workout").await?;
 
         let section = routines::sections::get(&mut tx, routine_section_id).await?;
         let routine = routines::repo::get(&mut tx, &section.routine_id).await?;
