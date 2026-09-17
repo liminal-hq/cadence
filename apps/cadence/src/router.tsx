@@ -360,3 +360,13 @@ declare module '@tanstack/react-router' {
 		router: typeof router;
 	}
 }
+
+// Tags a history entry as having been pushed directly from Workout detail, so a screen reached
+// that way can trust `router.history.back()` to land back there — and fall back to an explicit
+// navigate when the tag is absent (e.g. reached via a History round trip instead), rather than
+// assuming every entry's history shape.
+declare module '@tanstack/history' {
+	interface HistoryState {
+		fromWorkoutDetail?: boolean;
+	}
+}

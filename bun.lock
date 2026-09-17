@@ -17,6 +17,7 @@
         "@dnd-kit/utilities": "^3.2.2",
         "@liminal-hq/plugin-material-you": "^0.1.4",
         "@liminal-hq/undertone": "^0.1.1",
+        "@tanstack/history": "^1.162.2",
         "@tanstack/react-router": "^1.170.33",
         "@tauri-apps/api": "^2.10.1",
         "@tauri-apps/plugin-os": "^2.3.2",

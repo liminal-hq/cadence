@@ -113,6 +113,7 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 										navigate({
 											to: '/workout-exercise/$workoutExerciseId',
 											params: { workoutExerciseId: exercise.workoutExerciseId },
+											state: { fromWorkoutDetail: true },
 										})
 									}
 								>
@@ -144,6 +145,7 @@ export function ActiveWorkoutScreen({ workoutId }: ActiveWorkoutScreenProps) {
 							navigate({
 								to: '/workout-exercise/$workoutExerciseId',
 								params: { workoutExerciseId: added[0].id },
+								state: { fromWorkoutDetail: true },
 							});
 							return;
 						}

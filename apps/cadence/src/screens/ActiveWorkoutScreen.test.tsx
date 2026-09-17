@@ -48,6 +48,7 @@ describe('ActiveWorkoutScreen', () => {
 		expect(navigateMock).toHaveBeenCalledWith({
 			to: '/workout-exercise/$workoutExerciseId',
 			params: { workoutExerciseId: workoutExercises[0].id },
+			state: { fromWorkoutDetail: true },
 		});
 	});
 
