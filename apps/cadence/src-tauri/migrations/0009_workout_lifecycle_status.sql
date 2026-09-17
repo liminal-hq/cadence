@@ -43,7 +43,16 @@ CREATE TABLE workouts_new (
     revision                INTEGER NOT NULL
 );
 
--- 'in-progress' -> 'active' is the only value remap; 'completed' rows pass through unchanged.
+-- 'completed' rows pass through unchanged. Of the 'in-progress' rows, only the single
+-- most-recently-updated one becomes 'active' — nothing before this migration ever enforced
+-- SPEC.md 8.1's single-active-workout model, so a real install can genuinely have more than one
+-- (started on different days, never finished). Migrating every one of them to 'active' would
+-- carry that pre-existing inconsistency forward into a schema that now assumes at most one, where
+-- `get_open`'s `LIMIT 1` would then hide every extra one from Today with no way back in and no way
+-- to delete it (history deletion only ever touches completed/abandoned workouts). The others
+-- become 'abandoned' instead, with completed_at_ms backfilled from their own updated_at_ms since
+-- nothing recorded when they actually stopped being worked on — abandoning never discards a
+-- workout's sets, so this loses nothing a user logged, only the ambiguous "still in progress" status.
 -- started_at_ms is backfilled from created_at_ms since no write path has ever populated it.
 INSERT INTO workouts_new (
     id, local_date, title, note, started_at_ms, completed_at_ms, status, source,
@@ -52,8 +61,22 @@ INSERT INTO workouts_new (
     hc_exported_at_ms, created_at_ms, updated_at_ms, revision
 )
 SELECT
-    id, local_date, title, note, COALESCE(started_at_ms, created_at_ms), completed_at_ms,
-    CASE status WHEN 'in-progress' THEN 'active' ELSE status END,
+    id, local_date, title, note, COALESCE(started_at_ms, created_at_ms),
+    CASE
+        WHEN status = 'in-progress' AND id != (
+            SELECT id FROM workouts WHERE status = 'in-progress'
+            ORDER BY updated_at_ms DESC, id DESC LIMIT 1
+        ) THEN updated_at_ms
+        ELSE completed_at_ms
+    END,
+    CASE
+        WHEN status != 'in-progress' THEN status
+        WHEN id = (
+            SELECT id FROM workouts WHERE status = 'in-progress'
+            ORDER BY updated_at_ms DESC, id DESC LIMIT 1
+        ) THEN 'active'
+        ELSE 'abandoned'
+    END,
     source, logged_by_watch, source_routine_id, source_routine_name, hc_source_app,
     hc_record_id, hc_imported_at_ms, hc_unmapped_metrics, hc_overlaps_workout_id,
     hc_exported_record_id, hc_exported_at_ms, created_at_ms, updated_at_ms, revision

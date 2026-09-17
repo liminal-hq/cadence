@@ -76,6 +76,36 @@ fn filtered_migrator(keep: impl Fn(i64) -> bool) -> sqlx::migrate::Migrator {
     }
 }
 
+/// Splits `MIGRATOR`'s migrations into version-ordered runs that each need the same foreign-key
+/// setting, returned as `(foreign_keys, versions)` pairs in the order they must run. Grouping by
+/// version order (rather than "everything except `FK_OFF_MIGRATION_VERSIONS`, then that subset")
+/// matters once a migration is ever added *after* 9: a batch-by-mode split would run it ahead of
+/// 9 just because it isn't in the off-list, applying it out of order — or skip 9 outright if the
+/// bookkeeping table then considers a later version already the newest applied.
+fn migration_runs() -> Vec<(bool, Vec<i64>)> {
+    let mut versions: Vec<i64> = MIGRATOR.iter().map(|m| m.version).collect();
+    versions.sort_unstable();
+    group_versions_by_fk_mode(&versions)
+}
+
+/// The pure grouping logic behind `migration_runs`, split out so it can be exercised against
+/// synthetic version lists — including versions after the current highest `FK_OFF_MIGRATION_VERSIONS`
+/// entry, which don't exist yet in `MIGRATOR` but must still be handled correctly in order.
+fn group_versions_by_fk_mode(versions: &[i64]) -> Vec<(bool, Vec<i64>)> {
+    let mut runs = Vec::new();
+    let mut i = 0;
+    while i < versions.len() {
+        let fk_off = FK_OFF_MIGRATION_VERSIONS.contains(&versions[i]);
+        let mut j = i + 1;
+        while j < versions.len() && FK_OFF_MIGRATION_VERSIONS.contains(&versions[j]) == fk_off {
+            j += 1;
+        }
+        runs.push((!fk_off, versions[i..j].to_vec()));
+        i = j;
+    }
+    runs
+}
+
 /// Runs one migration subset against its own short-lived, single connection opened with the given
 /// foreign-key setting from the start — `PRAGMA foreign_keys` can only be changed outside a
 /// transaction, and sqlx's SQLite driver always runs each migration inside one (it doesn't honour
@@ -106,14 +136,13 @@ async fn run_migration_subset(
     Ok(())
 }
 
-/// Runs the full migrator in two passes so each migration keeps the foreign-key enforcement it was
-/// actually written against: everything except `FK_OFF_MIGRATION_VERSIONS` runs with enforcement
-/// on (matching production, so a migration relying on `ON DELETE CASCADE` still gets it), then
-/// that small subset runs with enforcement off (see its doc comment for why). The real, long-lived
-/// pool `init_pool` hands out afterward reconnects with enforcement back on for actual app use.
+/// Runs the full migrator in version-ordered runs (see `migration_runs`) so each migration keeps
+/// the foreign-key enforcement it was actually written against. The real, long-lived pool
+/// `init_pool` hands out afterward reconnects with enforcement back on for actual app use.
 async fn run_migrations(db_path: &Path) -> Result<(), Error> {
-    run_migration_subset(db_path, true, |v| !FK_OFF_MIGRATION_VERSIONS.contains(&v)).await?;
-    run_migration_subset(db_path, false, |v| FK_OFF_MIGRATION_VERSIONS.contains(&v)).await?;
+    for (foreign_keys, versions) in migration_runs() {
+        run_migration_subset(db_path, foreign_keys, move |v| versions.contains(&v)).await?;
+    }
     Ok(())
 }
 
@@ -153,11 +182,12 @@ pub async fn write_tombstone(
 }
 
 /// A fresh, fully migrated in-memory database — the only schema-construction path in tests too.
-/// Mirrors `run_migrations`'s two-phase split for the same reason: an in-memory connection can't
-/// be closed and reopened between phases the way the file-backed production path does (a second
-/// `sqlite::memory:` connection would be a distinct, empty database), so this toggles the pragma
-/// directly on the one connection the pool ever hands out — safe here because each phase's
-/// `Migrator::run` finishes (and commits) before the next pragma change, so it's never mid-transaction.
+/// Mirrors `run_migrations`'s version-ordered runs for the same reason: an in-memory connection
+/// can't be closed and reopened between runs the way the file-backed production path does (a
+/// second `sqlite::memory:` connection would be a distinct, empty database), so this toggles the
+/// pragma directly on the one connection the pool ever hands out — safe here because each run's
+/// `Migrator::run` finishes (and commits) before the next pragma change, so it's never
+/// mid-transaction.
 #[cfg(test)]
 pub async fn init_test_pool() -> SqlitePool {
     let pool = SqlitePoolOptions::new()
@@ -166,23 +196,23 @@ pub async fn init_test_pool() -> SqlitePool {
         .await
         .expect("open an in-memory sqlite pool");
 
-    sqlx::query("PRAGMA foreign_keys = ON;")
-        .execute(&pool)
-        .await
-        .expect("enable foreign key enforcement for the ordinary migrations");
-    filtered_migrator(|v| !FK_OFF_MIGRATION_VERSIONS.contains(&v))
-        .run(&pool)
-        .await
-        .expect("run the ordinary migrations against the in-memory db");
-
-    sqlx::query("PRAGMA foreign_keys = OFF;")
-        .execute(&pool)
-        .await
-        .expect("disable foreign key enforcement for the rebuild migration");
-    filtered_migrator(|v| FK_OFF_MIGRATION_VERSIONS.contains(&v))
-        .run(&pool)
-        .await
-        .expect("run the rebuild migration against the in-memory db");
+    for (foreign_keys, versions) in migration_runs() {
+        if foreign_keys {
+            sqlx::query("PRAGMA foreign_keys = ON;")
+                .execute(&pool)
+                .await
+                .expect("enable foreign key enforcement for this migration run");
+        } else {
+            sqlx::query("PRAGMA foreign_keys = OFF;")
+                .execute(&pool)
+                .await
+                .expect("disable foreign key enforcement for this migration run");
+        }
+        filtered_migrator(move |v| versions.contains(&v))
+            .run(&pool)
+            .await
+            .expect("run this migration run against the in-memory db");
+    }
 
     sqlx::query("PRAGMA foreign_keys = ON;")
         .execute(&pool)
@@ -324,6 +354,79 @@ mod tests {
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
     }
 
+    /// Regression test caught in review: nothing before 0009 ever enforced a single-active-workout
+    /// invariant, so a real install can genuinely have more than one 'in-progress' workout at
+    /// once. Mapping every one of them to 'active' would carry that inconsistency forward into a
+    /// schema that now assumes at most one is ever open — `get_open`'s `LIMIT 1` would then hide
+    /// every extra one from Today, with no way back in and no way to delete it (history deletion
+    /// only touches completed/abandoned workouts). Only the most-recently-updated one should
+    /// survive as 'active'; the rest become 'abandoned' without losing anything they logged.
+    #[tokio::test]
+    async fn upgrading_multiple_legacy_in_progress_workouts_keeps_only_the_most_recent_active() {
+        let db_path = std::env::temp_dir().join(format!(
+            "cadence-legacy-active-test-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+
+        {
+            let pre_0009 = filtered_migrator(|v| v < 9);
+            let options = SqliteConnectOptions::new()
+                .filename(&db_path)
+                .create_if_missing(true)
+                .foreign_keys(true);
+            let pool = SqlitePoolOptions::new()
+                .max_connections(1)
+                .connect_with(options)
+                .await
+                .unwrap();
+            pre_0009.run(&pool).await.unwrap();
+
+            sqlx::query(
+                "INSERT INTO workouts (id, local_date, title, status, source, logged_by_watch, \
+                 created_at_ms, updated_at_ms, revision) VALUES \
+                 ('w-old-1', '2026-08-01', 'Old 1', 'in-progress', 'manual', 0, 1000, 1000, 1), \
+                 ('w-old-2', '2026-08-05', 'Old 2', 'in-progress', 'manual', 0, 2000, 2000, 1), \
+                 ('w-recent', '2026-09-01', 'Recent', 'in-progress', 'manual', 0, 3000, 3000, 1), \
+                 ('w-done', '2026-09-05', 'Done', 'completed', 'manual', 0, 4000, 4000, 1)",
+            )
+            .execute(&pool)
+            .await
+            .unwrap();
+            pool.close().await;
+        }
+
+        run_migrations(&db_path).await.unwrap();
+
+        let options = SqliteConnectOptions::new()
+            .filename(&db_path)
+            .foreign_keys(true);
+        let pool = SqlitePoolOptions::new()
+            .max_connections(1)
+            .connect_with(options)
+            .await
+            .unwrap();
+
+        let rows: Vec<(String, String, Option<i64>)> =
+            sqlx::query_as("SELECT id, status, completed_at_ms FROM workouts ORDER BY id")
+                .fetch_all(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            rows,
+            vec![
+                ("w-done".to_string(), "completed".to_string(), None),
+                ("w-old-1".to_string(), "abandoned".to_string(), Some(1000)),
+                ("w-old-2".to_string(), "abandoned".to_string(), Some(2000)),
+                ("w-recent".to_string(), "active".to_string(), None),
+            ]
+        );
+
+        drop(pool);
+        let _ = std::fs::remove_file(&db_path);
+        let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
+        let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    }
+
     /// Regression test for a second data-integrity bug caught in review, introduced by the first
     /// fix above: running the *entire* migrator with foreign-key enforcement off (rather than just
     /// 0009) meant a fresh install's 0004 migration — whose `DELETE FROM workouts` relies on
@@ -384,6 +487,25 @@ mod tests {
         let _ = std::fs::remove_file(&db_path);
         let _ = std::fs::remove_file(db_path.with_extension("db-wal"));
         let _ = std::fs::remove_file(db_path.with_extension("db-shm"));
+    }
+
+    /// Regression test for a third bug caught in review: the earlier two-phase split ran
+    /// everything except `FK_OFF_MIGRATION_VERSIONS` as one batch before that subset, regardless
+    /// of version order. A future migration after 9 would then run ahead of 9 rather than after
+    /// it. Grouping by version order first means a hypothetical 10 (foreign_keys on) after 9
+    /// (foreign_keys off) gets its own later run, in the correct order, rather than being merged
+    /// into the "everything else" run that precedes 9.
+    #[test]
+    fn groups_versions_by_fk_mode_without_reordering_across_a_later_version() {
+        let runs = group_versions_by_fk_mode(&[1, 2, 3, 9, 10, 11]);
+        assert_eq!(
+            runs,
+            vec![
+                (true, vec![1, 2, 3]),
+                (false, vec![9]),
+                (true, vec![10, 11])
+            ]
+        );
     }
 
     #[tokio::test]
