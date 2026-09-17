@@ -53,6 +53,7 @@ describe('WorkoutDetailScreen', () => {
 	it('offers Continue instead of Reopen for a workout that is still active', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-10', 'Push A');
 		await renderScreen(repository, workout.id);
 
@@ -84,6 +85,7 @@ describe('WorkoutDetailScreen', () => {
 
 	it('offers Reopen and an Abandoned tag for an abandoned workout', async () => {
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-10', 'Push A');
 		await repository.abandonWorkout(workout.id);
 		await renderScreen(repository, workout.id);
@@ -98,9 +100,11 @@ describe('WorkoutDetailScreen', () => {
 	it('surfaces an error banner instead of navigating when another workout is already open', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-10', 'Push A');
 		await repository.abandonWorkout(workout.id);
-		// The seed fixture already has an open workout — exactly the conflict under test.
+		// A different workout being open now is exactly the conflict under test.
+		await repository.createWorkout('2026-09-16', 'Pull A');
 		await renderScreen(repository, workout.id);
 
 		const reopenButton = screen.getByText('Reopen workout');

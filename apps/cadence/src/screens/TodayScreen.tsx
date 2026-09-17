@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from '@tanstack/react-router';
+import { Banner } from '../components/ui/Banner/Banner';
 import { Button } from '../components/ui/Button/Button';
 import { EmptyState } from '../components/ui/EmptyState/EmptyState';
 import { useLoggingRepository } from '../domain/RepositoryProvider';
@@ -18,6 +19,7 @@ export function TodayScreen() {
 	const navigate = useNavigate();
 	// undefined while checking for an existing workout; null once confirmed there isn't one.
 	const [todayWorkoutId, setTodayWorkoutId] = useState<string | null | undefined>(undefined);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -35,33 +37,47 @@ export function TodayScreen() {
 	if (todayWorkoutId === undefined) return null;
 
 	async function handleStartWorkout() {
-		const created = await repository.createWorkout(todayLocalDate(), '');
-		navigate({ to: '/workout/$workoutId', params: { workoutId: created.id } });
+		try {
+			setError(null);
+			const created = await repository.createWorkout(todayLocalDate(), '');
+			navigate({ to: '/workout/$workoutId', params: { workoutId: created.id } });
+		} catch (err) {
+			// Most likely SPEC.md 8.1's single-active-workout guard: a workout became open (e.g. a
+			// double-tap, or another device) between this screen's own check and this call.
+			setError(err instanceof Error ? err.message : String(err));
+		}
 	}
 
 	function handleContinueWorkout() {
 		navigate({ to: '/workout/$workoutId', params: { workoutId: todayWorkoutId as string } });
 	}
 
-	return todayWorkoutId ? (
-		<EmptyState
-			headline="Workout in progress"
-			body="Pick up where you left off."
-			action={
-				<Button variant="filled" onClick={handleContinueWorkout}>
-					Continue workout
-				</Button>
-			}
-		/>
-	) : (
-		<EmptyState
-			headline="No workout yet today"
-			body="A workout is created the moment you log a set, or you can start one now."
-			action={
-				<Button variant="filled" onClick={handleStartWorkout}>
-					Start workout
-				</Button>
-			}
-		/>
+	return (
+		<>
+			{error && (
+				<Banner icon="error" message={error} tone="attention" onDismiss={() => setError(null)} />
+			)}
+			{todayWorkoutId ? (
+				<EmptyState
+					headline="Workout in progress"
+					body="Pick up where you left off."
+					action={
+						<Button variant="filled" onClick={handleContinueWorkout}>
+							Continue workout
+						</Button>
+					}
+				/>
+			) : (
+				<EmptyState
+					headline="No workout yet today"
+					body="A workout is created the moment you log a set, or you can start one now."
+					action={
+						<Button variant="filled" onClick={handleStartWorkout}>
+							Start workout
+						</Button>
+					}
+				/>
+			)}
+		</>
 	);
 }

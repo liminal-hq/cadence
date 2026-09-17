@@ -30,10 +30,22 @@ async function renderScreen(repository: MockLoggingRepository, workoutId: string
 	await act(async () => {}); // flush the initial load
 }
 
+// The mock's default seed data includes several already-open workouts — starting a new one is now
+// rejected while one is open (SPEC.md 8.1's single-active-workout model), so tests that create a
+// workout need to start from a genuinely clean "nothing open" state first.
+async function withNoOpenWorkout(repository: MockLoggingRepository) {
+	let open = await repository.getOpenWorkout();
+	while (open) {
+		await repository.abandonWorkout(open.id);
+		open = await repository.getOpenWorkout();
+	}
+}
+
 describe('ActiveWorkoutScreen', () => {
 	it('navigates straight into the new exercise’s logger when exactly one is added', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		await renderScreen(repository, workout.id);
 
@@ -55,6 +67,7 @@ describe('ActiveWorkoutScreen', () => {
 	it('stays on the workout list, showing every exercise added, when several are added at once', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		await renderScreen(repository, workout.id);
 
@@ -72,6 +85,7 @@ describe('ActiveWorkoutScreen', () => {
 
 	it('disables Finish workout with a hint until a set is completed', async () => {
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
 		await renderScreen(repository, workout.id);
@@ -83,6 +97,7 @@ describe('ActiveWorkoutScreen', () => {
 	it('finishes a workout with a completed set and navigates to Today', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		const we = await repository.addWorkoutExercise(workout.id, 'ex-bench-press');
 		await repository.logNewSet(we.id, { weightKg: 60, reps: 5 });
@@ -100,6 +115,7 @@ describe('ActiveWorkoutScreen', () => {
 	it('abandons a workout through the confirmation dialog and navigates to Today', async () => {
 		navigateMock.mockClear();
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		await renderScreen(repository, workout.id);
 
@@ -115,6 +131,7 @@ describe('ActiveWorkoutScreen', () => {
 
 	it('shows an Abandoned tag and hides mutating actions for an already-abandoned workout', async () => {
 		const repository = new MockLoggingRepository();
+		await withNoOpenWorkout(repository);
 		const workout = await repository.createWorkout('2026-09-16', 'Push day');
 		await repository.abandonWorkout(workout.id);
 		await renderScreen(repository, workout.id);

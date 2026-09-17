@@ -9,6 +9,17 @@ import { describe, expect, it } from 'vitest';
 import { loadReviewState, resolveSeedPreview } from './RoutineSectionStartScreen';
 import { MockLoggingRepository } from '../../domain/mockRepository';
 
+// The mock's default seed data includes several already-open workouts — abandon all of them first
+// so tests that start a workout begin from a genuinely clean "nothing open" state. `getOpenWorkout`
+// only ever surfaces one at a time, so loop until it's clear.
+async function withNoOpenWorkout(repo: MockLoggingRepository) {
+	let seeded = await repo.getOpenWorkout();
+	while (seeded) {
+		await repo.abandonWorkout(seeded.id);
+		seeded = await repo.getOpenWorkout();
+	}
+}
+
 describe('resolveSeedPreview', () => {
 	// A synthetic exercise id, deliberately not one of the seeded fixture exercises with
 	// pre-existing history -- these two tests want full control over what history exists.
@@ -16,6 +27,7 @@ describe('resolveSeedPreview', () => {
 
 	it('resolves via the direct most-recent-completed-set lookup, not a full history fetch', async () => {
 		const repo = new MockLoggingRepository();
+		await withNoOpenWorkout(repo);
 		const workout = await repo.createWorkout('2026-09-01', 'Session');
 		const we = await repo.addWorkoutExercise(workout.id, EXERCISE_ID);
 		await repo.logNewSet(we.id, { weightKg: 82.5, reps: 6 });
@@ -37,17 +49,6 @@ describe('resolveSeedPreview', () => {
 });
 
 describe('loadReviewState', () => {
-	// The mock's default seed data includes several already-open workouts — abandon all of them
-	// first so these tests start from a genuinely clean "nothing open" state, matching what
-	// they're testing. `getOpenWorkout` only ever surfaces one at a time, so loop until it's clear.
-	async function withNoOpenWorkout(repo: MockLoggingRepository) {
-		let seeded = await repo.getOpenWorkout();
-		while (seeded) {
-			await repo.abandonWorkout(seeded.id);
-			seeded = await repo.getOpenWorkout();
-		}
-	}
-
 	it("sets activeWorkoutId to null when there's no open workout at all", async () => {
 		const repo = new MockLoggingRepository();
 		await withNoOpenWorkout(repo);

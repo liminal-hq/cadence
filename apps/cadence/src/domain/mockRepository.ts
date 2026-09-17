@@ -598,6 +598,12 @@ export class MockLoggingRepository implements LoggingRepository {
 	}
 
 	async createWorkout(localDate: string, title: string): Promise<Workout> {
+		// "Start workout"'s whole job is creating an active workout, so it must not be possible to
+		// end up with two by starting a second one while the first is still open.
+		const open = await this.getOpenWorkout();
+		if (open) {
+			throw new Error(`can't start a new workout while workout ${open.id} is already open`);
+		}
 		const created: Workout = {
 			id: newId('workout'),
 			date: localDate,
@@ -1083,6 +1089,12 @@ export class MockLoggingRepository implements LoggingRepository {
 		targetDate: string,
 		selectedRoutineExerciseIds: string[],
 	): Promise<Workout> {
+		// The materialized workout always lands as active, so it must not be created while a
+		// workout is already open.
+		const open = await this.getOpenWorkout();
+		if (open) {
+			throw new Error(`can't start a new workout while workout ${open.id} is already open`);
+		}
 		const section = await this.getRoutineSection(routineSectionId);
 		const routine = await this.getRoutine(section.routineId);
 		// Ordered by the caller's selectedRoutineExerciseIds — the reviewed order from the materialization review screen — not the routine's own order.

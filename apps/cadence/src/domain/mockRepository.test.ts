@@ -8,6 +8,17 @@ import { MockLoggingRepository, calculatePlatesPure } from './mockRepository';
 import { BARBELL_CONFIGS } from './seedData';
 import type { RestTimerState } from './types';
 
+// The seed fixture includes several already-open workouts — starting a new workout (directly or
+// via materialization) is now rejected while one is open (SPEC.md 8.1's single-active-workout
+// model), so tests that start one need to begin from a genuinely clean "nothing open" state.
+async function withNoOpenWorkout(repo: MockLoggingRepository) {
+	let open = await repo.getOpenWorkout();
+	while (open) {
+		await repo.abandonWorkout(open.id);
+		open = await repo.getOpenWorkout();
+	}
+}
+
 describe('MockLoggingRepository', () => {
 	let repo: MockLoggingRepository;
 
@@ -339,13 +350,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('duplicates a workout into a new planned workout on the target date', async () => {
-			// The seed fixture's own already-open workouts would otherwise trip the
-			// single-active-workout guard duplicateWorkout now enforces.
-			let open = await repo.getOpenWorkout();
-			while (open) {
-				await repo.abandonWorkout(open.id);
-				open = await repo.getOpenWorkout();
-			}
+			await withNoOpenWorkout(repo);
 			const duplicated = await repo.duplicateWorkout('workout-2026-09-04', '2026-09-20');
 
 			expect(duplicated.id).not.toBe('workout-2026-09-04');
@@ -385,6 +390,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('creates a fresh active workout with no exercises', async () => {
+			await withNoOpenWorkout(repo);
 			const created = await repo.createWorkout('2026-09-10', 'Push day');
 			expect(created.date).toBe('2026-09-10');
 			expect(created.title).toBe('Push day');
@@ -392,14 +398,22 @@ describe('MockLoggingRepository', () => {
 			expect(await repo.listWorkoutExercisesByWorkout(created.id)).toEqual([]);
 		});
 
+		it('rejects starting a new workout while another is already open', async () => {
+			// The seed fixture already has an open workout, which is exactly the conflict under
+			// test — no need to create one.
+			await expect(repo.createWorkout('2026-09-10', 'Push day')).rejects.toThrow('already open');
+		});
+
 		describe('completing, abandoning, and reopening', () => {
 			it('rejects completing a workout with no completed sets', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 				await expect(repo.completeWorkout(workout.id)).rejects.toThrow('no completed sets');
 			});
 
 			it('completes a workout that has a completed set', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
@@ -410,6 +424,7 @@ describe('MockLoggingRepository', () => {
 			});
 
 			it('abandons a workout with completed sets already logged, keeping them', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
@@ -420,6 +435,7 @@ describe('MockLoggingRepository', () => {
 			});
 
 			it('rejects abandoning or completing an already-terminal workout', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.abandonWorkout(workout.id);
 				await expect(repo.abandonWorkout(workout.id)).rejects.toThrow();
@@ -430,6 +446,7 @@ describe('MockLoggingRepository', () => {
 			// running for a workout's last set must be dismissed on completion — otherwise its
 			// countdown and "next set" label would leak into whatever workout gets started next.
 			it('dismisses the rest timer when completing a workout', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				const we = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 				await repo.logNewSet(we.id, { weightKg: 60, reps: 5 });
@@ -441,6 +458,7 @@ describe('MockLoggingRepository', () => {
 			});
 
 			it('dismisses the rest timer when abandoning a workout', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.startRestTimer(120_000);
 
@@ -450,52 +468,41 @@ describe('MockLoggingRepository', () => {
 			});
 
 			it('reopens a completed or abandoned workout back to active', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.abandonWorkout(workout.id);
-				// The seed fixture's own already-open workouts would otherwise trip the
-				// single-active-workout guard reopen now enforces.
-				let open = await repo.getOpenWorkout();
-				while (open) {
-					await repo.abandonWorkout(open.id);
-					open = await repo.getOpenWorkout();
-				}
 				const reopened = await repo.reopenWorkout(workout.id);
 				expect(reopened.status).toBe('active');
 				expect(reopened.completedAt).toBeUndefined();
 			});
 
 			it('rejects reopening a workout while another is already open', async () => {
-				const workout = await repo.createWorkout('2026-09-10', 'Push day');
-				await repo.abandonWorkout(workout.id);
-				// The seed fixture already has an open workout, which is exactly the scenario
-				// under test — no need to create one.
-				await expect(repo.reopenWorkout(workout.id)).rejects.toThrow('already open');
+				await withNoOpenWorkout(repo);
+				const target = await repo.createWorkout('2026-09-10', 'Push day');
+				await repo.abandonWorkout(target.id);
+				const currentlyOpen = await repo.createWorkout('2026-09-16', 'Pull day');
+
+				await expect(repo.reopenWorkout(target.id)).rejects.toThrow('already open');
+
+				expect((await repo.getWorkout(currentlyOpen.id)).status).toBe('active');
+				expect((await repo.getWorkout(target.id)).status).toBe('abandoned');
 			});
 
 			it('rejects reopening a workout that is still active', async () => {
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await expect(repo.reopenWorkout(workout.id)).rejects.toThrow();
 			});
 		});
 
 		describe('getOpenWorkout', () => {
-			// Clears the seed fixture's own already-open workouts, so these tests start from a
-			// genuinely clean "nothing open" state.
-			async function abandonEveryOpenWorkout() {
-				let open = await repo.getOpenWorkout();
-				while (open) {
-					await repo.abandonWorkout(open.id);
-					open = await repo.getOpenWorkout();
-				}
-			}
-
 			it('returns null when nothing is open', async () => {
-				await abandonEveryOpenWorkout();
+				await withNoOpenWorkout(repo);
 				expect(await repo.getOpenWorkout()).toBeNull();
 			});
 
 			it('finds an open workout regardless of its date', async () => {
-				await abandonEveryOpenWorkout();
+				await withNoOpenWorkout(repo);
 				// SPEC.md 8.1's single-active-workout model is global, not scoped to today —
 				// exactly what reopening an older completed/abandoned workout produces.
 				const workout = await repo.createWorkout('2020-01-01', 'Old workout');
@@ -503,7 +510,7 @@ describe('MockLoggingRepository', () => {
 			});
 
 			it('ignores completed and abandoned workouts', async () => {
-				await abandonEveryOpenWorkout();
+				await withNoOpenWorkout(repo);
 				const workout = await repo.createWorkout('2026-09-10', 'Push day');
 				await repo.abandonWorkout(workout.id);
 				expect(await repo.getOpenWorkout()).toBeNull();
@@ -511,6 +518,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('adds an exercise to a workout, appending at the end of its order', async () => {
+			await withNoOpenWorkout(repo);
 			const workout = await repo.createWorkout('2026-09-10', 'Push day');
 			const first = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 			expect(first.order).toBe(1);
@@ -520,6 +528,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('removes a workout exercise', async () => {
+			await withNoOpenWorkout(repo);
 			const workout = await repo.createWorkout('2026-09-10', 'Push day');
 			const added = await repo.addWorkoutExercise(workout.id, 'ex-bench-press');
 			await repo.deleteWorkoutExercise(added.id);
@@ -716,12 +725,14 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('materializes a section into a real workout, resolving explicit and seeded templates', async () => {
+			await withNoOpenWorkout(repo);
 			// Seed history: a completed 82.5kg x 6 bench-press set in the latest workout —
 			// seedData.ts's fixtures already give ex-bench-press completed history up to
 			// 2026-09-09, so this must date later than that to be the one that resolves.
 			const historyWorkout = await repo.createWorkout('2026-09-15', 'Later session');
 			const historyExercise = await repo.addWorkoutExercise(historyWorkout.id, 'ex-bench-press');
 			await repo.logNewSet(historyExercise.id, { weightKg: 82.5, reps: 6 });
+			await repo.abandonWorkout(historyWorkout.id);
 
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
@@ -745,12 +756,14 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('never seeds from performance after the target date', async () => {
+			await withNoOpenWorkout(repo);
 			// seedData.ts's fixtures already give ex-bench-press earlier history, so this asserts
 			// the injected *future* value specifically never wins, rather than requiring a clean
 			// no-history exercise.
 			const laterWorkout = await repo.createWorkout('2026-09-15', 'Later session');
 			const laterExercise = await repo.addWorkoutExercise(laterWorkout.id, 'ex-bench-press');
 			await repo.logNewSet(laterExercise.id, { weightKg: 999, reps: 4 });
+			await repo.abandonWorkout(laterWorkout.id);
 
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
@@ -764,10 +777,12 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('prefers the latest workout date over completion order when seeding', async () => {
+			await withNoOpenWorkout(repo);
 			// The later-dated workout logs its set first...
 			const newerWorkout = await repo.createWorkout('2026-09-16', 'Push B');
 			const newerExercise = await repo.addWorkoutExercise(newerWorkout.id, 'ex-bench-press');
 			await repo.logNewSet(newerExercise.id, { weightKg: 82.5, reps: 6 });
+			await repo.abandonWorkout(newerWorkout.id);
 
 			// ...then an earlier-dated workout is entered afterward, giving its set a later
 			// completedAt even though its training day came first. The nearer training day must
@@ -775,6 +790,7 @@ describe('MockLoggingRepository', () => {
 			const olderWorkout = await repo.createWorkout('2026-09-14', 'Push A');
 			const olderExercise = await repo.addWorkoutExercise(olderWorkout.id, 'ex-bench-press');
 			await repo.logNewSet(olderExercise.id, { weightKg: 70, reps: 10 });
+			await repo.abandonWorkout(olderWorkout.id);
 
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
@@ -788,6 +804,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('honours the reviewed order over the routines own order', async () => {
+			await withNoOpenWorkout(repo);
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const bench = await repo.addRoutineExercise(section.id, 'ex-bench-press');
@@ -804,6 +821,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('renumbers superset positions among selected members only', async () => {
+			await withNoOpenWorkout(repo);
 			const routine = await repo.createRoutine('Superset A');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
@@ -835,6 +853,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('copies the routine exercise note and set label onto the workout', async () => {
+			await withNoOpenWorkout(repo);
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
@@ -854,6 +873,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('leaves a seeded template blank with no history', async () => {
+			await withNoOpenWorkout(repo);
 			const routine = await repo.createRoutine('Push day');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const exercise = await repo.addRoutineExercise(section.id, 'ex-running');
@@ -868,6 +888,7 @@ describe('MockLoggingRepository', () => {
 		});
 
 		it('only materializes the selected exercises and rebuilds superset grouping', async () => {
+			await withNoOpenWorkout(repo);
 			const routine = await repo.createRoutine('Superset A');
 			const section = await repo.addRoutineSection(routine.id, 'A');
 			const superset = await repo.createRoutineSuperset(section.id, '#ffcc00', true, 60_000);
@@ -892,6 +913,18 @@ describe('MockLoggingRepository', () => {
 			expect(workoutExercises[0].supersetGroupId).toBeDefined();
 			expect(workoutExercises[0].supersetGroupId).toBe(workoutExercises[1].supersetGroupId);
 			expect(workoutExercises[0].supersetGroupId).not.toBe(superset.id);
+		});
+
+		it('rejects materializing while a workout is already open', async () => {
+			const routine = await repo.createRoutine('Push day');
+			const section = await repo.addRoutineSection(routine.id, 'A');
+			const exercise = await repo.addRoutineExercise(section.id, 'ex-bench-press');
+
+			// The seed fixture already has an open workout, which is exactly the conflict under
+			// test — no need to create one.
+			await expect(
+				repo.materializeRoutineSection(section.id, '2026-09-20', [exercise.id]),
+			).rejects.toThrow('already open');
 		});
 	});
 
